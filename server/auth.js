@@ -56,32 +56,11 @@ export class AuthService {
    */
   verifySignature({ mode, publicKey, signature, message }) {
     if (!publicKey || !signature || !message) {
-      console.log('verifySignature: missing parameters', { publicKey: !!publicKey, signature: !!signature, message: !!message });
       return false;
     }
     
-    console.log('verifySignature input:', {
-      mode,
-      publicKeyLength: publicKey.length,
-      signatureLength: signature.length,
-      messageLength: message.length,
-      publicKeyHex: publicKey,
-      signatureHex: signature,
-      message: message
-    });
-    
     const digest = nimiqMessageDigest(message);
-    console.log('Message digest:', digest.toString('hex'));
-    
-    const result = verifyBytes(publicKey, digest, signature);
-    
-    if (!result) {
-      console.log('❌ Signature verification FAILED');
-    } else {
-      console.log('✅ Signature verification SUCCEEDED');
-    }
-    
-    return result;
+    return verifyBytes(publicKey, digest, signature);
   }
 
   /** Demo wallet: server holds the key (clearly labeled demo-only). */
