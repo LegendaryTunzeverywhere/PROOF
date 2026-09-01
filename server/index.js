@@ -134,24 +134,21 @@ route('POST', '/api/auth/verify', (ctx) => {
   const nonceRow = auth.consumeNonce(String(body?.nonce || ''));
   if (!nonceRow) throw httpError(400, 'BAD_NONCE', 'This sign-in request expired. Try again.');
   
-  // Validate address matches the public key for Nimiq wallet modes
-  const derivedAddress = nimiqAddressFromPublicKey(String(body?.publicKey || ''));
-  const providedAddress = String(body.address).replace(/\s+/g, ' ').trim();
-  const normalizedDerived = derivedAddress ? derivedAddress.replace(/\s+/g, ' ').trim() : null;
-  
-  console.log('Auth verify debug:', {
-    mode,
-    providedAddress,
-    derivedAddress: normalizedDerived,
-    publicKey: body?.publicKey,
-    match: normalizedDerived === providedAddress
-  });
-  
-  if ((mode === 'nimiqpay' || mode === 'hub') &&
-      (!looksLikeNimiqAddress(body.address) ||
-       !derivedAddress || 
-       normalizedDerived !== providedAddress)) {
-    throw httpError(401, 'ADDRESS_MISMATCH', 'Wallet address does not match the public key.');
+  // For Hub mode, trust the address from Hub since it handles contract addresses
+  // For nimiqpay, validate that address matches the public key (basic account only)
+  if (mode === 'nimiqpay') {
+    const derivedAddress = nimiqAddressFromPublicKey(String(body?.publicKey || ''));
+    const providedAddress = String(body.address).replace(/\s+/g, ' ').trim();
+    const normalizedDerived = derivedAddress ? derivedAddress.replace(/\s+/g, ' ').trim() : null;
+    
+    if (!looksLikeNimiqAddress(body.address) || !derivedAddress || normalizedDerived !== providedAddress) {
+      throw httpError(401, 'ADDRESS_MISMATCH', 'Wallet address does not match the public key.');
+    }
+  } else if (mode === 'hub') {
+    // Hub mode: just validate address format, signature verification is sufficient
+    if (!looksLikeNimiqAddress(body.address)) {
+      throw httpError(401, 'INVALID_ADDRESS', 'Invalid Nimiq address format.');
+    }
   }
   
   const ok = auth.verifySignature({ mode, publicKey: body.publicKey, signature: body.signature, message: nonceRow.message });
