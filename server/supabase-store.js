@@ -107,6 +107,11 @@ export class SupabaseStore {
   convertTimestamps(doc) {
     const converted = { ...doc };
     for (const [key, value] of Object.entries(converted)) {
+      // Skip bootTime and expiresAt - they should remain as Unix timestamps (bigint)
+      if (key === 'bootTime' || key === 'expiresAt') {
+        continue;
+      }
+      
       // Check if it's a timestamp field with a number value
       if (
         (key.endsWith('At') || key === 'postedAt' || key === 'bookedAt' || key === 'joinedAt' || 
