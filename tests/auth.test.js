@@ -22,8 +22,8 @@ test('wallet auth: real Ed25519 signature verifies; tampering fails', async (t) 
 test('wallet auth: nonce is single-use and expires', async (t) => {
   const tb = await testbed();
   const { nonce } = tb.auth.issueNonce('demo');
-  assert.ok(tb.auth.consumeNonce(nonce));
-  assert.equal(tb.auth.consumeNonce(nonce), null, 'nonce must be single-use');
+  assert.ok(await tb.auth.consumeNonce(nonce));
+  assert.equal(await tb.auth.consumeNonce(nonce), null, 'nonce must be single-use');
 });
 
 test('wallet auth: sessions authenticate the right user only', async (t) => {

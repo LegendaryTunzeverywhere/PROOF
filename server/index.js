@@ -128,7 +128,7 @@ route('POST', '/api/auth/nonce', (ctx) => {
   json(res, 200, auth.issueNonce(subject));
 });
 
-route('POST', '/api/auth/verify', (ctx) => {
+route('POST', '/api/auth/verify', async (ctx) => {
   const { body, req, res } = ctx;
   console.log('Auth verify request received:', {
     mode: body?.mode,
@@ -142,7 +142,7 @@ route('POST', '/api/auth/verify', (ctx) => {
   });
   
   const mode = body?.mode === 'nimiqpay' ? 'nimiqpay' : body?.mode === 'hub' ? 'hub' : 'demo';
-  const nonceRow = auth.consumeNonce(String(body?.nonce || ''));
+  const nonceRow = await auth.consumeNonce(String(body?.nonce || ''));
   console.log('Nonce row retrieved:', nonceRow);
   
   if (!nonceRow) {

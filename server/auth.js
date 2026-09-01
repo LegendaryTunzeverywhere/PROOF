@@ -41,11 +41,11 @@ export class AuthService {
     return { nonce, message };
   }
 
-  consumeNonce(nonce) {
-    const row = this.store.find('nonces', (n) => n.nonce === nonce && !n.used);
+  async consumeNonce(nonce) {
+    const row = await this.store.find('nonces', (n) => n.nonce === nonce && !n.used);
     if (!row) return null;
     if (now() - row.createdAt > NONCE_TTL_MS) return null;
-    this.store.update('nonces', row.id, { used: true });
+    await this.store.update('nonces', row.id, { used: true });
     this.store.save();
     return row;
   }
