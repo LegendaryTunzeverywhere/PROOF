@@ -7,6 +7,10 @@
 ALTER TABLE "MarketplaceTask" 
 ADD COLUMN IF NOT EXISTS "autoAccept" BOOLEAN DEFAULT false;
 
+-- Add minProof to MarketplaceTask (JSON field for skill requirements)
+ALTER TABLE "MarketplaceTask" 
+ADD COLUMN IF NOT EXISTS "minProof" JSONB;
+
 -- Add createdAt to Skill (if missing)
 ALTER TABLE "Skill" 
 ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT NOW();

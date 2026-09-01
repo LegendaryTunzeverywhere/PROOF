@@ -280,6 +280,7 @@ CREATE TABLE IF NOT EXISTS "MarketplaceTask" (
   description TEXT NOT NULL,
   tags TEXT[] DEFAULT '{}',
   "budgetLuna" BIGINT NOT NULL,
+  "minProof" JSONB,
   "minProofSkill" TEXT,
   "minProofMin" INT,
   "clientId" TEXT NOT NULL,
