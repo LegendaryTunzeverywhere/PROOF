@@ -283,7 +283,7 @@ CREATE TABLE IF NOT EXISTS "MarketplaceTask" (
   "minProof" JSONB,
   "minProofSkill" TEXT,
   "minProofMin" INT,
-  "clientId" TEXT NOT NULL,
+  "clientId" TEXT,
   status TEXT DEFAULT 'open',
   "autoAccept" BOOLEAN DEFAULT false,
   "escrowTxId" TEXT,

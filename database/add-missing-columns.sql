@@ -11,6 +11,10 @@ ADD COLUMN IF NOT EXISTS "autoAccept" BOOLEAN DEFAULT false;
 ALTER TABLE "MarketplaceTask" 
 ADD COLUMN IF NOT EXISTS "minProof" JSONB;
 
+-- Make clientId nullable (some demo tasks might not have a client)
+ALTER TABLE "MarketplaceTask" 
+ALTER COLUMN "clientId" DROP NOT NULL;
+
 -- Add createdAt to Skill (if missing)
 ALTER TABLE "Skill" 
 ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT NOW();
