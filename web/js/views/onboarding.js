@@ -125,14 +125,16 @@ export async function walletEntry(root) {
       btn.disabled = false; btn.innerHTML = hubBtn;
       const msg = String(err.message || err);
       let hint = '';
-      if (msg.includes('HUB_') || msg.includes('timeout') || msg.includes('popup')) {
-        hint = 'Popup may have been blocked. Please allow popups for this site.';
+      if (msg.includes('HUB_TIMEOUT') || msg.includes('Connection was closed')) {
+        hint = 'Hub popup timed out. Click again to retry - this is normal on first connect.';
+      } else if (msg.includes('timeout') || msg.includes('popup')) {
+        hint = 'Popup may have been blocked. Please allow popups for this site and try again.';
       } else if (msg.includes('NO_ACCOUNTS')) {
         hint = 'No accounts found. Please create an account in Nimiq Hub first.';
       } else if (msg.includes('SCRIPT_LOAD') || msg.includes('TRACKING') || msg.includes('storage')) {
         hint = 'Browser tracking prevention blocked the script. Try: 1) Use Brave/Firefox, 2) Disable tracking protection for this site, 3) Refresh the page.';
       }
-      toast('Nimiq Hub connection failed. ' + hint, 'bad', 4500);
+      toast('Nimiq Hub connection failed. ' + hint, 'bad', 5000);
     }
   });
 
