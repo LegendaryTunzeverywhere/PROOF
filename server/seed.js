@@ -137,13 +137,16 @@ export async function seed(store) {
   });
 
   /* teaching sessions (spec §15) */
-  const mkSession = (teacher, o) => store.insert('teaching_sessions', {
-    id: uid('ts'), teacherId: teacher.id, bookings: o.bookings || 0,
-    rating: o.ratings ? o.ratings.reduce((a, b) => a + b, 0) : null,
-    ratingCount: o.ratings ? o.ratings.length : 0,
-    createdAt: now() - (o.daysAgo || 20) * 86400000,
-    ...o,
-  });
+  const mkSession = (teacher, o) => {
+    const { daysAgo, ratings, ...rest } = o;
+    return store.insert('teaching_sessions', {
+      id: uid('ts'), teacherId: teacher.id, bookings: o.bookings || 0,
+      rating: ratings ? ratings.reduce((a, b) => a + b, 0) : null,
+      ratingCount: ratings ? ratings.length : 0,
+      createdAt: now() - (daysAgo || 20) * 86400000,
+      ...rest,
+    });
+  };
   mkSession(tunz, {
     skillSlug: 'python', title: 'Python for Beginners — 20 minutes',
     description: 'From zero to your first working script. We install, write, run, and you leave with a real automation idea for your own work.',
