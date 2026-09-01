@@ -284,6 +284,7 @@ CREATE TABLE IF NOT EXISTS "MarketplaceTask" (
   "minProofMin" INT,
   "clientId" TEXT NOT NULL,
   status TEXT DEFAULT 'open',
+  "autoAccept" BOOLEAN DEFAULT false,
   "escrowTxId" TEXT,
   "postedAt" TIMESTAMP DEFAULT NOW()
 );
