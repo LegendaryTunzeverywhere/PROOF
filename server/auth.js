@@ -112,41 +112,57 @@ export class AuthService {
     return token;
   }
 
-  userFromRequest(req) {
+  async userFromRequest(req) {
     const cookie = req.headers.cookie || '';
     const m = cookie.match(/(?:^|;\s*)proof_session=([^;]+)/);
+    console.log('[userFromRequest] Cookie match:', m ? 'found' : 'not found');
     if (!m) return null;
-    return this.userFromToken(decodeURIComponent(m[1]));
+    const token = decodeURIComponent(m[1]);
+    console.log('[userFromRequest] Token:', token.slice(0, 30) + '...');
+    const user = await this.userFromToken(token);
+    console.log('[userFromRequest] User from token:', user ? `${user.username} (${user.id})` : 'null');
+    return user;
   }
 
-  userFromToken(token) {
-    if (!token || !token.includes('.')) return null;
-    const row = this.store.get('sessions', token);
-    if (!row || row.expiresAt < now()) return null;
+  async userFromToken(token) {
+    console.log('[userFromToken] Looking up token:', token.slice(0, 30) + '...');
+    if (!token || !token.includes('.')) {
+      console.log('[userFromToken] Invalid token format');
+      return null;
+    }
+    const row = await this.store.get('sessions', token);
+    console.log('[userFromToken] Session row:', row ? { userId: row.userId, expiresAt: row.expiresAt } : 'null');
+    if (!row || row.expiresAt < now()) {
+      console.log('[userFromToken] Session not found or expired');
+      return null;
+    }
     
-    // Validate token signature to prevent forgery/replay
-    // Token must match: userId + createdAt + bootTime + entropy hashed with authSecret
+    // Validate token signature
     const [tokenId, providedSignature] = token.split('.');
     const payload = `${row.userId}:${row.createdAt}:${row.bootTime}:${row.entropy}`;
     const expectedSignature = hmac(payload, this.config.authSecret).slice(0, 32);
     
+    console.log('[userFromToken] Signature check:', { provided: providedSignature?.slice(0, 10), expected: expectedSignature?.slice(0, 10) });
+    
     if (providedSignature !== expectedSignature) {
-      // Signature mismatch - possible forgery or replay attack
-      this.store.remove('sessions', token);
+      console.log('[userFromToken] Signature mismatch!');
+      await this.store.remove('sessions', token);
       this.store.save();
       return null;
     }
     
-    // Additional check: boot time must match current server boot time ONLY for in-memory store
-    // For Supabase (persistent DB), sessions survive restarts
+    // Boot time check for in-memory store only
     const isSupabase = this.store.constructor.name === 'SupabaseStore';
     if (!isSupabase && row.bootTime !== SERVER_BOOT_TIME) {
-      this.store.remove('sessions', token);
+      console.log('[userFromToken] Boot time mismatch');
+      await this.store.remove('sessions', token);
       this.store.save();
       return null;
     }
     
-    return this.store.get('users', row.userId);
+    const user = await this.store.get('users', row.userId);
+    console.log('[userFromToken] Final user lookup:', user ? `${user.username} (${user.id})` : 'null');
+    return user;
   }
 
   destroySession(token) {

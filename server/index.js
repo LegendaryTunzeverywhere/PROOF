@@ -1084,7 +1084,7 @@ const server = http.createServer(async (req, res) => {
         const params = match(r.pattern, pathname);
         if (!params) continue;
         const body = ['POST', 'PATCH', 'PUT'].includes(req.method) ? await readBody(req) : null;
-        const user = auth.userFromRequest(req);
+        const user = await auth.userFromRequest(req);
         if (!pathname.startsWith('/p/') && requiresUser(r.pattern) && !user)
           throw httpError(401, 'UNAUTHENTICATED', 'Connect a wallet first — it takes one tap.');
         await r.handler({ req, res, params, query: url.searchParams, body, user });
