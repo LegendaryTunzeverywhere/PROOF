@@ -125,9 +125,10 @@ export class AuthService {
       return null;
     }
     
-    // Additional check: boot time must match current server boot time
-    // This invalidates all sessions from previous server instances
-    if (row.bootTime !== SERVER_BOOT_TIME) {
+    // Additional check: boot time must match current server boot time ONLY for in-memory store
+    // For Supabase (persistent DB), sessions survive restarts
+    const isSupabase = this.store.constructor.name === 'SupabaseStore';
+    if (!isSupabase && row.bootTime !== SERVER_BOOT_TIME) {
       this.store.remove('sessions', token);
       this.store.save();
       return null;

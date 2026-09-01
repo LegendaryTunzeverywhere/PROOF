@@ -23,6 +23,8 @@
     <h2>Test Connections:</h2>
     <button onclick="testHub()">Test Nimiq Hub</button>
     <button onclick="testPay()">Test Nimiq Pay</button>
+    <button onclick="testDemo()">Test Demo Wallet</button>
+    <button onclick="testFullAuth()">Test Full Auth Flow</button>
     <button onclick="clearLog()">Clear Log</button>
     
     <h3>Connection Log:</h3>
@@ -103,16 +105,27 @@
         async function testPay() {
             log('🔵 Testing Nimiq Pay...', 'info');
             try {
+                // Check environment first
+                log(`window.nimiqPay: ${window.nimiqPay ? 'present' : 'not present'}`, 'info');
+                log(`window.nimiqPay?.active: ${window.nimiqPay?.active}`, 'info');
+                log(`window.NimiqMiniApp: ${window.NimiqMiniApp ? 'present' : 'not present'}`, 'info');
+                
                 if (!window.nimiqPay?.active && !window.NimiqMiniApp) {
-                    log('⚠️ Not inside Nimiq Pay app. This will only work in the Nimiq Pay mobile app.', 'error');
+                    log('⚠️ Not inside Nimiq Pay app.', 'error');
+                    log('ℹ️ To test Nimiq Pay:', 'info');
+                    log('1. Install Nimiq Pay app from https://www.nimiq.com/pay/', 'info');
+                    log('2. Open this URL inside the Nimiq Pay app', 'info');
+                    log('3. The app will inject the provider', 'info');
                     return;
                 }
                 
                 // Try loading SDK
+                log('✅ Inside Nimiq Pay environment!', 'success');
                 log('Loading Nimiq Pay SDK...', 'info');
                 const SDK_URLS = [
-                    'https://esm.sh/@nimiq/mini-app-sdk',
-                    'https://cdn.jsdelivr.net/npm/@nimiq/mini-app-sdk/+esm'
+                    'https://esm.sh/@nimiq/mini-app-sdk@latest',
+                    'https://cdn.jsdelivr.net/npm/@nimiq/mini-app-sdk/+esm',
+                    'https://unpkg.com/@nimiq/mini-app-sdk@latest/+esm'
                 ];
                 
                 for (const url of SDK_URLS) {
@@ -127,6 +140,12 @@
                             const accounts = await nimiq.listAccounts();
                             log(`✅ Accounts: ${JSON.stringify(accounts)}`, 'success');
                             
+                            // Try signing a test message
+                            const testMsg = 'PROOF Test - ' + new Date().toISOString();
+                            log(`Signing test message...`, 'info');
+                            const signature = await nimiq.sign(testMsg);
+                            log(`✅ Message signed: ${signature}`, 'success');
+                            
                             log('🎉 Nimiq Pay connection works!', 'success');
                             return;
                         }
@@ -138,6 +157,150 @@
                 log('❌ Could not load Nimiq Pay SDK', 'error');
             } catch (error) {
                 log(`❌ Pay test failed: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+        
+        // Test Demo Wallet
+        async function testDemo() {
+            log('🔵 Testing Demo Wallet...', 'info');
+            try {
+                // Step 1: Create demo wallet
+                log('Creating demo wallet...', 'info');
+                const response = await fetch('/api/wallet/demo', { method: 'POST' });
+                const demo = await response.json();
+                log(`✅ Demo wallet created`, 'success');
+                log(`Public Key: ${demo.publicKey}`, 'info');
+                
+                // Step 2: Get nonce
+                log('Requesting nonce...', 'info');
+                const nonceResp = await fetch('/api/auth/nonce', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subject: demo.publicKey })
+                });
+                const { nonce, message } = await nonceResp.json();
+                log(`✅ Nonce received: ${nonce}`, 'success');
+                
+                // Step 3: Sign message
+                log(`Signing message...`, 'info');
+                const signResp = await fetch('/api/wallet/demo/sign', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ privateKey: demo.privateKey, message })
+                });
+                const { signature } = await signResp.json();
+                log(`✅ Message signed`, 'success');
+                
+                // Step 4: Verify and authenticate
+                log('Verifying signature and creating session...', 'info');
+                const verifyResp = await fetch('/api/auth/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mode: 'demo',
+                        nonce,
+                        publicKey: demo.publicKey,
+                        signature
+                    })
+                });
+                
+                if (!verifyResp.ok) {
+                    const error = await verifyResp.text();
+                    throw new Error(`Verification failed: ${error}`);
+                }
+                
+                const result = await verifyResp.json();
+                log(`✅ Authentication successful!`, 'success');
+                log(`User ID: ${result.user.id}`, 'success');
+                log(`Username: ${result.user.username}`, 'success');
+                
+                log('🎉 Demo wallet works!', 'success');
+            } catch (error) {
+                log(`❌ Demo test failed: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+        
+        // Test Full Auth Flow with Hub
+        async function testFullAuth() {
+            log('🔵 Testing Full Hub Authentication Flow...', 'info');
+            try {
+                // Load Hub API if not already loaded
+                if (!window.HubApi) {
+                    log('Loading Hub API...', 'info');
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = 'https://cdn.jsdelivr.net/npm/@nimiq/hub-api@v1.10.0/dist/standalone/HubApi.standalone.umd.js';
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                    log('✅ Hub API loaded', 'success');
+                }
+                
+                const hubApi = new HubApi('https://hub.nimiq.com');
+                
+                // Step 1: Choose address
+                log('Opening Hub to choose address...', 'info');
+                const { address } = await hubApi.chooseAddress({ appName: 'PROOF Test' });
+                log(`✅ Address selected: ${address}`, 'success');
+                
+                // Step 2: Get nonce from server
+                log('Requesting nonce from server...', 'info');
+                const nonceResp = await fetch('/api/auth/nonce', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subject: address })
+                });
+                const { nonce, message } = await nonceResp.json();
+                log(`✅ Nonce received: ${nonce}`, 'success');
+                log(`Message to sign: ${message}`, 'info');
+                
+                // Step 3: Sign message via Hub
+                log('Opening Hub to sign message...', 'info');
+                const signed = await hubApi.signMessage({
+                    appName: 'PROOF Test',
+                    message,
+                    signer: address
+                });
+                log(`✅ Message signed!`, 'success');
+                
+                // Convert Uint8Arrays to hex
+                const publicKeyHex = Array.from(signed.signerPublicKey, b => b.toString(16).padStart(2, '0')).join('');
+                const signatureHex = Array.from(signed.signature, b => b.toString(16).padStart(2, '0')).join('');
+                
+                log(`Public Key: ${publicKeyHex}`, 'info');
+                log(`Signature: ${signatureHex}`, 'info');
+                
+                // Step 4: Verify with server
+                log('Verifying signature with server...', 'info');
+                const verifyResp = await fetch('/api/auth/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mode: 'hub',
+                        nonce,
+                        address,
+                        publicKey: publicKeyHex,
+                        signature: signatureHex
+                    })
+                });
+                
+                if (!verifyResp.ok) {
+                    const error = await verifyResp.text();
+                    throw new Error(`Verification failed: ${error}`);
+                }
+                
+                const result = await verifyResp.json();
+                log(`✅ Authentication successful!`, 'success');
+                log(`User ID: ${result.user.id}`, 'success');
+                log(`Username: ${result.user.username}`, 'success');
+                log(`Wallet: ${result.user.walletAddress}`, 'success');
+                
+                log('🎉 Full Hub authentication flow works!', 'success');
+            } catch (error) {
+                log(`❌ Full auth test failed: ${error.message}`, 'error');
                 console.error(error);
             }
         }
