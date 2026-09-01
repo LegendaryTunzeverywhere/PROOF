@@ -340,6 +340,27 @@ CREATE TABLE IF NOT EXISTS "Review" (
   UNIQUE("sessionId", "userId")
 );
 
+-- Auth tables (sessions and nonces)
+CREATE TABLE IF NOT EXISTS "sessions" (
+  id TEXT PRIMARY KEY,
+  "userId" TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+  "bootTime" BIGINT NOT NULL,
+  "expiresAt" BIGINT NOT NULL,
+  "createdAt" TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS "nonces" (
+  id TEXT PRIMARY KEY,
+  nonce TEXT UNIQUE NOT NULL,
+  message TEXT NOT NULL,
+  subject TEXT,
+  used BOOLEAN DEFAULT false,
+  "createdAt" TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS "idx_nonces_nonce" ON "nonces"(nonce) WHERE used = false;
+CREATE INDEX IF NOT EXISTS "idx_sessions_user" ON "sessions"("userId");
+
 -- ============================================================
 -- SOCRATIC TEACHING TABLES
 -- ============================================================

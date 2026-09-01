@@ -48,6 +48,8 @@ export class SupabaseStore {
       'teaching_sessions': 'TeachingSession',
       'bookings': 'Booking',
       'reviews': 'Review',
+      'sessions': 'sessions',
+      'nonces': 'nonces',
       'socratic_sessions': 'socratic_sessions',
       'user_glossary': 'user_glossary',
       'review_schedules': 'ReviewSchedule',
