@@ -34,6 +34,20 @@ if (store instanceof Store) {
   if (!fs.existsSync(path.join(config.dataDir, 'proof.json'))) {
     await seed(store);
   }
+} else {
+  // Using Supabase - seed only if tables are empty
+  console.log('🗄️  Using Supabase - checking if seed needed...');
+  const skillCount = await store.count('skills');
+  if (skillCount === 0) {
+    console.log('📦 Seeding Supabase with demo data...');
+    try {
+      await seed(store);
+      console.log('✅ Seed completed');
+    } catch (err) {
+      console.error('❌ Seed failed:', err.message);
+      console.error('   Server will continue without demo data');
+    }
+  }
 }
 validateConfig(console);
 
