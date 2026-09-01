@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PROOF Wallet Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+        .status { padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { padding: 12px 24px; margin: 10px; font-size: 16px; cursor: pointer; }
+        #log { background: #f5f5f5; padding: 15px; border-radius: 5px; white-space: pre-wrap; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🔌 PROOF Wallet Connection Test</h1>
+    
+    <div class="status info">
+        <strong>Environment:</strong> 
+        <span id="env">Detecting...</span>
+    </div>
+    
+    <h2>Test Connections:</h2>
+    <button onclick="testHub()">Test Nimiq Hub</button>
+    <button onclick="testPay()">Test Nimiq Pay</button>
+    <button onclick="clearLog()">Clear Log</button>
+    
+    <h3>Connection Log:</h3>
+    <div id="log"></div>
+    
+    <script>
+        const log = (msg, type = 'info') => {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'blue';
+            logEl.innerHTML += `<div style="color: ${color}">[${timestamp}] ${msg}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        };
+        
+        const clearLog = () => {
+            document.getElementById('log').innerHTML = '';
+        };
+        
+        // Detect environment
+        const detectEnv = () => {
+            const envEl = document.getElementById('env');
+            if (window.nimiqPay?.active) {
+                envEl.textContent = '✅ Inside Nimiq Pay App';
+                envEl.parentElement.className = 'status success';
+            } else if (window.NimiqMiniApp) {
+                envEl.textContent = '✅ Nimiq Mini App detected';
+                envEl.parentElement.className = 'status success';
+            } else {
+                envEl.textContent = '🌐 Regular Browser (Hub only)';
+                envEl.parentElement.className = 'status info';
+            }
+        };
+        
+        // Test Nimiq Hub
+        async function testHub() {
+            log('🔵 Testing Nimiq Hub...', 'info');
+            try {
+                // Load Hub API
+                log('Loading Hub API...', 'info');
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/@nimiq/hub-api@v1.10.0/dist/standalone/HubApi.standalone.umd.js';
+                script.onload = async () => {
+                    log('✅ Hub API loaded', 'success');
+                    
+                    const hubApi = new HubApi('https://hub.nimiq.com');
+                    log('Hub API initialized', 'info');
+                    
+                    // Step 1: Choose address
+                    log('Opening Hub to choose address...', 'info');
+                    const { address } = await hubApi.chooseAddress({ appName: 'PROOF Test' });
+                    log(`✅ Address selected: ${address}`, 'success');
+                    
+                    // Step 2: Sign message
+                    const message = 'PROOF Test - ' + new Date().toISOString();
+                    log(`Requesting signature for: "${message}"`, 'info');
+                    const signed = await hubApi.signMessage({
+                        appName: 'PROOF Test',
+                        message,
+                        signer: address
+                    });
+                    log(`✅ Message signed!`, 'success');
+                    log(`Public Key: ${Array.from(signed.signerPublicKey, b => b.toString(16).padStart(2, '0')).join('')}`, 'info');
+                    log(`Signature: ${Array.from(signed.signature, b => b.toString(16).padStart(2, '0')).join('')}`, 'info');
+                    
+                    log('🎉 Nimiq Hub connection works!', 'success');
+                };
+                script.onerror = () => {
+                    log('❌ Failed to load Hub API', 'error');
+                };
+                document.head.appendChild(script);
+            } catch (error) {
+                log(`❌ Hub test failed: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+        
+        // Test Nimiq Pay
+        async function testPay() {
+            log('🔵 Testing Nimiq Pay...', 'info');
+            try {
+                if (!window.nimiqPay?.active && !window.NimiqMiniApp) {
+                    log('⚠️ Not inside Nimiq Pay app. This will only work in the Nimiq Pay mobile app.', 'error');
+                    return;
+                }
+                
+                // Try loading SDK
+                log('Loading Nimiq Pay SDK...', 'info');
+                const SDK_URLS = [
+                    'https://esm.sh/@nimiq/mini-app-sdk',
+                    'https://cdn.jsdelivr.net/npm/@nimiq/mini-app-sdk/+esm'
+                ];
+                
+                for (const url of SDK_URLS) {
+                    try {
+                        log(`Trying SDK from: ${url}`, 'info');
+                        const mod = await import(url);
+                        if (mod?.init) {
+                            log('✅ SDK loaded, initializing...', 'success');
+                            const nimiq = await mod.init();
+                            log('✅ SDK initialized', 'success');
+                            
+                            const accounts = await nimiq.listAccounts();
+                            log(`✅ Accounts: ${JSON.stringify(accounts)}`, 'success');
+                            
+                            log('🎉 Nimiq Pay connection works!', 'success');
+                            return;
+                        }
+                    } catch (e) {
+                        log(`Failed with ${url}: ${e.message}`, 'error');
+                    }
+                }
+                
+                log('❌ Could not load Nimiq Pay SDK', 'error');
+            } catch (error) {
+                log(`❌ Pay test failed: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+        
+        // Initialize
+        detectEnv();
+        log('Test page loaded. Click buttons to test connections.', 'info');
+    </script>
+</body>
+</html>
