@@ -182,8 +182,17 @@ route('POST', '/api/auth/verify', async (ctx) => {
     if (!user) user = await users.createUser({ walletMode: 'demo' });
     await users.update(user, { publicKey: body.publicKey, walletMode: 'demo' });
   }
+  
+  console.log('[verify] User created/found:', { id: user.id, username: user.username });
+  
   const token = await auth.createSession(user.id);
+  
+  console.log('[verify] Session created:', { token: token.slice(0, 20) + '...', userId: user.id });
+  console.log('[verify] Setting cookie...');
+  
   json(res, 200, { user: publicMe(user), demo: mode === 'demo' }, { 'set-cookie': sessionCookie(token) });
+  
+  console.log('[verify] Response sent with session cookie');
 });
 
 route('POST', '/api/wallet/demo', (ctx) => {
@@ -224,6 +233,8 @@ function publicMe(user) {
 
 route('GET', '/api/me', (ctx) => {
   const { user, res } = ctx;
+  console.log('[/api/me] Request - user:', user ? `${user.username} (${user.id})` : 'null');
+  console.log('[/api/me] Cookie header:', ctx.req.headers.cookie ? 'present' : 'missing');
   if (!user) {
     // Public view for anonymous visitors — avoid noisy 401s on first load.
     return json(res, 200, { user: null, skills: [], unread: 0, opportunities: 0 });
