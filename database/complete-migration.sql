@@ -249,6 +249,94 @@ CREATE TABLE IF NOT EXISTS "Notification" (
   "createdAt" TIMESTAMP DEFAULT NOW()
 );
 
+-- SponsoredChallenge table
+CREATE TABLE IF NOT EXISTS "SponsoredChallenge" (
+  id TEXT PRIMARY KEY DEFAULT ('spc_' || substr(md5(random()::text), 1, 12)),
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  "skillSlug" TEXT NOT NULL,
+  sponsor TEXT NOT NULL,
+  "poolLuna" BIGINT NOT NULL,
+  "topLuna" BIGINT NOT NULL,
+  "qualifiedLuna" BIGINT NOT NULL,
+  participants INT DEFAULT 0,
+  "endsInDays" INT DEFAULT 14
+);
+
+-- SponsoredParticipant table
+CREATE TABLE IF NOT EXISTS "SponsoredParticipant" (
+  id TEXT PRIMARY KEY DEFAULT ('spp_' || substr(md5(random()::text), 1, 12)),
+  key TEXT UNIQUE NOT NULL,
+  "userId" TEXT NOT NULL,
+  "sponsoredId" TEXT NOT NULL REFERENCES "SponsoredChallenge"(id) ON DELETE CASCADE,
+  "joinedAt" TIMESTAMP DEFAULT NOW()
+);
+
+-- MarketplaceTask table
+CREATE TABLE IF NOT EXISTS "MarketplaceTask" (
+  id TEXT PRIMARY KEY DEFAULT ('mkt_' || substr(md5(random()::text), 1, 12)),
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  tags TEXT[] DEFAULT '{}',
+  "budgetLuna" BIGINT NOT NULL,
+  "minProofSkill" TEXT,
+  "minProofMin" INT,
+  "clientId" TEXT NOT NULL,
+  status TEXT DEFAULT 'open',
+  "escrowTxId" TEXT,
+  "postedAt" TIMESTAMP DEFAULT NOW()
+);
+
+-- TaskApplication table
+CREATE TABLE IF NOT EXISTS "TaskApplication" (
+  id TEXT PRIMARY KEY DEFAULT ('app_' || substr(md5(random()::text), 1, 12)),
+  "taskId" TEXT NOT NULL REFERENCES "MarketplaceTask"(id) ON DELETE CASCADE,
+  "userId" TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+  pitch TEXT NOT NULL,
+  status "ApplicationStatus" DEFAULT 'pending',
+  "appliedAt" TIMESTAMP DEFAULT NOW(),
+  "respondedAt" TIMESTAMP,
+  UNIQUE("taskId", "userId")
+);
+
+-- TeachingSession table
+CREATE TABLE IF NOT EXISTS "TeachingSession" (
+  id TEXT PRIMARY KEY DEFAULT ('tch_' || substr(md5(random()::text), 1, 12)),
+  "teacherId" TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+  "skillSlug" TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  "durationMin" INT NOT NULL,
+  "priceLuna" BIGINT NOT NULL,
+  "maxStudents" INT DEFAULT 5,
+  bookings INT DEFAULT 0,
+  "ratingSum" INT DEFAULT 0,
+  "ratingCount" INT DEFAULT 0,
+  "createdAt" TIMESTAMP DEFAULT NOW()
+);
+
+-- Booking table
+CREATE TABLE IF NOT EXISTS "Booking" (
+  id TEXT PRIMARY KEY DEFAULT ('bkg_' || substr(md5(random()::text), 1, 12)),
+  "sessionId" TEXT NOT NULL REFERENCES "TeachingSession"(id) ON DELETE CASCADE,
+  "userId" TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+  "txId" TEXT,
+  "bookedAt" TIMESTAMP DEFAULT NOW(),
+  UNIQUE("sessionId", "userId")
+);
+
+-- Review table
+CREATE TABLE IF NOT EXISTS "Review" (
+  id TEXT PRIMARY KEY DEFAULT ('rev_' || substr(md5(random()::text), 1, 12)),
+  "sessionId" TEXT NOT NULL REFERENCES "TeachingSession"(id) ON DELETE CASCADE,
+  "userId" TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+  "revieweeId" TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+  rating INT NOT NULL,
+  text TEXT NOT NULL,
+  "createdAt" TIMESTAMP DEFAULT NOW(),
+  UNIQUE("sessionId", "userId")
+);
+
 -- ============================================================
 -- SOCRATIC TEACHING TABLES
 -- ============================================================
