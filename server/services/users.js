@@ -16,9 +16,9 @@ export class UserService {
     store.declareUniques('users', ['usernameLower']);
   }
 
-  createUser({ walletAddress = null, walletMode = null, isDemo = false, username = null } = {}) {
+  async createUser({ walletAddress = null, walletMode = null, isDemo = false, username = null } = {}) {
     const handle = username || `${ADJ[Math.floor(Math.random() * ADJ.length)]}${NOUN[Math.floor(Math.random() * NOUN.length)]}${Math.floor(10 + Math.random() * 89)}`;
-    const user = this.store.insert('users', {
+    const user = await this.store.insert('users', {
       id: uid('u'),
       username: handle,
       usernameLower: handle.toLowerCase(),
@@ -57,10 +57,10 @@ export class UserService {
     return this.store.find('users', (u) => u.publicKey === pubKey);
   }
 
-  update(user, patch) {
+  async update(user, patch) {
     delete patch.id; delete patch.balanceLuna; delete patch.earnedLuna; delete patch.xp; delete patch.level; delete patch.reputation;
     patch.updatedAt = now();
-    const next = this.store.update('users', user.id, patch);
+    const next = await this.store.update('users', user.id, patch);
     this.store.save();
     return next;
   }
