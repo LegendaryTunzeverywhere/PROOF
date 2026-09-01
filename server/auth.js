@@ -28,7 +28,7 @@ export class AuthService {
   }
 
   /** @returns {{nonce, message}} */
-  issueNonce(subject) {
+  async issueNonce(subject) {
     const nonce = uid('n');
     const message =
       `PROOF — sign in\n` +
@@ -36,8 +36,9 @@ export class AuthService {
       `nonce: ${nonce}\n` +
       `issued: ${new Date().toISOString()}\n` +
       `Signing proves you control this wallet. It does NOT move funds.`;
-    this.store.insert('nonces', { id: uid('nc'), nonce, message, subject: String(subject || '').slice(0, 120), createdAt: now(), used: false });
+    await this.store.insert('nonces', { id: uid('nc'), nonce, message, subject: String(subject || '').slice(0, 120), createdAt: now(), used: false });
     this.store.save();
+    console.log('[issueNonce] Nonce created and saved:', nonce);
     return { nonce, message };
   }
 

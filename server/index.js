@@ -120,12 +120,13 @@ route('POST', '/api/onboard', (ctx) => {
   json(res, 201, { user: publicMe(user), recommended: recommendNextSkill([]) }, { 'set-cookie': sessionCookie(token) });
 });
 
-route('POST', '/api/auth/nonce', (ctx) => {
+route('POST', '/api/auth/nonce', async (ctx) => {
   const { body, req, res } = ctx;
   if (limiter.allow('nonce:' + req.socket.remoteAddress, 12, 60_000) !== true)
     throw httpError(429, 'RATE_LIMITED', 'Too many nonce requests — wait a minute.');
   const subject = looksLikeNimiqAddress(body?.subject) ? body.subject : 'demo';
-  json(res, 200, auth.issueNonce(subject));
+  const result = await auth.issueNonce(subject);
+  json(res, 200, result);
 });
 
 route('POST', '/api/auth/verify', async (ctx) => {
