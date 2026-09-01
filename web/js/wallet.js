@@ -280,7 +280,7 @@ export class WalletServiceClass {
       const HubApi = windowWithMiniApp.HubApi || globalWindow.HubApi;
       const hubApi = hubApiInstance || (HubApi ? (hubApiInstance = new HubApi(HUB_ENDPOINT)) : await getHubApi());
       console.debug('[wallet] chooseAddress started');
-      const selected = await withTimeout(hubApi.chooseAddress({ appName: APP_NAME }), 20000, 'HUB_TIMEOUT');
+      const selected = await withTimeout(hubApi.chooseAddress({ appName: APP_NAME }), 60000, 'HUB_TIMEOUT');
       const address = selected?.address;
       if (typeof address !== 'string' || !address.trim()) throw new Error('NO_ADDRESS_SELECTED');
       console.debug('[wallet] address selected', address);
@@ -289,7 +289,7 @@ export class WalletServiceClass {
       const { nonce, message } = await api.post('/api/auth/nonce', { subject: address });
       console.debug('[wallet] requesting signature');
       const signed = await withTimeout(
-        hubApi.signMessage({ appName: APP_NAME, message, signer: address }), 20000, 'HUB_TIMEOUT'
+        hubApi.signMessage({ appName: APP_NAME, message, signer: address }), 60000, 'HUB_TIMEOUT'
       );
       if (!signed?.signer || !signed.signerPublicKey || !signed.signature) throw new Error('MALFORMED_HUB_RESPONSE');
       if (String(signed.signer).replace(/\s+/g, ' ').trim() !== address.replace(/\s+/g, ' ').trim()) throw new Error('HUB_SIGNER_MISMATCH');
