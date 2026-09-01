@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS "User" (
   "balanceLuna" BIGINT DEFAULT 0,
   "earnedLuna" BIGINT DEFAULT 0,
   "proofsPassed" INT DEFAULT 0,
+  "proofsAttempted" INT DEFAULT 0,
   "isDemo" BOOLEAN DEFAULT false,
   prefs JSONB DEFAULT '{}',
   "createdAt" TIMESTAMP DEFAULT NOW(),
