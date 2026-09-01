@@ -21,6 +21,7 @@
     </div>
     
     <h2>Test Connections:</h2>
+    <button onclick="testBasicAPI()">Test Basic API</button>
     <button onclick="testHub()">Test Nimiq Hub</button>
     <button onclick="testPay()">Test Nimiq Pay</button>
     <button onclick="testDemo()">Test Demo Wallet</button>
@@ -42,6 +43,65 @@
         const clearLog = () => {
             document.getElementById('log').innerHTML = '';
         };
+        
+        // Test basic API connectivity
+        async function testBasicAPI() {
+            log('🔵 Testing Basic API Connectivity...', 'info');
+            
+            // Test GET /api/me (should work without auth)
+            try {
+                log('Testing GET /api/me...', 'info');
+                const resp = await fetch('/api/me');
+                log(`Status: ${resp.status} ${resp.statusText}`, resp.ok ? 'success' : 'error');
+                const data = await resp.json();
+                log(`Response: ${JSON.stringify(data).slice(0, 100)}`, 'info');
+            } catch (e) {
+                log(`GET /api/me failed: ${e.message}`, 'error');
+            }
+            
+            // Test POST /api/wallet/demo
+            try {
+                log('Testing POST /api/wallet/demo...', 'info');
+                const resp = await fetch('/api/wallet/demo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                log(`Status: ${resp.status} ${resp.statusText}`, resp.ok ? 'success' : 'error');
+                log(`Headers: ${JSON.stringify([...resp.headers.entries()])}`, 'info');
+                const text = await resp.text();
+                log(`Response (first 200 chars): ${text.slice(0, 200)}`, text ? 'info' : 'error');
+                
+                if (resp.ok && text) {
+                    log('✅ POST /api/wallet/demo works!', 'success');
+                } else {
+                    log('❌ POST /api/wallet/demo failed', 'error');
+                }
+            } catch (e) {
+                log(`POST /api/wallet/demo failed: ${e.message}`, 'error');
+            }
+            
+            // Test POST /api/auth/nonce
+            try {
+                log('Testing POST /api/auth/nonce...', 'info');
+                const resp = await fetch('/api/auth/nonce', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subject: 'test-subject-123' })
+                });
+                log(`Status: ${resp.status} ${resp.statusText}`, resp.ok ? 'success' : 'error');
+                const text = await resp.text();
+                log(`Response (first 200 chars): ${text.slice(0, 200)}`, text ? 'info' : 'error');
+                
+                if (resp.ok && text) {
+                    log('✅ POST /api/auth/nonce works!', 'success');
+                } else {
+                    log('❌ POST /api/auth/nonce failed', 'error');
+                }
+            } catch (e) {
+                log(`POST /api/auth/nonce failed: ${e.message}`, 'error');
+            }
+        }
+        
         
         // Detect environment
         const detectEnv = () => {
@@ -254,14 +314,19 @@
                 
                 // Step 2: Get nonce from server
                 log('Requesting nonce from server...', 'info');
+                log(`Request: POST /api/auth/nonce`, 'info');
                 const nonceResp = await fetch('/api/auth/nonce', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ subject: address })
                 });
                 
+                log(`Response status: ${nonceResp.status} ${nonceResp.statusText}`, 'info');
+                log(`Response headers: ${JSON.stringify([...nonceResp.headers])}`, 'info');
+                
                 if (!nonceResp.ok) {
                     const errorText = await nonceResp.text();
+                    log(`Response body: ${errorText}`, 'error');
                     throw new Error(`Server returned ${nonceResp.status}: ${errorText}`);
                 }
                 
