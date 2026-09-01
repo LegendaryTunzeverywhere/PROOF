@@ -130,9 +130,23 @@ route('POST', '/api/auth/nonce', (ctx) => {
 
 route('POST', '/api/auth/verify', (ctx) => {
   const { body, req, res } = ctx;
+  console.log('Auth verify request received:', {
+    mode: body?.mode,
+    hasNonce: !!body?.nonce,
+    hasAddress: !!body?.address,
+    hasPublicKey: !!body?.publicKey,
+    hasSigner: !!body?.signer,
+    hasSignature: !!body?.signature,
+    publicKey: body?.publicKey?.slice(0, 16) + '...',
+    signature: body?.signature?.slice(0, 16) + '...'
+  });
+  
   const mode = body?.mode === 'nimiqpay' ? 'nimiqpay' : body?.mode === 'hub' ? 'hub' : 'demo';
   const nonceRow = auth.consumeNonce(String(body?.nonce || ''));
-  if (!nonceRow) throw httpError(400, 'BAD_NONCE', 'This sign-in request expired. Try again.');
+  if (!nonceRow) {
+    console.log('Nonce validation failed');
+    throw httpError(400, 'BAD_NONCE', 'This sign-in request expired. Try again.');
+  }
   
   // For Hub mode, trust the address from Hub since it handles contract addresses
   // For nimiqpay, validate that address matches the public key (basic account only)
@@ -151,7 +165,10 @@ route('POST', '/api/auth/verify', (ctx) => {
     }
   }
   
+  console.log('About to verify signature for mode:', mode);
   const ok = auth.verifySignature({ mode, publicKey: body.publicKey, signature: body.signature, message: nonceRow.message });
+  console.log('Signature verification result:', ok);
+  
   if (!ok) throw httpError(401, 'BAD_SIGNATURE', 'Signature verification failed — wallet ownership not proven.');
 
   let user = null;
