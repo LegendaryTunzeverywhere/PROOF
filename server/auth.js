@@ -55,18 +55,30 @@ export class AuthService {
    * @param {{mode:'nimiqpay'|'hub'|'demo', publicKey:string, signature:string, message:string}} p
    */
   verifySignature({ mode, publicKey, signature, message }) {
-    if (!publicKey || !signature || !message) return false;
+    if (!publicKey || !signature || !message) {
+      console.log('verifySignature: missing parameters', { publicKey: !!publicKey, signature: !!signature, message: !!message });
+      return false;
+    }
+    
+    console.log('verifySignature input:', {
+      mode,
+      publicKeyLength: publicKey.length,
+      signatureLength: signature.length,
+      messageLength: message.length,
+      publicKeyHex: publicKey,
+      signatureHex: signature,
+      message: message
+    });
+    
     const digest = nimiqMessageDigest(message);
+    console.log('Message digest:', digest.toString('hex'));
+    
     const result = verifyBytes(publicKey, digest, signature);
     
     if (!result) {
-      console.log('Signature verification failed:', {
-        mode,
-        publicKey: publicKey.slice(0, 16) + '...',
-        signature: signature.slice(0, 16) + '...',
-        messagePreview: message.slice(0, 100),
-        digestPreview: digest.toString('hex').slice(0, 32) + '...'
-      });
+      console.log('❌ Signature verification FAILED');
+    } else {
+      console.log('✅ Signature verification SUCCEEDED');
     }
     
     return result;
