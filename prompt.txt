@@ -1,0 +1,2471 @@
+# MASTER BUILD PROMPT
+
+# PROOF — Learn It. Prove It. Earn It.
+
+## 0. ROLE
+
+You are a senior product engineer, full-stack TypeScript developer, AI engineer, Web3 engineer, product designer, UX designer, and startup CTO.
+
+You are building a production-quality Nimiq Mini App for a competitive hackathon/mini-app competition.
+
+The product is called:
+
+# PROOF
+
+### Learn it. Prove it. Earn it.
+
+PROOF is an AI-powered skill-learning and skill-verification marketplace.
+
+Users can learn virtually anything, complete practical challenges, prove their ability through projects/tests, earn NIM rewards, and eventually monetize their verified skills by completing real tasks or teaching others.
+
+The application must feel like a polished startup/product, NOT a hackathon prototype.
+
+The blockchain should power the economy without making the application feel like a crypto application.
+
+---
+
+# 1. PRODUCT THESIS
+
+Traditional learning platforms optimize for:
+
+WATCHING CONTENT
+↓
+COMPLETING LESSONS
+↓
+GETTING A CERTIFICATE
+
+PROOF changes the model to:
+
+LEARN
+↓
+PRACTICE
+↓
+PROVE
+↓
+EARN
+↓
+WORK
+↓
+TEACH
+↓
+EARN MORE
+
+The fundamental idea:
+
+> Don't tell people you know something.
+> Prove it.
+
+A user should be able to say:
+
+"I want to learn Python."
+
+PROOF creates a learning path.
+
+The user studies.
+
+The AI teaches them.
+
+The user completes practical challenges.
+
+The AI evaluates their work.
+
+Their skill profile evolves.
+
+They earn NIM for completing eligible challenges.
+
+Once they demonstrate sufficient ability, they can use their verified skill to apply for paid tasks.
+
+---
+
+# 2. IMPORTANT PRODUCT PRINCIPLE
+
+DO NOT build a generic online course platform.
+
+DO NOT build:
+
+* Udemy clone
+* Coursera clone
+* Khan Academy clone
+* "watch videos and earn tokens"
+* generic AI chatbot
+* crypto certificate platform
+
+The differentiating mechanic is:
+
+# PROOF OF SKILL
+
+Learning only matters when the user can demonstrate competence.
+
+---
+
+# 3. TARGET USER
+
+The primary user is someone who:
+
+* wants to learn a practical skill
+* has limited access to expensive education
+* wants to build employable skills
+* wants feedback while learning
+* wants proof that they can actually do something
+* wants opportunities to monetize their ability
+
+The product should work particularly well for:
+
+* students
+* beginners
+* freelancers
+* creators
+* developers
+* designers
+* marketers
+* entrepreneurs
+* people changing careers
+
+---
+
+# 4. CORE USER JOURNEY
+
+The entire application should revolve around this flow:
+
+## STEP 1 — DISCOVER
+
+User opens PROOF.
+
+They see:
+
+"WHAT DO YOU WANT TO LEARN?"
+
+Examples:
+
+💻 Coding
+🎨 Design
+📈 Marketing
+🤖 AI
+🎵 Music
+🗣️ Languages
+💼 Business
+📱 Social Media
+✍️ Writing
+📊 Data
+🔧 Practical Skills
+
+There should also be a text input:
+
+"What do you want to learn?"
+
+Example:
+
+"I want to learn how to build websites."
+
+---
+
+# 5. AI LEARNING PATH
+
+The AI analyzes the user's goal and creates a structured learning path.
+
+Example:
+
+USER:
+
+"I want to learn web development."
+
+PROOF generates:
+
+WEB DEVELOPMENT
+
+Beginner → Intermediate
+
+7-Day Skill Path
+
+Day 1
+HTML Fundamentals
+
+* Skill XP
+* potential NIM reward
+
+Day 2
+CSS Fundamentals
+
+Day 3
+Responsive Layout
+
+Day 4
+JavaScript Basics
+
+Day 5
+APIs
+
+Day 6
+Build a Project
+
+Day 7
+Final Skill Assessment
+
+The learning path must be dynamic.
+
+It should not be a hardcoded list for every skill.
+
+---
+
+# 6. AI TUTOR
+
+Create an AI tutor.
+
+The tutor should:
+
+* explain concepts
+* answer questions
+* provide examples
+* adapt explanations to the learner
+* identify weaknesses
+* generate exercises
+* provide hints
+* avoid simply giving the answer
+
+The AI should behave like a teacher.
+
+Example:
+
+USER:
+
+"I don't understand JavaScript functions."
+
+AI:
+
+"Think of a function like a reusable machine..."
+
+Then:
+
+"Try this."
+
+The user receives an interactive exercise.
+
+---
+
+# 7. LEARNING MODES
+
+Support multiple learning formats.
+
+## EXPLAIN
+
+AI teaches the concept.
+
+## PRACTICE
+
+User answers questions.
+
+## BUILD
+
+User completes a practical task.
+
+## REVIEW
+
+AI evaluates their submission.
+
+## TEST
+
+AI generates an assessment.
+
+The system should prefer practical learning over passive reading.
+
+---
+
+# 8. THE PROOF SYSTEM
+
+This is the heart of the product.
+
+Every skill contains "proof checkpoints."
+
+Example:
+
+SKILL:
+HTML Basics
+
+Proof #1
+
+"Build a semantic webpage containing:
+
+* heading
+* navigation
+* article
+* image
+* footer"
+
+User submits their work.
+
+AI evaluates it.
+
+Result:
+
+PASS ✅
+
+Skill XP:
+
++100
+
+Potential reward:
+
++2 NIM
+
+---
+
+# 9. PRACTICAL CHALLENGES
+
+Challenges should require the user to DO something.
+
+Examples:
+
+CODING:
+
+"Build a responsive landing page."
+
+DESIGN:
+
+"Create a mobile banking dashboard."
+
+MARKETING:
+
+"Write a campaign for a new product."
+
+WRITING:
+
+"Write a 500-word product launch article."
+
+MUSIC:
+
+"Create an 8-bar chord progression."
+
+BUSINESS:
+
+"Create a business model for a small food company."
+
+DATA:
+
+"Analyze this dataset and identify three trends."
+
+LANGUAGE:
+
+"Have a simulated conversation in French."
+
+AI:
+
+"Create a useful AI workflow for a real business problem."
+
+---
+
+# 10. AI EVALUATION
+
+The AI should evaluate submissions using structured rubrics.
+
+DO NOT simply ask an LLM:
+
+"Is this good?"
+
+Instead define criteria.
+
+Example:
+
+WEB DESIGN
+
+Visual hierarchy: 20 points
+
+Responsive design: 20 points
+
+Semantic HTML: 20 points
+
+Accessibility: 15 points
+
+CSS quality: 15 points
+
+Completeness: 10 points
+
+TOTAL:
+
+100
+
+Pass threshold:
+
+70
+
+Return:
+
+SCORE:
+84/100
+
+PASS
+
+STRENGTHS:
+
+* good structure
+* responsive layout
+* readable typography
+
+WEAKNESSES:
+
+* missing alt text
+* inconsistent spacing
+
+NEXT STEP:
+
+Improve accessibility.
+
+---
+
+# 11. AI EVALUATION SAFETY
+
+AI grading must NOT be the sole source of truth for high-value rewards.
+
+For MVP:
+
+Use AI evaluation for learning feedback.
+
+For reward eligibility:
+
+require additional safeguards such as:
+
+* minimum challenge completion
+* server-side validation
+* anti-cheating checks
+* rate limits
+* deterministic checks where possible
+* human verification for high-value challenges
+
+Never allow a client to tell the server:
+
+"I scored 100."
+
+The server must determine the result.
+
+---
+
+# 12. NIM ECONOMY
+
+NIM should be deeply integrated.
+
+Use NIM for:
+
+## LEARNING REWARDS
+
+Eligible challenges can reward NIM.
+
+## CHALLENGE SPONSORSHIP
+
+Users or organizations can fund challenges.
+
+Example:
+
+"Learn Python Challenge"
+
+Prize pool:
+
+500 NIM
+
+## SKILL MARKETPLACE
+
+People can pay verified users for work.
+
+Example:
+
+"Build a landing page"
+
+Reward:
+
+50 NIM
+
+## TEACHING
+
+Verified users can charge NIM for mentoring.
+
+## TIPPING
+
+Users can tip excellent teachers/creators.
+
+NIM should be the native economic layer.
+
+---
+
+# 13. IMPORTANT ECONOMIC RULE
+
+Do NOT make the application pay users simply for consuming content.
+
+Bad:
+
+Watch lesson → receive NIM.
+
+Better:
+
+Learn → complete meaningful task → demonstrate competence → receive reward.
+
+The reward should incentivize genuine learning.
+
+---
+
+# 14. SPONSORED LEARNING
+
+Create:
+
+# SPONSOR A SKILL
+
+Someone can create a funded learning challenge.
+
+Example:
+
+COMMUNITY PYTHON CHALLENGE
+
+Sponsor:
+500 NIM
+
+Participants:
+87
+
+Prize structure:
+
+Top performers:
+200 NIM
+
+Other qualified learners:
+300 NIM
+
+This creates a mechanism where communities can fund education.
+
+---
+
+# 15. TEACH-TO-EARN
+
+A user who proves a skill can become a teacher.
+
+Example:
+
+Tunz
+
+Verified Skills:
+
+Python ██████████ 92%
+
+Web Development ████████ 84%
+
+Marketing ██████ 72%
+
+They can create:
+
+"Python for Beginners — 20 minutes"
+
+Price:
+
+5 NIM
+
+Another user pays.
+
+The teacher receives NIM.
+
+The platform may receive a small fee where appropriate.
+
+This creates:
+
+LEARN
+↓
+PROVE
+↓
+TEACH
+↓
+EARN
+
+---
+
+# 16. SKILL MARKETPLACE
+
+Create a marketplace where people can request work.
+
+Example:
+
+## TASK
+
+Build a landing page.
+
+Budget:
+
+50 NIM
+
+Required:
+
+HTML
+CSS
+JavaScript
+
+Minimum proof:
+
+Web Development ≥ 70
+
+Users with matching verified skills can apply.
+
+This is NOT a full Fiverr clone for the MVP.
+
+Implement a lightweight task marketplace.
+
+---
+
+# 17. VERIFIED SKILL PROFILE
+
+Each user gets a public skill profile.
+
+Example:
+
+# TUNZ
+
+Level 12
+
+⭐ Reputation 91
+
+Verified Skills:
+
+💻 Web Development — 87%
+
+🎨 UI Design — 76%
+
+🤖 AI — 82%
+
+📈 Marketing — 68%
+
+Proof:
+
+23 completed
+
+19 passed
+
+4 projects
+
+NIM earned:
+
+XXX
+
+The profile should emphasize demonstrated ability rather than credentials alone.
+
+---
+
+# 18. SKILL LEVELS
+
+Each skill can have:
+
+NOVICE
+
+BEGINNER
+
+INTERMEDIATE
+
+ADVANCED
+
+EXPERT
+
+Do not let users simply select their level.
+
+The level should be derived from completed proof.
+
+Example:
+
+0–20:
+Novice
+
+21–40:
+Beginner
+
+41–70:
+Intermediate
+
+71–90:
+Advanced
+
+91–100:
+Expert
+
+These thresholds should be configurable.
+
+---
+
+# 19. REPUTATION
+
+Separate:
+
+SKILL SCORE
+
+from
+
+SOCIAL REPUTATION.
+
+Skill score:
+
+How well the user performs challenges.
+
+Reputation:
+
+How other people experience the user.
+
+Reputation can increase through:
+
+* successful tasks
+* teaching
+* receiving positive reviews
+* helping others
+* completing commitments
+
+This prevents skill and social trust from becoming the same metric.
+
+---
+
+# 20. ANTI-CHEATING
+
+Implement basic protection.
+
+Users should not be able to:
+
+* submit unlimited attempts instantly
+* repeatedly farm rewards
+* manipulate scores
+* duplicate challenge rewards
+* modify XP client-side
+* modify NIM reward values
+* claim the same reward multiple times
+
+Use:
+
+* server-side challenge IDs
+* attempt IDs
+* completion records
+* unique constraints
+* rate limits
+* timestamps
+* reward transaction records
+
+For coding challenges, use sandboxed execution where appropriate.
+
+Never execute arbitrary user code directly on the API server.
+
+---
+
+# 21. WALLET INTEGRATION
+
+Integrate with the official Nimiq Mini Apps environment.
+
+Before implementing wallet functionality:
+
+1. Inspect the current official Nimiq Mini Apps documentation.
+2. Identify the currently supported wallet/provider APIs.
+3. Identify transaction APIs.
+4. Identify signing/authentication capabilities.
+5. Use the current official APIs rather than inventing APIs.
+
+Create:
+
+WalletService
+
+with:
+
+connect()
+
+disconnect()
+
+getAddress()
+
+getBalance()
+
+sendNim()
+
+signMessage()
+
+onAccountChange()
+
+Wallet functionality must be isolated from the UI.
+
+Never scatter blockchain logic across components.
+
+---
+
+# 22. WALLET AUTHENTICATION
+
+Where appropriate:
+
+1. User connects wallet.
+2. Server generates nonce.
+3. User signs nonce.
+4. Server verifies signature.
+5. Server creates authenticated session.
+
+Never use the wallet address alone as sufficient proof of ownership for sensitive operations.
+
+Never request seed phrases or private keys.
+
+---
+
+# 23. BLOCKCHAIN ARCHITECTURE
+
+Do NOT put all application data on-chain.
+
+OFF-CHAIN:
+
+* lessons
+* AI conversations
+* XP
+* skill scores
+* challenge attempts
+* profiles
+* reputation
+* marketplace metadata
+* leaderboards
+
+ON-CHAIN:
+
+* actual NIM payments
+* sponsored prize funding
+* selected reward distributions
+* tips
+* marketplace payments
+
+Blockchain should provide economic integrity where it matters.
+
+---
+
+# 24. DATABASE
+
+Use:
+
+PostgreSQL
+
+Prisma
+
+Recommended models:
+
+User
+
+Skill
+
+LearningPath
+
+Lesson
+
+Challenge
+
+ChallengeAttempt
+
+Submission
+
+Evaluation
+
+SkillProof
+
+Achievement
+
+Quest
+
+Reward
+
+WalletTransaction
+
+SponsoredChallenge
+
+MarketplaceTask
+
+TaskApplication
+
+TeachingSession
+
+Review
+
+Notification
+
+---
+
+# 25. USER MODEL
+
+User:
+
+id
+
+walletAddress
+
+username
+
+avatar
+
+level
+
+xp
+
+reputation
+
+createdAt
+
+updatedAt
+
+---
+
+# 26. SKILL MODEL
+
+Skill:
+
+id
+
+name
+
+slug
+
+description
+
+category
+
+difficulty
+
+metadata
+
+---
+
+# 27. USER SKILL MODEL
+
+UserSkill:
+
+id
+
+userId
+
+skillId
+
+score
+
+level
+
+xp
+
+verified
+
+verifiedAt
+
+---
+
+# 28. CHALLENGE MODEL
+
+Challenge:
+
+id
+
+skillId
+
+title
+
+description
+
+difficulty
+
+type
+
+rubric
+
+passScore
+
+reward
+
+rewardCurrency
+
+timeLimit
+
+createdAt
+
+---
+
+# 29. ATTEMPT MODEL
+
+ChallengeAttempt:
+
+id
+
+challengeId
+
+userId
+
+status
+
+startedAt
+
+submittedAt
+
+score
+
+evaluationId
+
+rewardClaimed
+
+---
+
+# 30. REWARD MODEL
+
+Reward:
+
+id
+
+userId
+
+challengeId
+
+amount
+
+currency
+
+status
+
+transactionId
+
+createdAt
+
+Ensure rewards cannot be claimed twice.
+
+---
+
+# 31. APPLICATION STRUCTURE
+
+Recommended:
+
+apps/
+
+web/
+
+api/
+
+packages/
+
+ui/
+
+shared/
+
+wallet/
+
+ai/
+
+game-or-learning-engine/
+
+database/
+
+Use TypeScript throughout.
+
+Use strict mode.
+
+Use reusable components.
+
+---
+
+# 32. FRONTEND
+
+Recommended:
+
+React
+
+TypeScript
+
+Vite or the appropriate Nimiq Mini App starter architecture.
+
+Use a modern component system.
+
+Use Framer Motion or another lightweight animation library.
+
+Keep the application fast.
+
+---
+
+# 33. PRIMARY NAVIGATION
+
+Mobile-first bottom navigation:
+
+🏠 HOME
+
+🧠 LEARN
+
+🎯 PROVE
+
+💼 WORK
+
+👤 PROFILE
+
+The current learning experience should always remain one tap away.
+
+---
+
+# 34. HOME SCREEN
+
+The home screen should immediately communicate:
+
+"What do you want to learn?"
+
+Hero:
+
+# LEARN ANYTHING.
+
+# PROVE IT.
+
+# EARN WITH IT.
+
+Search/input:
+
+"What skill do you want to learn?"
+
+Below:
+
+Continue Learning
+
+Daily Challenge
+
+Trending Skills
+
+Sponsored Challenges
+
+Recommended Tasks
+
+---
+
+# 35. LEARNING SCREEN
+
+Show:
+
+Skill title
+
+Current level
+
+Progress
+
+XP
+
+Next proof checkpoint
+
+Example:
+
+WEB DEVELOPMENT
+
+Intermediate
+
+████████░░ 82%
+
+Next:
+
+Build a responsive portfolio.
+
+Potential reward:
+
+5 NIM
+
+[START PROOF]
+
+---
+
+# 36. PROOF SCREEN
+
+This should feel different from normal lessons.
+
+Header:
+
+# PROVE YOUR SKILL
+
+Challenge:
+
+"Build a responsive product landing page."
+
+Requirements:
+
+✓ responsive
+
+✓ accessible
+
+✓ semantic HTML
+
+✓ mobile navigation
+
+Time:
+
+30 minutes
+
+[START CHALLENGE]
+
+---
+
+# 37. SUBMISSION EXPERIENCE
+
+Make submission simple.
+
+Depending on skill:
+
+* text
+* URL
+* file
+* image
+* code
+* answer
+* structured form
+
+Do not create a complicated upload workflow.
+
+After submission:
+
+"Analyzing your proof..."
+
+Show progress animation.
+
+Then:
+
+# 84 / 100
+
+PASS ✓
+
+---
+
+# 38. FEEDBACK SCREEN
+
+Example:
+
+## YOU PASSED
+
+84/100
+
++100 XP
+
++3 NIM
+
+### WHAT YOU DID WELL
+
+Strong layout.
+
+Good responsiveness.
+
+Clear hierarchy.
+
+### IMPROVE
+
+Accessibility needs work.
+
+### NEXT PROOF
+
+Build an interactive navigation system.
+
+[CONTINUE]
+
+---
+
+# 39. REWARD EXPERIENCE
+
+The NIM reward should feel satisfying.
+
+After a successful proof:
+
+Animate:
+
++3 NIM
+
++100 XP
+
+Skill level progress.
+
+Do not use excessive casino-like effects.
+
+The user should understand exactly why they received the reward.
+
+---
+
+# 40. MARKETPLACE SCREEN
+
+Show:
+
+## FIND WORK
+
+Recommended for you:
+
+Build a landing page
+50 NIM
+
+Requires:
+Web Development 75+
+
+---
+
+Create social media campaign
+30 NIM
+
+Requires:
+Marketing 65+
+
+---
+
+Design mobile UI
+75 NIM
+
+Requires:
+UI Design 80+
+
+Users can open a task and apply.
+
+---
+
+# 41. TEACH SCREEN
+
+Verified users see:
+
+# TEACH WHAT YOU KNOW
+
+"You've proven Web Development at 87%."
+
+Create:
+
+Title
+
+Description
+
+Duration
+
+Price in NIM
+
+Maximum students
+
+The platform should encourage users to convert verified knowledge into income.
+
+---
+
+# 42. PROFILE SCREEN
+
+Show:
+
+Avatar
+
+Username
+
+Wallet
+
+Level
+
+Reputation
+
+Total NIM earned
+
+Verified skills
+
+Proof history
+
+Completed tasks
+
+Teaching sessions
+
+Achievements
+
+Make this visually impressive.
+
+---
+
+# 43. PUBLIC PROOF
+
+Every verified skill should have a shareable proof page.
+
+Example:
+
+# PROOF VERIFIED
+
+Tunz
+
+Web Development
+
+Score:
+
+87/100
+
+Verified:
+
+August 31, 2026
+
+Proofs completed:
+
+14
+
+This should be shareable.
+
+The goal is to create a portable reputation.
+
+---
+
+# 44. SHAREABLE SKILL CARDS
+
+Generate attractive cards:
+
+PROOF
+
+Tunz
+
+VERIFIED SKILL
+
+WEB DEVELOPMENT
+
+87%
+
+14 PROOFS
+
+⭐ Reputation 91
+
+"Don't just say you can build.
+Prove it."
+
+Include a share button.
+
+---
+
+# 45. DISCOVERY
+
+Create a discovery feed.
+
+Examples:
+
+🔥 Trending skills
+
+🏆 Top learners
+
+💼 New tasks
+
+🎓 Popular teachers
+
+💰 Sponsored challenges
+
+This should make the application feel alive.
+
+---
+
+# 46. NOTIFICATIONS
+
+Examples:
+
+"Your proof was evaluated."
+
+"You passed Web Development Level 2."
+
+"You earned 3 NIM."
+
+"Someone accepted your task."
+
+"Your teaching session starts soon."
+
+"You've been invited to a sponsored challenge."
+
+---
+
+# 47. AI ARCHITECTURE
+
+Do not hardcode AI prompts directly into UI components.
+
+Create an AI service layer.
+
+Example:
+
+AIService
+
+generateLearningPath()
+
+generateLesson()
+
+generateExercise()
+
+generateChallenge()
+
+evaluateSubmission()
+
+generateFeedback()
+
+identifyWeaknesses()
+
+recommendNextSkill()
+
+Use structured JSON outputs.
+
+Validate all AI responses with schemas.
+
+Do not trust arbitrary LLM output.
+
+---
+
+# 48. AI LEARNING PATH GENERATION
+
+Input:
+
+user goal
+
+current skill level
+
+available time
+
+preferred learning style
+
+Output:
+
+structured:
+
+Skill
+
+Modules
+
+Lessons
+
+Practice exercises
+
+Proof challenges
+
+Estimated duration
+
+Difficulty
+
+Reward eligibility
+
+Store generated learning paths where appropriate.
+
+---
+
+# 49. AI PERSONALIZATION
+
+Ask optional onboarding questions:
+
+"What is your current level?"
+
+"How much time can you learn each day?"
+
+"What is your goal?"
+
+Example:
+
+"I want to freelance."
+
+The system can prioritize skills with practical marketplace opportunities.
+
+---
+
+# 50. AI SHOULD NOT OVERTEACH
+
+Keep lessons concise.
+
+A good lesson:
+
+1. Explain.
+2. Example.
+3. Ask.
+4. Practice.
+5. Proof.
+
+Avoid massive walls of text.
+
+---
+
+# 51. GAMIFICATION
+
+Use:
+
+XP
+
+Levels
+
+Streaks
+
+Achievements
+
+Skill mastery
+
+Reputation
+
+Leaderboards
+
+Daily challenges
+
+But avoid turning education into mindless point farming.
+
+The core progression must remain actual competence.
+
+---
+
+# 52. DAILY CHALLENGE
+
+Each day:
+
+# TODAY'S PROOF
+
+Example:
+
+"Explain one concept you learned yesterday."
+
+Reward:
+
++1 NIM
+
++50 XP
+
+The system should prevent repeated farming.
+
+---
+
+# 53. STREAKS
+
+Track learning consistency.
+
+Example:
+
+🔥 7 DAY STREAK
+
+Do not make streaks punitive.
+
+Users should not lose all progress if they miss one day.
+
+---
+
+# 54. ACHIEVEMENTS
+
+Examples:
+
+FIRST PROOF
+
+Complete your first challenge.
+
+SKILL BUILDER
+
+Reach Intermediate.
+
+VERIFIED
+
+Pass your first advanced challenge.
+
+MENTOR
+
+Teach your first learner.
+
+FIRST GIG
+
+Complete your first marketplace task.
+
+NIM EARNER
+
+Earn your first NIM.
+
+KNOWLEDGE SHARER
+
+Help 10 learners.
+
+---
+
+# 55. LEADERBOARD
+
+Avoid purely ranking users by money.
+
+Instead:
+
+🏆 TOP PROOFERS
+
+Categories:
+
+Most skills verified
+
+Highest average score
+
+Most helpful
+
+Best teacher
+
+Most consistent
+
+Most tasks completed
+
+Most NIM earned
+
+---
+
+# 56. DESIGN LANGUAGE
+
+The application should look premium.
+
+Not "crypto."
+
+Use:
+
+* clean typography
+* beautiful cards
+* subtle gradients
+* rounded corners
+* strong spacing
+* modern illustrations
+* elegant animations
+* clear progress visualization
+
+The visual identity should communicate:
+
+KNOWLEDGE
+
+PROGRESS
+
+ACHIEVEMENT
+
+OPPORTUNITY
+
+Do not cover the UI with crypto logos.
+
+Nimiq should feel naturally embedded.
+
+---
+
+# 57. VISUAL HERO
+
+The home screen should contain a beautiful visual representation of progress.
+
+Possible concept:
+
+A glowing "Skill Tree."
+
+Each verified skill becomes a node.
+
+Example:
+
+```
+             AI
+             ●
+            /
+   Coding ●
+         /
+ Web ●──● Design
+      \
+       ● Marketing
+```
+
+As users prove skills, nodes activate.
+
+This becomes the user's visual knowledge map.
+
+---
+
+# 58. SKILL TREE
+
+Create an interactive skill tree.
+
+Locked:
+
+🔒 Python
+
+Unlocked:
+
+✓ HTML
+
+✓ CSS
+
+Progress:
+
+JavaScript 72%
+
+The skill tree should visually demonstrate:
+
+"I am becoming more capable."
+
+---
+
+# 59. MICRO-INTERACTIONS
+
+Use tasteful animations:
+
+* XP counter
+* skill unlock
+* proof submitted
+* proof passed
+* NIM reward
+* progress bars
+* skill tree activation
+* page transitions
+
+Keep animations fast.
+
+Do not sacrifice performance.
+
+---
+
+# 60. RESPONSIVE DESIGN
+
+Primary target:
+
+Mobile.
+
+Must work at:
+
+320px
+
+375px
+
+390px
+
+430px
+
+768px
+
+1024px+
+
+All important interactions must be comfortable with touch.
+
+---
+
+# 61. PERFORMANCE
+
+Optimize:
+
+* images
+* animations
+* AI requests
+* database queries
+* bundle size
+* rendering
+
+Avoid unnecessary dependencies.
+
+Lazy-load expensive screens.
+
+Cache appropriate data.
+
+---
+
+# 62. SECURITY
+
+Never trust client-provided:
+
+* scores
+* XP
+* skill levels
+* NIM rewards
+* task ownership
+* completion status
+
+Validate everything important on the backend.
+
+Use schema validation.
+
+Use rate limiting.
+
+Use authentication.
+
+Use authorization.
+
+---
+
+# 63. TRANSACTION SAFETY
+
+Every financial operation must have:
+
+pending
+
+success
+
+failed
+
+cancelled
+
+states.
+
+Never tell the user they received NIM before the transaction is actually confirmed according to the application's transaction model.
+
+Store transaction references.
+
+Handle network failures gracefully.
+
+---
+
+# 64. TESTING
+
+Create tests for:
+
+WalletService
+
+RewardService
+
+ChallengeService
+
+EvaluationService
+
+SkillService
+
+MarketplaceService
+
+Authentication
+
+Reward duplication prevention
+
+Challenge completion
+
+Permission checks
+
+API validation
+
+---
+
+# 65. DEMO DATA
+
+The application must not look empty.
+
+Seed:
+
+* example skills
+* example learning paths
+* example users
+* example teachers
+* example marketplace tasks
+* example sponsored challenges
+* example proof records
+
+Use fictional/demo identities.
+
+Clearly distinguish demo content from real user data where appropriate.
+
+---
+
+# 66. COMPETITION DEMO FLOW
+
+The entire product must be demonstrable in approximately 90 seconds.
+
+Suggested demo:
+
+1. Open PROOF.
+
+2. User enters:
+
+"I want to learn web development."
+
+3. AI generates a learning path.
+
+4. User selects:
+
+"Build a landing page."
+
+5. User completes/submits a small challenge.
+
+6. AI evaluates it.
+
+7. Result:
+
+84/100
+
+PASS ✓
+
+8. User receives:
+
++3 NIM
+
+9. Skill profile updates:
+
+Web Development
+84%
+
+10. Marketplace appears:
+
+"Someone needs a landing page."
+
+Reward:
+
+50 NIM
+
+11. User opens task.
+
+12. Their verified skill qualifies them.
+
+13. Show:
+
+"You don't just have a certificate.
+You have PROOF."
+
+This is the emotional climax.
+
+---
+
+# 67. THE "WOW" MOMENT
+
+The judge should see:
+
+Before:
+
+Web Development
+0%
+
+After proof:
+
+Web Development
+84%
+
+Then:
+
+✓ VERIFIED
+
++3 NIM
+
+Then:
+
+💼 You qualify for 7 opportunities.
+
+This connects:
+
+LEARNING
+
+to
+
+PROOF
+
+to
+
+MONEY.
+
+That is the entire product in one moment.
+
+---
+
+# 68. MVP PRIORITY
+
+## MUST HAVE
+
+1. Nimiq wallet connection
+2. AI learning path
+3. AI tutor
+4. Skill system
+5. Practical challenges
+6. Submission
+7. AI evaluation
+8. Proof score
+9. XP
+10. NIM rewards
+11. Verified skill profile
+12. Basic marketplace
+13. Basic teaching feature
+14. Leaderboard
+15. Mobile-first design
+16. Strong onboarding
+
+## NICE TO HAVE
+
+* advanced skill tree
+* sponsored challenges
+* social feed
+* mentoring
+* richer analytics
+* advanced anti-cheating
+* live teaching
+* advanced recommendation engine
+
+---
+
+# 69. DO NOT BUILD IN MVP
+
+Do NOT build:
+
+* full Udemy marketplace
+* video hosting platform
+* complex social network
+* DAO
+* NFT certificates
+* token launch
+* complicated DeFi
+* sophisticated payroll
+* full Fiverr clone
+* video conferencing
+* advanced proctoring
+* massive course library
+* complex reputation oracle
+
+These can come later.
+
+---
+
+# 70. FOUR-WEEK DEVELOPMENT PLAN
+
+## WEEK 1 — CORE FOUNDATION
+
+Day 1:
+Inspect repository and official Nimiq Mini App documentation.
+
+Day 2:
+Architecture and database.
+
+Day 3:
+Wallet integration.
+
+Day 4:
+Authentication.
+
+Day 5:
+User profile + skills.
+
+Day 6:
+Learning path UI.
+
+Day 7:
+AI tutor prototype.
+
+END OF WEEK 1:
+
+User can connect wallet, choose a skill, and receive an AI-generated learning path.
+
+---
+
+# WEEK 2 — PROOF ENGINE
+
+Day 8:
+Challenge system.
+
+Day 9:
+Challenge UI.
+
+Day 10:
+Submission system.
+
+Day 11:
+AI evaluation.
+
+Day 12:
+Rubrics.
+
+Day 13:
+Skill scoring.
+
+Day 14:
+XP + progression.
+
+END OF WEEK 2:
+
+User can learn → submit proof → receive a skill score.
+
+---
+
+# WEEK 3 — NIM ECONOMY
+
+Day 15:
+NIM rewards.
+
+Day 16:
+Reward security.
+
+Day 17:
+Transaction history.
+
+Day 18:
+Marketplace.
+
+Day 19:
+Task applications.
+
+Day 20:
+Teaching.
+
+Day 21:
+Tipping/reputation.
+
+END OF WEEK 3:
+
+User can learn → prove → earn → monetize.
+
+---
+
+# WEEK 4 — POLISH + COMPETITION
+
+Day 22:
+Visual refinement.
+
+Day 23:
+Skill tree.
+
+Day 24:
+Animations.
+
+Day 25:
+Performance.
+
+Day 26:
+Security testing.
+
+Day 27:
+Mobile testing.
+
+Day 28:
+Demo flow + landing page + final bug fixing.
+
+IMPORTANT:
+
+Do not add major features during the final 3 days.
+
+---
+
+# 71. DEVELOPMENT RULE
+
+Do not blindly generate the entire application in one pass.
+
+Work incrementally.
+
+For every phase:
+
+1. inspect existing code
+2. explain architecture
+3. implement
+4. run tests
+5. run typecheck
+6. run lint
+7. run production build
+8. fix errors
+9. continue
+
+Never leave broken code behind.
+
+---
+
+# 72. DOCUMENTATION
+
+Create:
+
+README.md
+
+ARCHITECTURE.md
+
+DATABASE.md
+
+AI.md
+
+WALLET.md
+
+SECURITY.md
+
+DEPLOYMENT.md
+
+COMPETITION-DEMO.md
+
+The README should explain the product in under 60 seconds.
+
+---
+
+# 73. ENVIRONMENT VARIABLES
+
+Never hardcode secrets.
+
+Use:
+
+DATABASE_URL
+
+AI_API_KEY
+
+NIMIQ_RPC_URL
+
+AUTH_SECRET
+
+OTHER_REQUIRED_KEYS
+
+Create:
+
+.env.example
+
+Never commit real credentials.
+
+---
+
+# 74. ERROR HANDLING
+
+All major operations require graceful error states.
+
+Examples:
+
+Wallet disconnected.
+
+AI unavailable.
+
+Challenge submission failed.
+
+Evaluation failed.
+
+Transaction rejected.
+
+Insufficient NIM.
+
+Server unavailable.
+
+Do not show stack traces.
+
+---
+
+# 75. PRODUCT COPY
+
+Use confident, simple language.
+
+Examples:
+
+"Don't just learn it. Prove it."
+
+"Your skills are worth something."
+
+"Build proof, not certificates."
+
+"Knowledge becomes valuable when you can demonstrate it."
+
+"You passed."
+
+"Your skill just leveled up."
+
+"You qualify for 7 opportunities."
+
+Avoid excessive crypto terminology.
+
+---
+
+# 76. LANDING PAGE COPY
+
+Hero:
+
+# LEARN ANYTHING.
+
+# PROVE YOUR SKILLS.
+
+# GET PAID.
+
+Subtitle:
+
+"PROOF turns learning into demonstrated ability—and demonstrated ability into opportunity."
+
+CTA:
+
+[START LEARNING]
+
+Secondary:
+
+[EXPLORE SKILLS]
+
+Sections:
+
+HOW IT WORKS
+
+Learn.
+
+Practice.
+
+Prove.
+
+Earn.
+
+Work.
+
+Teach.
+
+Then:
+
+"Powered by Nimiq."
+
+---
+
+# 77. PRODUCT PHILOSOPHY
+
+PROOF should never encourage users to chase rewards instead of knowledge.
+
+The hierarchy is:
+
+1. Competence
+2. Proof
+3. Opportunity
+4. Reward
+
+Not:
+
+1. Reward
+2. Farming
+3. Everything else
+
+The NIM economy should reinforce genuine skill development.
+
+---
+
+# 78. LONG-TERM VISION
+
+The MVP is only the beginning.
+
+Potential future:
+
+PROOF could become a global skill economy.
+
+Users learn.
+
+Users prove skills.
+
+Companies discover verified talent.
+
+Communities sponsor education.
+
+Teachers monetize knowledge.
+
+Learners earn.
+
+Businesses post opportunities.
+
+Reputation becomes portable.
+
+NIM becomes the economic rail connecting the ecosystem.
+
+The long-term product is:
+
+# A GLOBAL PROOF-OF-SKILL NETWORK.
+
+---
+
+# 79. FINAL QUALITY BAR
+
+Before declaring completion, ask:
+
+Can a new user understand the product in 10 seconds?
+
+Can they start learning in under 30 seconds?
+
+Can they reach their first proof challenge quickly?
+
+Can they understand why they received NIM?
+
+Can they see what their skill is worth?
+
+Can they see a path from learning to earning?
+
+Does the product feel useful even without crypto knowledge?
+
+Does NIM feel native rather than bolted on?
+
+Does the application look like a real startup?
+
+Does the demo tell a compelling story in 90 seconds?
+
+If the answer to any is NO:
+
+FIX IT.
+
+---
+
+# 80. FINAL INSTRUCTION
+
+Build PROOF as a polished, mobile-first Nimiq Mini App.
+
+Prioritize:
+
+PRODUCT CLARITY
+
+UX
+
+VISUAL QUALITY
+
+REAL FUNCTIONALITY
+
+AI PERSONALIZATION
+
+PROOF-OF-SKILL
+
+NIM UTILITY
+
+SECURITY
+
+PERFORMANCE
+
+Do not over-engineer.
+
+Do not build unnecessary features.
+
+Do not fake blockchain transactions.
+
+Do not fake AI evaluations.
+
+Do not create a generic course platform.
+
+Do not optimize for feature count.
+
+Optimize for the moment when a user realizes:
+
+# "I learned something, proved that I can do it, and now that skill can actually earn me money."
+
+That is PROOF.
+
+Build that experience exceptionally well.

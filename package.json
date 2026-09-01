@@ -1,0 +1,26 @@
+{
+  "name": "proof-mini-app",
+  "version": "0.1.0",
+  "description": "PROOF — Learn it. Prove it. Earn it. An AI skill-verification marketplace on Nimiq.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test tests/*.test.js",
+    "smoke": "node tests/smoke.js",
+    "typecheck": "tsc --noEmit",
+    "seed:reset": "node -e \"import('./server/store.js').then(async m=>{const s=new m.Store({dataDir:'data'});await s.reset();console.log('store reset')})\""
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.0",
+    "typescript": "^5.5.0"
+  }
+}

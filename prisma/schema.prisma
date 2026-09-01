@@ -1,0 +1,579 @@
+// PROOF — production data model (PostgreSQL).
+// The MVP ships with an embedded store (server/store.js) that mirrors this
+// schema; every service accesses data through a narrow DAO so swapping to
+// Prisma is a data-layer change only. See docs/DATABASE.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WalletMode {
+  nimiqpay
+  demo
+}
+
+enum AttemptStatus {
+  in_progress
+  passed
+  failed
+}
+
+enum ChallengeKind {
+  checkpoint
+  project
+  final
+  daily
+  sponsored
+}
+
+enum TxStatus {
+  pending
+  confirmed
+  failed
+  cancelled
+}
+
+enum TxKind {
+  reward
+  payout
+  tip
+  task_escrow
+  task_payment
+  session_payment
+  platform_fee
+  sponsor_funding
+}
+
+enum ApplicationStatus {
+  pending
+  accepted
+  rejected
+  completed
+}
+
+model User {
+  id           String      @id @default(cuid())
+  walletAddress String?    @unique
+  walletMode   WalletMode?
+  publicKey    String?
+  username     String      @unique
+  avatar       String      @default("🙂")
+  level        Int         @default(1)
+  xp           Int         @default(0)
+  reputation   Int         @default(50)
+  balanceLuna  BigInt      @default(0)
+  earnedLuna   BigInt      @default(0)
+  proofsPassed Int         @default(0)
+  isDemo       Boolean     @default(false)
+  prefs        Json        @default("{}")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  userSkills   UserSkill[]
+  paths        LearningPath[]
+  attempts     ChallengeAttempt[]
+  proofs       SkillProof[]
+  rewards      Reward[]
+  txs          WalletTransaction[]
+  achievements UserAchievement[]
+  applications TaskApplication[]
+  teaching     TeachingSession[]
+  bookings     Booking[]
+  reviewsGiven Review[]         @relation("reviewer")
+  reviewsGot   Review[]         @relation("reviewee")
+  notifications Notification[]
+  tipsSent     WalletTransaction[] @relation("tipSender")
+  
+  // Learn Anything features
+  reviewSchedules   ReviewSchedule[]
+  learningSessions  LearningSession[]
+  stats             UserStats?
+  learningGoals     LearningGoal[]
+  masteryBadges     MasteryBadge[]
+  exerciseAttempts  ExerciseAttempt[]
+  quizResults       QuizResult[]
+  masteryNodes      UserMastery[]
+}
+
+model Skill {
+  id         String @id @default(cuid())
+  slug       String @unique
+  name       String
+  category   String
+  emoji      String @default("📚")
+  blurb      String @default("")
+  popularity Int    @default(0)
+
+  userSkills  UserSkill[]
+  challenges  Challenge[]
+  tasks       MarketplaceTask[]
+  sessions    TeachingSession[]
+}
+
+model UserSkill {
+  id            String   @id @default(cuid())
+  userId        String
+  skillId       String
+  score         Int      @default(0)
+  tier          String   @default("Novice")
+  xp            Int      @default(0)
+  verified      Boolean  @default(false)
+  verifiedScore Int      @default(0)
+  verifiedAt    DateTime?
+  proofs        Int      @default(0)
+  passed        Int      @default(0)
+
+  user  User  @relation(fields: [userId], references: [id])
+  skill Skill @relation(fields: [skillId], references: [id])
+
+  @@unique([userId, skillId])
+}
+
+model LearningPath {
+  id           String   @id @default(cuid())
+  userId       String
+  goal         String
+  skillSlug    String
+  title        String
+  description  String
+  level        String
+  minutesPerDay Int
+  days         Json
+  progress     Json     @default("{}")
+  engine       String   @default("proof-engine")
+  createdAt    DateTime @default(now())
+
+  user       User        @relation(fields: [userId], references: [id])
+  challenges Challenge[]
+}
+
+model Challenge {
+  id          String        @id @default(cuid())
+  skillSlug   String?
+  pathId      String?
+  dayIndex    Int?
+  kind        ChallengeKind @default(checkpoint)
+  type        String
+  title       String
+  brief       String
+  requirements String[]
+  timeMin     Int           @default(30)
+  passScore   Int           @default(70)
+  rewardLuna  BigInt        @default(0)
+  xp          Int           @default(100)
+  evaluator   Json
+  dailyKey    String?
+  createdAt   DateTime      @default(now())
+
+  path      LearningPath? @relation(fields: [pathId], references: [id])
+  attempts  ChallengeAttempt[]
+  rewards   Reward[]
+}
+
+model ChallengeAttempt {
+  id            String        @id @default(cuid())
+  challengeId   String
+  userId        String
+  status        AttemptStatus @default(in_progress)
+  startedAt     DateTime      @default(now())
+  submittedAt   DateTime?
+  score         Int?
+  evaluationId  String?
+  rewardClaimed Boolean       @default(false)
+  duplicate     Boolean       @default(false)
+
+  challenge Challenge @relation(fields: [challengeId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+  submission Submission?
+
+  @@index([userId, challengeId, submittedAt])
+}
+
+model Submission {
+  id        String   @id @default(cuid())
+  attemptId String   @unique
+  kind      String   // html | code | text | url | structured
+  content   String
+  createdAt DateTime @default(now())
+
+  attempt ChallengeAttempt @relation(fields: [attemptId], references: [id])
+}
+
+model Evaluation {
+  id          String   @id @default(cuid())
+  attemptId   String
+  userId      String
+  challengeId String
+  score       Int
+  pass        Boolean
+  passScore   Int
+  criteria    Json
+  strengths   String[]
+  improvements String[]
+  nextStep    String
+  engine      String
+  contentHash String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, challengeId, contentHash])
+}
+
+model SkillProof {
+  id            String   @id @default(cuid())
+  publicId      String   @unique
+  userId        String
+  skillSlug     String
+  challengeId   String
+  challengeTitle String
+  kind          String
+  score         Int
+  passed        Boolean
+  completedAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Achievement {
+  id     String @id @default(cuid())
+  key    String @unique
+  name   String
+  emoji  String
+  desc   String
+  users  UserAchievement[]
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id])
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+}
+
+model Reward {
+  id           String   @id @default(cuid())
+  key          String   @unique   // "userId:challengeId" | "userId:daily:date" — claim-once
+  userId       String
+  challengeId  String
+  sourceKind   String
+  amountLuna   BigInt
+  currency     String   @default("NIM")
+  status       String   @default("credited")
+  transactionId String?
+  createdAt    DateTime @default(now())
+
+  user      User            @relation(fields: [userId], references: [id])
+  challenge Challenge       @relation(fields: [challengeId], references: [id])
+  tx        WalletTransaction? @relation(fields: [transactionId], references: [id])
+}
+
+model WalletTransaction {
+  id          String    @id @default(cuid())
+  userId      String
+  kind        TxKind
+  direction   String    // credit | debit
+  amountLuna  BigInt
+  status      TxStatus  @default(pending)
+  network     String    @default("demo-ledger")
+  ref         String?   // on-chain tx hash or ledger reference
+  note        String
+  meta        Json      @default("{}")
+  createdAt   DateTime  @default(now())
+  confirmedAt DateTime?
+
+  user     User    @relation(fields: [userId], references: [id])
+  reward   Reward?
+  tipsOut  User?   @relation("tipSender", fields: [senderId], references: [id])
+  senderId String?
+}
+
+model SponsoredChallenge {
+  id            String @id @default(cuid())
+  title         String
+  description   String
+  skillSlug     String
+  sponsor       String
+  poolLuna      BigInt
+  topLuna       BigInt
+  qualifiedLuna BigInt
+  participants  Int    @default(0)
+  endsInDays    Int    @default(14)
+  joins         SponsoredParticipant[]
+}
+
+model SponsoredParticipant {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  userId      String
+  sponsoredId String
+  joinedAt    DateTime @default(now())
+
+  sponsored SponsoredChallenge @relation(fields: [sponsoredId], references: [id])
+}
+
+model MarketplaceTask {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  tags        String[]
+  budgetLuna  BigInt
+  minProofSkill  String?
+  minProofMin    Int?
+  clientId    String
+  status      String   @default("open") // open | completed | cancelled
+  escrowTxId  String?
+  postedAt    DateTime @default(now())
+
+  skill       Skill?          @relation(fields: [minProofSkill], references: [slug])
+  applications TaskApplication[]
+}
+
+model TaskApplication {
+  id         String           @id @default(cuid())
+  taskId     String
+  userId     String
+  pitch      String
+  status     ApplicationStatus @default(pending)
+  appliedAt  DateTime         @default(now())
+  respondedAt DateTime?
+
+  task MarketplaceTask @relation(fields: [taskId], references: [id])
+  user User            @relation(fields: [userId], references: [id])
+
+  @@unique([taskId, userId])
+}
+
+model TeachingSession {
+  id          String @id @default(cuid())
+  teacherId   String
+  skillSlug   String
+  title       String
+  description String
+  durationMin Int
+  priceLuna   BigInt
+  maxStudents Int    @default(5)
+  bookings    Int    @default(0)
+  ratingSum   Int    @default(0)
+  ratingCount Int    @default(0)
+  createdAt   DateTime @default(now())
+
+  teacher User            @relation(fields: [teacherId], references: [id])
+  skill   Skill?          @relation(fields: [skillSlug], references: [slug])
+  bookingsList Booking[]
+  reviews Review[]
+}
+
+model Booking {
+  id        String   @id @default(cuid())
+  sessionId String
+  userId    String
+  txId      String?
+  bookedAt  DateTime @default(now())
+
+  session TeachingSession @relation(fields: [sessionId], references: [id])
+  user    User            @relation(fields: [userId], references: [id])
+
+  @@unique([sessionId, userId])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  sessionId  String
+  userId     String
+  revieweeId String
+  rating     Int
+  text       String
+  createdAt  DateTime @default(now())
+
+  session  TeachingSession @relation(fields: [sessionId], references: [id])
+  reviewer User            @relation("reviewer", fields: [userId], references: [id])
+  reviewee User            @relation("reviewee", fields: [revieweeId], references: [id])
+
+  @@unique([sessionId, userId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  emoji     String   @default("🔔")
+  title     String
+  body      String
+  href      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+// ==========================================
+// LEARN ANYTHING FEATURES
+// ==========================================
+
+model ReviewSchedule {
+  id             String    @id @default(cuid())
+  userId         String
+  topicSlug      String
+  topicTitle     String
+  skillSlug      String
+  repetitions    Int       @default(0)
+  easeFactor     Float     @default(2.5)
+  interval       Int       @default(1)
+  nextReviewAt   DateTime
+  lastQuality    Int?
+  lastReviewedAt DateTime?
+  suspended      Boolean   @default(false)
+  suspendedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, nextReviewAt])
+  @@index([userId, topicSlug])
+}
+
+model LearningSession {
+  id              String    @id @default(cuid())
+  userId          String
+  topicSlug       String
+  skillSlug       String
+  sessionType     String    // 'lesson' | 'practice' | 'review' | 'tutor' | 'challenge'
+  depth           Int       @default(0)
+  durationSeconds Int?
+  notes           String?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, topicSlug])
+}
+
+model UserStats {
+  userId                   String   @id
+  currentStreak            Int      @default(0)
+  longestStreak            Int      @default(0)
+  lastActivityDate         String?  // YYYY-MM-DD format
+  totalLearningMinutes     Int      @default(0)
+  totalReviewsDone         Int      @default(0)
+  totalLessonsCompleted    Int      @default(0)
+  totalPracticesCompleted  Int      @default(0)
+  updatedAt                DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LearningGoal {
+  id           String    @id @default(cuid())
+  userId       String
+  goalType     String    // 'weekly_lessons' | 'weekly_reviews' | 'daily_minutes' | 'skill_mastery'
+  targetValue  Int
+  currentValue Int       @default(0)
+  period       String    // 'daily' | 'weekly' | 'monthly'
+  startsAt     DateTime
+  endsAt       DateTime
+  completed    Boolean   @default(false)
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, endsAt])
+  @@index([userId, completed])
+}
+
+model MasteryBadge {
+  id           String   @id @default(cuid())
+  userId       String
+  skillSlug    String
+  topicSlug    String?
+  badgeType    String   // 'skill_master' | 'topic_master' | 'perfect_streak' | 'speed_learner'
+  level        String   // 'bronze' | 'silver' | 'gold' | 'platinum'
+  masteryScore Float
+  criteria     String
+  earnedAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, skillSlug])
+}
+
+model ExerciseAttempt {
+  id               String   @id @default(cuid())
+  userId           String
+  exerciseId       String
+  topicSlug        String
+  skillSlug        String
+  code             String
+  testsPassed      Int
+  testsTotal       Int
+  completed        Boolean  @default(false)
+  timeSpentSeconds Int?
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, exerciseId])
+}
+
+model QuizResult {
+  id               String   @id @default(cuid())
+  userId           String
+  quizId           String
+  topicSlug        String
+  skillSlug        String
+  score            Int
+  total            Int
+  answers          String   // JSON string
+  timeTakenSeconds Int?
+  difficulty       String?  // 'easy' | 'medium' | 'hard'
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, topicSlug])
+}
+
+model KnowledgeNode {
+  id               String   @id @default(cuid())
+  skillSlug        String
+  topicSlug        String
+  title            String
+  level            Int
+  prerequisites    String?  // JSON array of prerequisite node IDs
+  estimatedMinutes Int
+  category         String?
+  createdAt        DateTime @default(now())
+
+  userMastery UserMastery[]
+
+  @@unique([skillSlug, topicSlug])
+  @@index([skillSlug])
+}
+
+model UserMastery {
+  userId          String
+  nodeId          String
+  masteryScore    Float    @default(0)
+  attempts        Int      @default(0)
+  lastPracticedAt DateTime?
+  updatedAt       DateTime @updatedAt
+
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  node KnowledgeNode @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, nodeId])
+  @@index([userId, masteryScore])
+}

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Nimbus Kicks — hand-restored sneakers, delivered in 48 hours.">
+  <title>Nimbus Kicks — Restored Sneakers</title>
+  <style>
+    :root { --brand: #5b57d9; --ink: #16182d; --space: 16px; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; margin: 0; color: var(--ink); line-height: 1.5; }
+    header { display: flex; justify-content: space-between; align-items: center; padding: var(--space); }
+    nav a { margin-right: 12px; color: var(--ink); font-weight: 600; }
+    .hero { padding: 56px var(--space); text-align: center; background: linear-gradient(160deg, #f4f3fb, #fff); }
+    .hero h1 { font-size: clamp(30px, 6vw, 48px); letter-spacing: -0.02em; margin: 0 0 8px; }
+    .btn { display: inline-block; background: var(--brand); color: #fff; padding: 13px 26px; border-radius: 14px; font-weight: 700; }
+    .cards { display: grid; gap: 16px; grid-template-columns: 1fr; padding: var(--space); }
+    @media (min-width: 640px) { .cards { grid-template-columns: repeat(3, 1fr); } }
+    .card { background: #fff; border-radius: 18px; padding: 26px; box-shadow: 0 4px 18px rgba(20,20,60,.08); }
+    .card h3 { margin: 0 0 6px; }
+    footer { padding: 28px; text-align: center; color: #667085; font-size: 14px; }
+    /* organized by section: header → hero → cards → footer */
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Nimbus Kicks</h1>
+    <nav>
+      <a href="#shop">Shop</a>
+      <a href="#about">About</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
+  <main>
+    <section class="hero">
+      <h2>Step into comfort</h2>
+      <p>Sneakers restored by hand and delivered in 48 hours.</p>
+      <a class="btn" href="#shop">Shop the drop</a>
+    </section>
+    <section class="cards" id="shop">
+      <article class="card"><h3>Deep clean</h3><p>Full restore, inside and out.</p></article>
+      <article class="card"><h3>Sole swap</h3><p>Fresh soles for any brand.</p></article>
+      <article class="card"><h3>Custom paint</h3><p>Your design, our brush.</p></article>
+    </section>
+    <img src="sneaker.jpg" alt="A restored white sneaker on a wooden table" width="320">
+  </main>
+  <footer>
+    <p>Nimbus Kicks · hello@nimbuskicks.example · Lagos</p>
+  </footer>
+</body>
+</html>

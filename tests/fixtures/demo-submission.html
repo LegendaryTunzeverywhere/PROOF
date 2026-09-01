@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nimbus Kicks</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; color: #222; }
+    header { display: flex; justify-content: space-between; padding: 16px; }
+    nav a { margin-right: 12px; color: #222; }
+    .hero { padding: 48px 16px; text-align: center; background: #f4f3fb; }
+    .hero h1 { font-size: 38px; margin: 0 0 8px; }
+    .btn { display: inline-block; background: #5b57d9; color: #fff; padding: 12px 24px; border-radius: 12px; }
+    .cards { display: grid; gap: 16px; grid-template-columns: 1fr 1fr 1fr; padding: 16px; }
+    .card { background: #fff; border-radius: 14px; padding: 22px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+    footer { padding: 24px; text-align: center; color: #777; font-size: 14px; }
+    @media (max-width: 700px) { .cards { grid-template-columns: 1fr; } .hero h1 { font-size: 30px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Nimbus Kicks</h1>
+    <nav>
+      <a href="#shop">Shop</a>
+      <a href="#about">About</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
+  <main>
+    <section class="hero">
+      <h1>Step into comfort</h1>
+      <p>Sneakers restored by hand, delivered in 48 hours.</p>
+      <a class="btn" href="#shop">Shop the drop</a>
+    </section>
+    <section class="cards" id="shop">
+      <article class="card"><h3>Deep clean</h3><p>Full restore, inside and out.</p></article>
+      <article class="card"><h3>Sole swap</h3><p>Fresh soles for any brand.</p></article>
+      <article class="card"><h3>Custom paint</h3><p>Your design, our brush.</p></article>
+    </section>
+    <img src="sneaker.jpg" width="320">
+  </main>
+  <footer>
+    <p>Nimbus Kicks · hello@nimbuskicks.example · Lagos</p>
+  </footer>
+</body>
+</html>
