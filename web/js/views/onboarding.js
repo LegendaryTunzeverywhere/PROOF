@@ -177,7 +177,11 @@ export async function walletEntry(root) {
       location.reload();
     } catch (err) {
       btn.disabled = false; btn.innerHTML = demoBtn;
-      toast('Could not create demo wallet. Please check your connection and try again.', 'bad', 4000);
+      console.error('[onboarding] Demo wallet error:', err);
+      const errorMsg = err?.message?.includes('BAD_NONCE') 
+        ? 'Sign-in request expired. Please try again.'
+        : err?.message || 'Could not create demo wallet. Please check your connection and try again.';
+      toast(errorMsg, 'bad', 4000);
     }
   });
 }
