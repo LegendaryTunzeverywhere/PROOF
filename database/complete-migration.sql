@@ -8,7 +8,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Enums
 DO $$ BEGIN
-  CREATE TYPE "WalletMode" AS ENUM ('nimiqpay', 'demo');
+  CREATE TYPE "WalletMode" AS ENUM ('nimiqpay', 'hub', 'demo');
 EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;
