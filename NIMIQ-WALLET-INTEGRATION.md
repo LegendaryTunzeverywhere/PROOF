@@ -93,12 +93,22 @@ await nimiq.sign(message);
 ## 🧪 Testing
 
 ### Test Page: `/test-wallet.html`
-A diagnostic page to verify wallet connections work.
+A comprehensive diagnostic page to verify all wallet connection types.
+
+**Features:**
+- ✅ Test Demo Wallet (full auth flow)
+- ✅ Test Nimiq Hub (standalone signature test)
+- ✅ Test Nimiq Pay (with environment detection)
+- ✅ Test Full Auth Flow (Hub → nonce → sign → verify → session)
 
 **Usage:**
 1. Deploy to Railway: `https://your-app.up.railway.app/test-wallet.html`
-2. Click "Test Nimiq Hub" - should open popup and complete auth
-3. Click "Test Nimiq Pay" - will show warning if not in Nimiq Pay app
+2. **Test Full Auth Flow** - Complete end-to-end Hub authentication
+3. **Test Demo Wallet** - Complete demo wallet creation and auth
+4. **Test Nimiq Hub** - Standalone Hub API test (address + signature)
+5. **Test Nimiq Pay** - Only works inside Nimiq Pay mobile app
+
+The test page will show environment detection and detailed logs for each step.
 
 ### Manual Testing
 
@@ -176,8 +186,8 @@ Demo users are clearly marked:
 ### Issue: "null value in column userId"
 **Solution:** ✅ Fixed by making `createUser()` and `update()` async.
 
-### Issue: Hub popup blocked
-**Solution:** Ensure user interaction triggers the Hub call (button click, not automatic).
+### Issue: Hub works but then "disconnects"
+**Solution:** ✅ Fixed! Sessions now persist across server restarts when using Supabase. Previously, Railway restarts would invalidate all sessions.
 
 ### Issue: "Could not find the 'entropy' column"
 **Solution:** ✅ Fixed by running `ALTER TABLE sessions ADD COLUMN "entropy" TEXT;`
@@ -204,9 +214,36 @@ Demo users are clearly marked:
 ## 🔧 Files Changed
 
 - `server/services/users.js` - Made `createUser()` and `update()` async
-- `server/auth.js` - Made `consumeNonce()` and `createSession()` async
+- `server/auth.js` - Made `consumeNonce()` and `createSession()` async + fixed session persistence across restarts
 - `server/index.js` - Added await for user operations in `/api/auth/verify`
 - `database/complete-migration.sql` - Complete schema with all tables/columns
-- `test-wallet.html` - Diagnostic page for wallet testing
+- `test-wallet.html` - Comprehensive diagnostic page with Demo, Hub, Pay, and Full Auth tests
+
+## ✅ Critical Fixes Applied
+
+### 1. Session Persistence (Hub "Disconnect" Issue)
+**Problem:** After Nimiq Hub authentication, users would appear disconnected after Railway restarts.
+
+**Root Cause:** Server validated `bootTime` on every session check. When Railway restarted, `SERVER_BOOT_TIME` changed, invalidating all existing sessions.
+
+**Fix:** Skip boot time validation when using Supabase (persistent database). Sessions now survive server restarts.
+
+```javascript
+// Before: Sessions invalidated on restart
+if (row.bootTime !== SERVER_BOOT_TIME) {
+  this.store.remove('sessions', token);
+}
+
+// After: Persist sessions with Supabase
+const isSupabase = this.store.constructor.name === 'SupabaseStore';
+if (!isSupabase && row.bootTime !== SERVER_BOOT_TIME) {
+  this.store.remove('sessions', token);
+}
+```
+
+### 2. Async User Creation (Demo Wallet Issue)
+**Problem:** `userId` was null when creating sessions, causing database constraint violations.
+
+**Fix:** Made `createUser()` and `update()` async to properly await Supabase operations.
 
 All changes pushed to GitHub and deployed to Railway!
