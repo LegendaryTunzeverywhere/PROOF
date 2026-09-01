@@ -231,7 +231,7 @@ function publicMe(user) {
   };
 }
 
-route('GET', '/api/me', (ctx) => {
+route('GET', '/api/me', async (ctx) => {
   const { user, res } = ctx;
   console.log('[/api/me] Request - user:', user ? `${user.username} (${user.id})` : 'null');
   console.log('[/api/me] Cookie header:', ctx.req.headers.cookie ? 'present' : 'missing');
@@ -239,7 +239,8 @@ route('GET', '/api/me', (ctx) => {
     // Public view for anonymous visitors — avoid noisy 401s on first load.
     return json(res, 200, { user: null, skills: [], unread: 0, opportunities: 0 });
   }
-  const mySkills = skills.userSkills(user.id).map((s) => ({ ...s, tier: skills.tierFor(s.score) }));
+  const userSkillsData = await skills.userSkills(user.id);
+  const mySkills = userSkillsData.map((s) => ({ ...s, tier: skills.tierFor(s.score) }));
   json(res, 200, {
     user: publicMe(user),
     skills: mySkills,
