@@ -168,6 +168,12 @@
                 // Step 1: Create demo wallet
                 log('Creating demo wallet...', 'info');
                 const response = await fetch('/api/wallet/demo', { method: 'POST' });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server returned ${response.status}: ${errorText}`);
+                }
+                
                 const demo = await response.json();
                 log(`✅ Demo wallet created`, 'success');
                 log(`Public Key: ${demo.publicKey}`, 'info');
@@ -253,6 +259,12 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ subject: address })
                 });
+                
+                if (!nonceResp.ok) {
+                    const errorText = await nonceResp.text();
+                    throw new Error(`Server returned ${nonceResp.status}: ${errorText}`);
+                }
+                
                 const { nonce, message } = await nonceResp.json();
                 log(`✅ Nonce received: ${nonce}`, 'success');
                 log(`Message to sign: ${message}`, 'info');

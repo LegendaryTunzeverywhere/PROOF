@@ -225,13 +225,14 @@ route('GET', '/api/me', (ctx) => {
   });
 });
 
-route('PATCH', '/api/me', (ctx) => {
+route('PATCH', '/api/me', async (ctx) => {
   const { user, body, res } = ctx;
   const patch = {};
   if (body.username) {
     const name = String(body.username).trim().slice(0, 24).replace(/[^\w\d -]/g, '');
     if (name.length < 3) throw httpError(400, 'BAD_USERNAME', 'Username needs at least 3 characters.');
-    if (users.findByUsername(name) && users.findByUsername(name).id !== user.id)
+    const existing = await users.findByUsername(name);
+    if (existing && existing.id !== user.id)
       throw httpError(409, 'USERNAME_TAKEN', 'That username is taken.');
     patch.username = name; patch.usernameLower = name.toLowerCase();
   }
@@ -241,8 +242,9 @@ route('PATCH', '/api/me', (ctx) => {
     p.level = String(p.level || '').slice(0, 20);
     patch.prefs = p;
   }
-  users.update(user, patch);
-  json(res, 200, { user: publicMe(users.get(user.id)) });
+  await users.update(user, patch);
+  const updated = await users.get(user.id);
+  json(res, 200, { user: publicMe(updated) });
 });
 
 /* ── HOME ──────────────────────────────────────────────────────────── */
