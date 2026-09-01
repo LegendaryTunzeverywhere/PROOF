@@ -346,6 +346,7 @@ CREATE TABLE IF NOT EXISTS "sessions" (
   "userId" TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
   "bootTime" BIGINT NOT NULL,
   "expiresAt" BIGINT NOT NULL,
+  entropy TEXT,
   "createdAt" TIMESTAMP DEFAULT NOW()
 );
 
