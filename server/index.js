@@ -131,10 +131,21 @@ route('POST', '/api/auth/nonce', (ctx) => {
 route('POST', '/api/auth/verify', async (ctx) => {
   const { body, req, res } = ctx;
   
+  console.log('[verify] Request received:', {
+    mode: body?.mode,
+    hasNonce: !!body?.nonce,
+    hasPublicKey: !!body?.publicKey,
+    hasSignature: !!body?.signature,
+    hasAddress: !!body?.address,
+  });
+  
   const mode = body?.mode === 'nimiqpay' ? 'nimiqpay' : body?.mode === 'hub' ? 'hub' : 'demo';
   const nonceRow = await auth.consumeNonce(String(body?.nonce || ''));
   
+  console.log('[verify] Nonce lookup result:', nonceRow ? 'found' : 'NOT FOUND');
+  
   if (!nonceRow) {
+    console.log('[verify] BAD_NONCE - nonce:', body?.nonce);
     throw httpError(400, 'BAD_NONCE', 'This sign-in request expired. Try again.');
   }
   

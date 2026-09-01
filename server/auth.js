@@ -42,11 +42,22 @@ export class AuthService {
   }
 
   async consumeNonce(nonce) {
+    console.log('[consumeNonce] Looking up nonce:', nonce);
     const row = await this.store.find('nonces', (n) => n.nonce === nonce && !n.used);
-    if (!row) return null;
-    if (now() - row.createdAt > NONCE_TTL_MS) return null;
+    console.log('[consumeNonce] Nonce row:', row ? { id: row.id, nonce: row.nonce, used: row.used, createdAt: row.createdAt } : 'null');
+    if (!row) {
+      console.log('[consumeNonce] Nonce not found or already used');
+      return null;
+    }
+    const age = now() - row.createdAt;
+    console.log('[consumeNonce] Nonce age:', age, 'ms, TTL:', NONCE_TTL_MS, 'ms');
+    if (age > NONCE_TTL_MS) {
+      console.log('[consumeNonce] Nonce expired!');
+      return null;
+    }
     await this.store.update('nonces', row.id, { used: true });
     this.store.save();
+    console.log('[consumeNonce] Nonce consumed successfully');
     return row;
   }
 
