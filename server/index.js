@@ -143,6 +143,8 @@ route('POST', '/api/auth/verify', (ctx) => {
   
   const mode = body?.mode === 'nimiqpay' ? 'nimiqpay' : body?.mode === 'hub' ? 'hub' : 'demo';
   const nonceRow = auth.consumeNonce(String(body?.nonce || ''));
+  console.log('Nonce row retrieved:', nonceRow);
+  
   if (!nonceRow) {
     console.log('Nonce validation failed');
     throw httpError(400, 'BAD_NONCE', 'This sign-in request expired. Try again.');
