@@ -136,10 +136,21 @@ route('POST', '/api/auth/verify', (ctx) => {
   
   // Validate address matches the public key for Nimiq wallet modes
   const derivedAddress = nimiqAddressFromPublicKey(String(body?.publicKey || ''));
+  const providedAddress = String(body.address).replace(/\s+/g, ' ').trim();
+  const normalizedDerived = derivedAddress ? derivedAddress.replace(/\s+/g, ' ').trim() : null;
+  
+  console.log('Auth verify debug:', {
+    mode,
+    providedAddress,
+    derivedAddress: normalizedDerived,
+    publicKey: body?.publicKey,
+    match: normalizedDerived === providedAddress
+  });
+  
   if ((mode === 'nimiqpay' || mode === 'hub') &&
       (!looksLikeNimiqAddress(body.address) ||
        !derivedAddress || 
-       derivedAddress.replace(/\s+/g, ' ').trim() !== String(body.address).replace(/\s+/g, ' ').trim())) {
+       normalizedDerived !== providedAddress)) {
     throw httpError(401, 'ADDRESS_MISMATCH', 'Wallet address does not match the public key.');
   }
   
