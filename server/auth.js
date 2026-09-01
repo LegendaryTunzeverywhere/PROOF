@@ -57,7 +57,19 @@ export class AuthService {
   verifySignature({ mode, publicKey, signature, message }) {
     if (!publicKey || !signature || !message) return false;
     const digest = nimiqMessageDigest(message);
-    return verifyBytes(publicKey, digest, signature);
+    const result = verifyBytes(publicKey, digest, signature);
+    
+    if (!result) {
+      console.log('Signature verification failed:', {
+        mode,
+        publicKey: publicKey.slice(0, 16) + '...',
+        signature: signature.slice(0, 16) + '...',
+        messagePreview: message.slice(0, 100),
+        digestPreview: digest.toString('hex').slice(0, 32) + '...'
+      });
+    }
+    
+    return result;
   }
 
   /** Demo wallet: server holds the key (clearly labeled demo-only). */
