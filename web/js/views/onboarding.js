@@ -120,7 +120,6 @@ export async function walletEntry(root) {
       await refreshMe();
       s.close(); toast('Nimiq Hub connected ✅ On-chain rewards enabled!', 'ok');
       location.hash = '#/';
-      location.reload();
     } catch (err) {
       btn.disabled = false; btn.innerHTML = hubBtn;
       const msg = String(err.message || err);
@@ -150,7 +149,6 @@ export async function walletEntry(root) {
       await refreshMe();
       s.close(); toast('Nimiq Pay connected ✅ On-chain rewards enabled!', 'ok');
       location.hash = '#/';
-      location.reload();
     } catch (err) {
       btn.disabled = false; btn.innerHTML = payBtn;
       const msg = String(err.message || err);
@@ -174,7 +172,6 @@ export async function walletEntry(root) {
       await refreshMe();
       s.close(); toast('Demo wallet ready! 🧪 Full experience with simulated rewards.', 'ok', 3500);
       location.hash = '#/';
-      location.reload();
     } catch (err) {
       btn.disabled = false; btn.innerHTML = demoBtn;
       console.error('[onboarding] Demo wallet error:', err);

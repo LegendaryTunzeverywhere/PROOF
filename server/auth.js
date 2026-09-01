@@ -143,6 +143,8 @@ export class AuthService {
 }
 
 export function sessionCookie(token, maxAgeS = 30 * 24 * 3600) {
-  return `proof_session=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAgeS}`;
+  // Use SameSite=Lax for localhost to avoid cookie issues
+  const sameSite = process.env.NODE_ENV === 'production' ? 'Strict' : 'Lax';
+  return `proof_session=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=${maxAgeS}`;
 }
-export const CLEAR_COOKIE = 'proof_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0';
+export const CLEAR_COOKIE = 'proof_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0';
