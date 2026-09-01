@@ -493,9 +493,11 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_user_updated_at ON "User";
 CREATE TRIGGER update_user_updated_at BEFORE UPDATE ON "User"
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_glossary_updated_at ON "user_glossary";
 CREATE TRIGGER update_glossary_updated_at BEFORE UPDATE ON "user_glossary"
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
