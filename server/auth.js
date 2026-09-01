@@ -73,7 +73,7 @@ export class AuthService {
     return signBytes(privateKeyHex, nimiqMessageDigest(message));
   }
 
-  createSession(userId) {
+  async createSession(userId) {
     // Generate token with cryptographic binding: includes userId, creation time, boot time, and random entropy
     // Format: {tokenId}.{hmac}
     // HMAC covers: userId + createdAt + SERVER_BOOT_TIME + entropy + authSecret
@@ -88,7 +88,7 @@ export class AuthService {
     const signature = hmac(payload, this.config.authSecret).slice(0, 32);
     const token = `${tokenId}.${signature}`;
     
-    this.store.insert('sessions', { 
+    await this.store.insert('sessions', { 
       id: token, 
       userId, 
       createdAt, 

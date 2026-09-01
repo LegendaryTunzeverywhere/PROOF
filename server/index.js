@@ -162,15 +162,15 @@ route('POST', '/api/auth/verify', async (ctx) => {
   let user = null;
   const isNimiqMode = mode === 'nimiqpay' || mode === 'hub';
   if (isNimiqMode && looksLikeNimiqAddress(body.address)) {
-    user = users.findByWallet(body.address);
-    if (!user) user = users.createUser({ walletAddress: body.address, walletMode: mode });
-    else users.update(user, { walletAddress: body.address, walletMode: mode, publicKey: body.publicKey });
+    user = await users.findByWallet(body.address);
+    if (!user) user = await users.createUser({ walletAddress: body.address, walletMode: mode });
+    else await users.update(user, { walletAddress: body.address, walletMode: mode, publicKey: body.publicKey });
   } else {
-    user = users.findByPublicKey(body.publicKey);
-    if (!user) user = users.createUser({ walletMode: 'demo' });
-    users.update(user, { publicKey: body.publicKey, walletMode: 'demo' });
+    user = await users.findByPublicKey(body.publicKey);
+    if (!user) user = await users.createUser({ walletMode: 'demo' });
+    await users.update(user, { publicKey: body.publicKey, walletMode: 'demo' });
   }
-  const token = auth.createSession(user.id);
+  const token = await auth.createSession(user.id);
   json(res, 200, { user: publicMe(user), demo: mode === 'demo' }, { 'set-cookie': sessionCookie(token) });
 });
 
