@@ -241,11 +241,12 @@ route('GET', '/api/me', async (ctx) => {
   }
   const userSkillsData = await skills.userSkills(user.id);
   const mySkills = userSkillsData.map((s) => ({ ...s, tier: skills.tierFor(s.score) }));
+  const qualification = await challenges.qualificationSnapshot(user.id);
   json(res, 200, {
     user: publicMe(user),
     skills: mySkills,
     unread: notifications.unreadCount(user.id),
-    opportunities: challenges.qualificationSnapshot(user.id).opportunities,
+    opportunities: qualification.opportunities,
   });
 });
 

@@ -286,9 +286,9 @@ export class ChallengeService {
   }
 
   /** "You qualify for N opportunities" — verified skills × open market demand. */
-  qualificationSnapshot(userId) {
-    const skills = this.skills.userSkills(userId);
-    const tasks = this.store.all('marketplace_tasks');
+  async qualificationSnapshot(userId) {
+    const skills = await this.skills.userSkills(userId);
+    const tasks = await this.store.all('marketplace_tasks');
     let count = 0;
     for (const t of tasks) {
       const req = t.minProof;
