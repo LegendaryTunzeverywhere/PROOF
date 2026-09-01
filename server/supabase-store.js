@@ -104,11 +104,15 @@ export class SupabaseStore {
   }
 
   // Convert Unix timestamps (milliseconds) to ISO strings for PostgreSQL
-  convertTimestamps(doc) {
+  convertTimestamps(doc, tableName = null) {
     const converted = { ...doc };
     for (const [key, value] of Object.entries(converted)) {
-      // Skip bootTime and expiresAt - they should remain as Unix timestamps (bigint)
+      // For sessions table: keep bootTime, expiresAt, and createdAt as bigint
+      // For other tables: only skip bootTime and expiresAt
       if (key === 'bootTime' || key === 'expiresAt') {
+        continue;
+      }
+      if (tableName === 'sessions' && key === 'createdAt') {
         continue;
       }
       
@@ -137,7 +141,7 @@ export class SupabaseStore {
     }
 
     // Convert timestamps to ISO strings
-    const convertedDoc = this.convertTimestamps(doc);
+    const convertedDoc = this.convertTimestamps(doc, table);
 
     const { data, error } = await this.client
       .from(supabaseTable)
@@ -192,7 +196,7 @@ export class SupabaseStore {
     const supabaseTable = this.tableMap[table] || table;
 
     // Convert timestamps in patch
-    const convertedPatch = this.convertTimestamps(patch);
+    const convertedPatch = this.convertTimestamps(patch, table);
 
     const { data, error } = await this.client
       .from(supabaseTable)
