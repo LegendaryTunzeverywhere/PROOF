@@ -151,11 +151,18 @@ async function router() {
 window.addEventListener('hashchange', router);
 
 (async function boot() {
+  console.log('[boot] Starting...');
   WalletService.restore();
+  console.log('[boot] Wallet restored:', WalletService.mode, WalletService.address);
   const me = await refreshMe();
+  console.log('[boot] refreshMe result:', me ? `User ${me.user?.username}` : 'null');
+  console.log('[boot] app.me:', app.me);
   if (!me) {
     // no session → onboarding (public)
+    console.log('[boot] No user, redirecting to onboarding');
     location.hash = location.hash.startsWith('#/u/') ? location.hash : '#/onboarding';
+  } else {
+    console.log('[boot] User found, staying on current page');
   }
   app.booted = true;
   router();
