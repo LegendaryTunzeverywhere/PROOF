@@ -41,8 +41,24 @@ export class SupabaseStore {
       'rewards': 'Reward',
       'wallet_transactions': 'WalletTransaction',
       'notifications': 'Notification',
+      'sponsored_challenges': 'SponsoredChallenge',
+      'sponsored_participants': 'SponsoredParticipant',
+      'marketplace_tasks': 'MarketplaceTask',
+      'task_applications': 'TaskApplication',
+      'teaching_sessions': 'TeachingSession',
+      'bookings': 'Booking',
+      'reviews': 'Review',
       'socratic_sessions': 'socratic_sessions',
-      'user_glossary': 'user_glossary'
+      'user_glossary': 'user_glossary',
+      'review_schedules': 'ReviewSchedule',
+      'learning_sessions': 'LearningSession',
+      'user_stats': 'UserStats',
+      'learning_goals': 'LearningGoal',
+      'mastery_badges': 'MasteryBadge',
+      'exercise_attempts': 'ExerciseAttempt',
+      'quiz_results': 'QuizResult',
+      'knowledge_nodes': 'KnowledgeNode',
+      'user_mastery': 'UserMastery'
     };
 
     // Cache for frequently accessed data

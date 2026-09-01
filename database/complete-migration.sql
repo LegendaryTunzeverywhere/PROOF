@@ -75,7 +75,8 @@ CREATE TABLE IF NOT EXISTS "Skill" (
   category TEXT NOT NULL,
   emoji TEXT DEFAULT '📚',
   blurb TEXT DEFAULT '',
-  popularity INT DEFAULT 0
+  popularity INT DEFAULT 0,
+  "createdAt" TIMESTAMP DEFAULT NOW()
 );
 
 -- UserSkill table (many-to-many)
