@@ -101,6 +101,25 @@ export class SupabaseStore {
     // This is a no-op for compatibility with Store interface
   }
 
+  // Convert Unix timestamps (milliseconds) to ISO strings for PostgreSQL
+  convertTimestamps(doc) {
+    const converted = { ...doc };
+    for (const [key, value] of Object.entries(converted)) {
+      // Check if it's a timestamp field with a number value
+      if (
+        (key.endsWith('At') || key === 'postedAt' || key === 'bookedAt' || key === 'joinedAt' || 
+         key === 'appliedAt' || key === 'respondedAt' || key === 'unlockedAt' || key === 'earnedAt' ||
+         key === 'startedAt' || key === 'completedAt' || key === 'submittedAt' || key === 'confirmedAt' ||
+         key === 'suspendedAt' || key === 'lastReviewedAt' || key === 'lastPracticedAt' || key === 'verifiedAt') &&
+        typeof value === 'number' && value > 1000000000000
+      ) {
+        // Convert milliseconds to ISO string
+        converted[key] = new Date(value).toISOString();
+      }
+    }
+    return converted;
+  }
+
   async insert(table, doc) {
     const supabaseTable = this.tableMap[table] || table;
     
@@ -110,9 +129,12 @@ export class SupabaseStore {
       doc.id = `${prefix}_${Math.random().toString(36).substr(2, 12)}`;
     }
 
+    // Convert timestamps to ISO strings
+    const convertedDoc = this.convertTimestamps(doc);
+
     const { data, error } = await this.client
       .from(supabaseTable)
-      .insert(doc)
+      .insert(convertedDoc)
       .select()
       .single();
 
@@ -162,9 +184,12 @@ export class SupabaseStore {
   async update(table, id, patch) {
     const supabaseTable = this.tableMap[table] || table;
 
+    // Convert timestamps in patch
+    const convertedPatch = this.convertTimestamps(patch);
+
     const { data, error } = await this.client
       .from(supabaseTable)
-      .update(patch)
+      .update(convertedPatch)
       .eq('id', id)
       .select()
       .single();
