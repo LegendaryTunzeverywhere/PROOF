@@ -330,19 +330,41 @@ route('POST', '/api/paths', async (ctx) => {
     minutesPerDay: body.minutesPerDay || user.prefs?.minutesPerDay || 30,
     style: body.style || 'practical',
   });
+  if (!gen || !Array.isArray(gen.days) || !gen.days.length)
+    throw httpError(502, 'PATH_GENERATION_FAILED', 'No learning path could be generated for that goal — try a more specific goal.');
+  // Guard the shape we rely on below so a bad generator/LLM output can never
+  // crash the route with a cryptic TypeError after we already inserted a row.
+  if (!gen.days.every((d) => d && Array.isArray(d.items) && d.items.every((i) => i && i.topic)))
+    throw httpError(502, 'PATH_GENERATION_FAILED', 'Generated path was malformed — try again in a minute.');
+
   // persist path + create its proof challenges
-  const pathRow = store.insert('paths', {
-    id: uid('path'), userId: user.id,
-    goal: gen.goal, skillSlug: gen.skillSlug, skillName: gen.skillName, skillEmoji: gen.skillEmoji,
-    title: gen.title, description: gen.description,
-    level: gen.level, minutesPerDay: gen.minutesPerDay,
-    days: gen.days, totalXp: gen.totalXp,
-    engine: gen.engine, progress: {}, createdAt: now(),
-  });
+  let pathRow;
+  try {
+    pathRow = await store.insert('paths', {
+      id: uid('path'), userId: user.id,
+      goal: gen.goal, skillSlug: gen.skillSlug, skillName: gen.skillName, skillEmoji: gen.skillEmoji,
+      title: gen.title, description: gen.description,
+      level: gen.level, minutesPerDay: gen.minutesPerDay,
+      days: gen.days, totalXp: gen.totalXp,
+      engine: gen.engine, progress: {}, createdAt: now(),
+    });
+  } catch (e) {
+    // PostgREST reports unknown columns as "could not find the 'x' column …
+    // in the schema cache" — that is a DB schema drift, not a user error.
+    if (/column.*schema cache|Insert failed/i.test(String(e.message || '')))
+      throw httpError(500, 'DB_SCHEMA_MISMATCH', 'Database is missing columns the app expects — run database/fix-learning-path-columns.sql against Supabase, then retry.');
+    throw e;
+  }
+  if (!pathRow || !Array.isArray(pathRow.days)) {
+    // If insert succeeded but the returned row has no usable `days`, do not
+    // leave a half-persisted path behind.
+    if (pathRow?.id) await store.remove('paths', pathRow.id);
+    throw httpError(500, 'PATH_PERSIST_FAILED', 'Learning path could not be stored — the database schema may be out of date (see database/fix-learning-path-columns.sql).');
+  }
   for (const day of pathRow.days) {
     for (const item of day.items) {
       if (item.challengeTemplate) {
-        const ch = challenges.createFromTemplate({
+        const ch = await challenges.createFromTemplate({
           skillSlug: gen.skillSlug,
           template: item.challengeTemplate,
           pathId: pathRow.id, dayIndex: day.index,
@@ -352,8 +374,8 @@ route('POST', '/api/paths', async (ctx) => {
       }
     }
   }
-  store.update('paths', pathRow.id, { days: pathRow.days });
-  store.save();
+  await store.update('paths', pathRow.id, { days: pathRow.days });
+  await store.save();
   json(res, 201, { path: await pathView(pathRow, user.id), generatedBy: gen.engine });
 });
 
@@ -374,18 +396,18 @@ route('GET', '/api/paths/:id', async (ctx) => {
 
 route('POST', '/api/paths/:id/progress', async (ctx) => {
   const { user, params, body, res } = ctx;
-  const p = store.get('paths', params.id);
+  const p = await store.get('paths', params.id);
   if (!p || p.userId !== user.id) throw httpError(404, 'NOT_FOUND', 'Path not found.');
   const key = `${body.dayIndex}:${body.topicSlug}:${body.part}`;
   const firstTime = !p.progress[key];
   if (firstTime) {
     p.progress[key] = now();
-    store.update('paths', p.id, { progress: p.progress });
+    await store.update('paths', p.id, { progress: p.progress });
     if (body.part === 'lesson') {
       users.addXp(user.id, 20, 'Lesson complete');
       await userStats.incrementLessons(user.id);
       await learningGoals.updateGoalProgress(user.id, 'weekly_lessons', 1);
-      masteryBadges.checkSpecialBadges(user.id);
+      await masteryBadges.checkSpecialBadges(user.id);
       // Schedule this topic for spaced repetition — learning that repeats.
       const doneItem = p.days.flatMap((d) => d.items).find((i) => i.topic === body.topicSlug);
       if (doneItem) {
@@ -402,8 +424,8 @@ route('POST', '/api/paths/:id/progress', async (ctx) => {
       await learningGoals.updateGoalProgress(user.id, 'weekly_practices', 1);
     }
     // Check for new badges
-    const awarded = masteryBadges.checkAndAwardBadges(user.id);
-    store.save();
+    const awarded = await masteryBadges.checkAndAwardBadges(user.id);
+    await store.save();
     
     // Send notifications for new badges
     for (const badge of awarded) {
@@ -905,7 +927,7 @@ route('POST', '/api/reviews/:id/complete', async (ctx) => {
   await learningGoals.updateGoalProgress(user.id, 'weekly_reviews', 1);
   
   // Check for badges
-  const awarded = masteryBadges.checkAndAwardBadges(user.id);
+  const awarded = await masteryBadges.checkAndAwardBadges(user.id);
   for (const badge of awarded) {
     notifications.push(user.id, { 
       type: 'badge', 
@@ -942,7 +964,7 @@ route('GET', '/api/badges', async (ctx) => {
   const { user, res } = ctx;
   const badges = await masteryBadges.getUserBadges(user.id);
   const progress = await masteryBadges.getBadgeProgress(user.id);
-  const next = masteryBadges.getNextBadges(user.id, 5);
+  const next = await masteryBadges.getNextBadges(user.id, 5);
   json(res, 200, { badges, progress, next });
 });
 
@@ -954,8 +976,8 @@ route('GET', '/api/badges/definitions', async (ctx) => {
 
 route('POST', '/api/badges/check', async (ctx) => {
   const { user, res } = ctx;
-  const awarded = masteryBadges.checkAndAwardBadges(user.id);
-  const specialBadges = masteryBadges.checkSpecialBadges(user.id);
+  const awarded = await masteryBadges.checkAndAwardBadges(user.id);
+  const specialBadges = await masteryBadges.checkSpecialBadges(user.id);
   json(res, 200, { awarded: [...awarded, ...specialBadges] });
 });
 

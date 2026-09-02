@@ -93,9 +93,9 @@ export async function getBadgeProgress(userId) {
 /**
  * Award a badge to a user
  */
-export function awardBadge(userId, badgeId) {
+export async function awardBadge(userId, badgeId) {
   // Check if already earned
-  const existing = store().find('mastery_badges', (b) => b.userId === userId && b.badgeId === badgeId);
+  const existing = await store().find('mastery_badges', (b) => b.userId === userId && b.badgeId === badgeId);
   if (existing) return null;
   
   const definition = BADGE_DEFINITIONS[badgeId];
@@ -108,8 +108,8 @@ export function awardBadge(userId, badgeId) {
     earnedAt: now()
   };
   
-  store().insert('mastery_badges', badge);
-  store().save();
+  await store().insert('mastery_badges', badge);
+  await store().save();
   
   return {
     ...badge,
@@ -121,106 +121,106 @@ export function awardBadge(userId, badgeId) {
  * Check and award badges based on user activity
  * This is called after various user actions to see if they've unlocked new badges
  */
-export function checkAndAwardBadges(userId) {
+export async function checkAndAwardBadges(userId) {
   const awarded = [];
   
   // Get user stats
-  const stats = store().get('user_stats', userId);
+  const stats = await store().get('user_stats', userId);
   if (!stats) return awarded;
   
   // Lesson milestones
   if (stats.totalLessonsCompleted >= 1) {
-    const badge = awardBadge(userId, 'first_lesson');
+    const badge = await awardBadge(userId, 'first_lesson');
     if (badge) awarded.push(badge);
   }
   
   // Practice milestones
   if (stats.totalPracticesCompleted >= 1) {
-    const badge = awardBadge(userId, 'first_practice');
+    const badge = await awardBadge(userId, 'first_practice');
     if (badge) awarded.push(badge);
   }
   if (stats.totalPracticesCompleted >= 10) {
-    const badge = awardBadge(userId, 'practice_10');
+    const badge = await awardBadge(userId, 'practice_10');
     if (badge) awarded.push(badge);
   }
   if (stats.totalPracticesCompleted >= 50) {
-    const badge = awardBadge(userId, 'practice_50');
+    const badge = await awardBadge(userId, 'practice_50');
     if (badge) awarded.push(badge);
   }
   if (stats.totalPracticesCompleted >= 100) {
-    const badge = awardBadge(userId, 'practice_100');
+    const badge = await awardBadge(userId, 'practice_100');
     if (badge) awarded.push(badge);
   }
   
   // Review milestones
   if (stats.totalReviewsDone >= 1) {
-    const badge = awardBadge(userId, 'first_review');
+    const badge = await awardBadge(userId, 'first_review');
     if (badge) awarded.push(badge);
   }
   if (stats.totalReviewsDone >= 50) {
-    const badge = awardBadge(userId, 'review_50');
+    const badge = await awardBadge(userId, 'review_50');
     if (badge) awarded.push(badge);
   }
   
   // Streak badges
   if (stats.currentStreak >= 3) {
-    const badge = awardBadge(userId, 'lesson_streak_3');
+    const badge = await awardBadge(userId, 'lesson_streak_3');
     if (badge) awarded.push(badge);
   }
   if (stats.currentStreak >= 7) {
-    const badge = awardBadge(userId, 'lesson_streak_7');
+    const badge = await awardBadge(userId, 'lesson_streak_7');
     if (badge) awarded.push(badge);
   }
   if (stats.currentStreak >= 30) {
-    const badge = awardBadge(userId, 'lesson_streak_30');
+    const badge = await awardBadge(userId, 'lesson_streak_30');
     if (badge) awarded.push(badge);
   }
   if (stats.currentStreak >= 100) {
-    const badge = awardBadge(userId, 'lesson_streak_100');
+    const badge = await awardBadge(userId, 'lesson_streak_100');
     if (badge) awarded.push(badge);
   }
   
   // Perfect reviews
-  const perfectReviews = store().filter('review_schedule', (r) => r.userId === userId && r.lastQuality === 5).length;
+  const perfectReviews = (await store().filter('review_schedule', (r) => r.userId === userId && r.lastQuality === 5)).length;
   
   if (perfectReviews >= 10) {
-    const badge = awardBadge(userId, 'perfect_review_10');
+    const badge = await awardBadge(userId, 'perfect_review_10');
     if (badge) awarded.push(badge);
   }
   
   // Skill mastery count
-  const masteredSkills = store().filter('user_mastery', (m) => m.userId === userId && m.masteryLevel >= 0.8).length;
+  const masteredSkills = (await store().filter('user_mastery', (m) => m.userId === userId && m.masteryLevel >= 0.8)).length;
   
   if (masteredSkills >= 1) {
-    const badge = awardBadge(userId, 'skill_master_1');
+    const badge = await awardBadge(userId, 'skill_master_1');
     if (badge) awarded.push(badge);
   }
   if (masteredSkills >= 5) {
-    const badge = awardBadge(userId, 'skill_master_5');
+    const badge = await awardBadge(userId, 'skill_master_5');
     if (badge) awarded.push(badge);
   }
   if (masteredSkills >= 10) {
-    const badge = awardBadge(userId, 'skill_master_10');
+    const badge = await awardBadge(userId, 'skill_master_10');
     if (badge) awarded.push(badge);
   }
   
   // Challenge achievements
-  const challenges = store().filter('submissions', (s) => s.userId === userId && s.score >= 70).length;
+  const challenges = (await store().filter('submissions', (s) => s.userId === userId && s.score >= 70)).length;
   if (challenges >= 1) {
-    const badge = awardBadge(userId, 'first_challenge');
+    const badge = await awardBadge(userId, 'first_challenge');
     if (badge) awarded.push(badge);
   }
   
   // Goals
-  const goals = store().filter('learning_goals', (g) => g.userId === userId).length;
+  const goals = (await store().filter('learning_goals', (g) => g.userId === userId)).length;
   if (goals >= 1) {
-    const badge = awardBadge(userId, 'first_goal');
+    const badge = await awardBadge(userId, 'first_goal');
     if (badge) awarded.push(badge);
   }
   
-  const completedGoals = store().filter('learning_goals', (g) => g.userId === userId && g.completed === true).length;
+  const completedGoals = (await store().filter('learning_goals', (g) => g.userId === userId && g.completed === true)).length;
   if (completedGoals >= 10) {
-    const badge = awardBadge(userId, 'goal_complete_10');
+    const badge = await awardBadge(userId, 'goal_complete_10');
     if (badge) awarded.push(badge);
   }
   
@@ -230,7 +230,7 @@ export function checkAndAwardBadges(userId) {
 /**
  * Check time-based special badges
  */
-export function checkSpecialBadges(userId, timestamp = Date.now()) {
+export async function checkSpecialBadges(userId, timestamp = Date.now()) {
   const awarded = [];
   const date = new Date(timestamp);
   const hour = date.getHours();
@@ -238,13 +238,13 @@ export function checkSpecialBadges(userId, timestamp = Date.now()) {
   
   // Early bird (before 8 AM)
   if (hour < 8) {
-    const badge = awardBadge(userId, 'early_bird');
+    const badge = await awardBadge(userId, 'early_bird');
     if (badge) awarded.push(badge);
   }
   
   // Night owl (after 10 PM)
   if (hour >= 22) {
-    const badge = awardBadge(userId, 'night_owl');
+    const badge = await awardBadge(userId, 'night_owl');
     if (badge) awarded.push(badge);
   }
   
@@ -254,13 +254,13 @@ export function checkSpecialBadges(userId, timestamp = Date.now()) {
     thisWeekStart.setDate(date.getDate() - date.getDay()); // Go to Sunday
     thisWeekStart.setHours(0, 0, 0, 0);
     
-    const sessions = store().filter('learning_sessions', (s) => s.userId === userId && s.createdAt >= thisWeekStart.getTime());
+    const sessions = await store().filter('learning_sessions', (s) => s.userId === userId && s.createdAt >= thisWeekStart.getTime());
     
     const hasSaturday = sessions.some(s => new Date(s.createdAt).getDay() === 6);
     const hasSunday = sessions.some(s => new Date(s.createdAt).getDay() === 0);
     
     if (hasSaturday && hasSunday) {
-      const badge = awardBadge(userId, 'weekend_warrior');
+      const badge = await awardBadge(userId, 'weekend_warrior');
       if (badge) awarded.push(badge);
     }
   }
@@ -278,11 +278,11 @@ export function getBadgeDefinitions() {
 /**
  * Get next badges user can earn (closest to unlocking)
  */
-export function getNextBadges(userId, limit = 5) {
-  const stats = store().get('user_stats', userId);
+export async function getNextBadges(userId, limit = 5) {
+  const stats = await store().get('user_stats', userId);
   if (!stats) return [];
   
-  const earned = getUserBadges(userId).map(b => b.badgeId);
+  const earned = (await getUserBadges(userId)).map((b) => b.badgeId);
   const next = [];
   
   // Calculate progress towards unearned badges

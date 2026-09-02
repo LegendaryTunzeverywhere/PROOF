@@ -238,6 +238,11 @@ export class SupabaseStore {
   }
 
   async get(table, id) {
+    // Never query PostgREST with a null/undefined key: it would either match
+    // nothing or (worse) spam `Get error (users/null)` when the origin is
+    // slow/overloaded. Malformed rows are handled by callers (see auth.js).
+    if (id === null || id === undefined || id === '') return null;
+
     const supabaseTable = this.tableMap[table] || table;
     const cacheKey = `${table}:${id}`;
 
