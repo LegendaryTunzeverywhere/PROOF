@@ -152,11 +152,23 @@ export async function session(root, { id }) {
         <h1 class="h1" style="margin-bottom:16px">${esc(currentReview.topicTitle)}</h1>
         <p class="sub">How well do you remember this topic?</p>
         
-        <div id="revealContent" class="mt16" style="display:none">
-          <div class="callout callout-ask mt16">
-            <b>Quick reminder:</b> Review the key concepts and examples you learned.
-            Take a moment to recall what you know before rating yourself.
-          </div>
+        <div id="revealContent" class="mt16" style="display:none;text-align:left">
+          ${currentReview.question ? `
+            <div class="callout callout-ask">
+              <b>Try to answer from memory first:</b>
+              <div style="margin-top:8px;font-size:14.5px">${esc(currentReview.question.q)}</div>
+              <div class="mt8 stack" style="gap:6px" id="reviewOpts">
+                ${currentReview.question.choices.map((c, i) => `<button class="opt" data-ci="${i}" style="text-align:left">${'ABCD'[i]}. ${esc(c)}</button>`).join('')}
+              </div>
+              <div id="reviewVerdict" class="mt8"></div>
+            </div>` : ''}
+          ${currentReview.prompt ? `
+            <div class="callout callout-ask mt12">
+              <b>Say it in your own words:</b>
+              <div style="margin-top:6px;font-size:14px;color:var(--ink-2)">${esc(currentReview.prompt)}</div>
+              <textarea class="input mt8" rows="3" placeholder="Type or say your answer before rating yourself…"></textarea>
+            </div>` : ''}
+          <div class="tiny mt12" style="color:var(--muted)">Recall first, <i>then</i> rate how well you remembered. The struggle is the point — it is how memories strengthen.</div>
         </div>
 
         <button class="btn btn-primary btn-block mt20" id="revealBtn" style="max-width:300px;margin:20px auto 0">
@@ -186,7 +198,18 @@ export async function session(root, { id }) {
       $('#revealContent', root).style.display = 'block';
       $('#revealBtn', root).style.display = 'none';
       $('#qualityButtons', root).style.display = 'block';
-      
+
+      // Active-recall mini quiz: reveal correct/wrong for the topic question
+      const q = currentReview.question;
+      $$('#reviewOpts .opt', root).forEach((b) => b.addEventListener('click', () => {
+        const chosen = parseInt(b.dataset.ci, 10);
+        const right = chosen === q.answerIdx;
+        $$('#reviewOpts .opt', root).forEach((x) => (x.disabled = true));
+        b.classList.add(right ? 'correct' : 'wrong');
+        if (!right) $$('#reviewOpts .opt', root)[q.answerIdx]?.classList.add('correct');
+        $('#reviewVerdict', root).innerHTML = `<div class="tiny mt8" style="color:${right ? 'var(--ok-deep)' : 'var(--bad)'}"><b>${right ? '✓ Correct' : '✗ Not quite'}</b>${q.why ? ' — ' + esc(q.why) : ''}</div>`;
+      }));
+
       // Scroll to quality buttons
       setTimeout(() => {
         $('#qualityButtons', root)?.scrollIntoView({ behavior: 'smooth', block: 'start' });

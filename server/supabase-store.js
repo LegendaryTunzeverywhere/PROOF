@@ -67,6 +67,13 @@ export class SupabaseStore {
       'user_mastery': 'UserMastery'
     };
 
+    // App field name → DB column name (services use NIM-friendly names;
+    // the DB stores luna BigInts / differently named columns).
+    this.fieldMap = {
+      'challenges': { rewardNim: 'rewardLuna' },
+      'teaching_sessions': { rating: 'ratingSum' },
+    };
+
     // Cache for frequently accessed data
     this.cache = new Map();
     // Different TTLs for different types of data
@@ -152,6 +159,51 @@ export class SupabaseStore {
     return converted;
   }
 
+  /**
+   * App→DB field mapping: the service layer speaks NIM-friendly names while
+   * some PostgreSQL columns use luna BigInts / different names.
+   */
+  mapFieldsForDb(doc, tableName) {
+    const map = this.fieldMap[tableName];
+    if (!map || !doc) return doc;
+    const out = { ...doc };
+    for (const [from, to] of Object.entries(map)) {
+      if (out[from] === undefined) continue;
+      out[to] = from === 'rewardNim' ? Math.round(out[from] * 100000) : out[from];
+      delete out[from];
+    }
+    return out;
+  }
+
+  /** DB→App field mapping (reverse of mapFieldsForDb) + ISO→ms timestamps. */
+  convertFromDatabase(row, tableName) {
+    if (!row || typeof row !== 'object') return row;
+    let out = { ...row };
+
+    // Reverse field mapping first so mapped columns land under app names.
+    const map = this.fieldMap[tableName];
+    if (map) {
+      for (const [appName, dbName] of Object.entries(map)) {
+        if (out[dbName] === undefined) continue;
+        out[appName] = appName === 'rewardNim' ? Math.round(Number(out[dbName])) / 100000 : out[dbName];
+        delete out[dbName];
+      }
+    }
+
+    // Reverse timestamp conversion: ISO strings back to epoch milliseconds so
+    // comparisons/sorts against Date.now() (used throughout the app) hold.
+    for (const [key, value] of Object.entries(out)) {
+      if (value === null || value === undefined || typeof value !== 'string') continue;
+      const isTsField = key.endsWith('At') || ['postedAt', 'bookedAt', 'joinedAt', 'appliedAt',
+        'respondedAt', 'unlockedAt', 'earnedAt', 'startedAt', 'completedAt', 'submittedAt',
+        'confirmedAt', 'suspendedAt', 'lastReviewedAt', 'lastPracticedAt', 'verifiedAt'].includes(key);
+      if (!isTsField) continue;
+      const t = Date.parse(value);
+      if (!Number.isNaN(t)) out[key] = t;
+    }
+    return out;
+  }
+
   async insert(table, doc) {
     const supabaseTable = this.tableMap[table] || table;
     
@@ -161,8 +213,8 @@ export class SupabaseStore {
       doc.id = `${prefix}_${Math.random().toString(36).substr(2, 12)}`;
     }
 
-    // Convert timestamps to ISO strings
-    const convertedDoc = this.convertTimestamps(doc, table);
+    // Convert timestamps + field names to DB form
+    const convertedDoc = this.convertTimestamps(this.mapFieldsForDb(doc, table), table);
 
     const { data, error } = await this.client
       .from(supabaseTable)
@@ -182,7 +234,7 @@ export class SupabaseStore {
     this.cache.delete(`${table}:${data.id}`);
     this.cache.delete(`${table}:all`);
 
-    return data;
+    return this.convertFromDatabase(data, table);
   }
 
   async get(table, id) {
@@ -210,17 +262,19 @@ export class SupabaseStore {
       return null;
     }
 
-    // Cache result
-    this.cache.set(cacheKey, { data, time: Date.now() });
+    const row = this.convertFromDatabase(data, table);
 
-    return data;
+    // Cache result
+    this.cache.set(cacheKey, { data: row, time: Date.now() });
+
+    return row;
   }
 
   async update(table, id, patch) {
     const supabaseTable = this.tableMap[table] || table;
 
-    // Convert timestamps in patch
-    const convertedPatch = this.convertTimestamps(patch, table);
+    // Convert timestamps + field names in patch
+    const convertedPatch = this.convertTimestamps(this.mapFieldsForDb(patch, table), table);
 
     // UserStats uses userId as primary key, not id
     const pkField = table === 'user_stats' ? 'userId' : 'id';
@@ -242,8 +296,9 @@ export class SupabaseStore {
 
     // Invalidate only this table's cache
     this.cache.delete(`${table}:all`);
+    this.cache.delete(`${table}:${id}`);
 
-    return data;
+    return this.convertFromDatabase(data, table);
   }
 
   async remove(table, id) {
@@ -276,29 +331,26 @@ export class SupabaseStore {
     const cached = this.cache.get(cacheKey);
     const ttl = this.cacheTTLs[table] || this.cacheTTLs.default;
     if (cached && Date.now() - cached.time < ttl) {
-      console.log(`[cache] HIT ${table} (age: ${Math.round((Date.now() - cached.time) / 1000)}s)`);
       return cached.data;
     }
 
-    console.log(`[cache] MISS ${table} - fetching from Supabase`);
-    const fetchStart = Date.now();
     const { data, error } = await this.client
       .from(supabaseTable)
       .select('*')
       .order('createdAt', { ascending: false })
       .limit(1000); // Safety limit
 
-    console.log(`[cache] Supabase fetch ${table} took ${Date.now() - fetchStart}ms`);
-
     if (error) {
       console.error(`All error (${table}):`, error);
       return [];
     }
 
-    // Cache result
-    this.cache.set(cacheKey, { data, time: Date.now() });
+    const rows = (data || []).map((row) => this.convertFromDatabase(row, table));
 
-    return data || [];
+    // Cache result
+    this.cache.set(cacheKey, { data: rows, time: Date.now() });
+
+    return rows;
   }
 
   async find(table, pred) {
@@ -307,7 +359,6 @@ export class SupabaseStore {
   }
 
   async filter(table, pred) {
-    console.log(`[cache] filter(${table})`);
     const rows = await this.all(table);
     return rows.filter(pred);
   }
@@ -318,10 +369,7 @@ export class SupabaseStore {
    */
   async findOptimized(table, conditions) {
     const supabaseTable = this.tableMap[table] || table;
-    
-    console.log(`[perf] findOptimized(${table}) with conditions:`, JSON.stringify(conditions));
-    const startTime = Date.now();
-    
+
     let query = this.client.from(supabaseTable).select('*');
     
     for (const [key, value] of Object.entries(conditions)) {
@@ -339,8 +387,6 @@ export class SupabaseStore {
     query = query.limit(1);
     
     const { data, error } = await query;
-    
-    console.log(`[perf] findOptimized(${table}) took ${Date.now() - startTime}ms, found: ${data?.length || 0} rows`);
     
     if (error) {
       console.error(`Optimized find error (${table}):`, error);

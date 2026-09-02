@@ -13,6 +13,24 @@ const POPULARITY = {
 };
 
 export async function seed(store) {
+  // The embedded store exposes raw `tables`; SupabaseStore does not. Use a
+  // helper so the same seed data lands in both backends.
+  const raw = !!store.tables;
+  const putRow = async (table, id, doc) => {
+    if (raw) {
+      if (!store.tables[table]) store.tables[table] = {};
+      store.tables[table][id] = doc;
+      return doc;
+    }
+    const existing = await store.get(table, id);
+    if (existing) { await store.update(table, id, doc); return doc; }
+    await store.insert(table, { id, ...doc });
+    return doc;
+  };
+  const ensureTable = (table) => {
+    if (raw && !store.tables[table]) store.tables[table] = {};
+  };
+
   /* skills catalog (seedCatalog in SkillService will skip these) */
   for (const s of SKILLS) {
     store.insert('skills', { id: uid('sk'), ...s, popularity: POPULARITY[s.slug] || 40 });
@@ -192,9 +210,9 @@ export async function seed(store) {
   const today = new Date().toISOString().split('T')[0];
   
   // Initialize UserStats for demo users with activity
-  const initStats = (user, stats) => {
-    if (!store.tables['user_stats']) store.tables['user_stats'] = {};
-    store.tables['user_stats'][user.id] = {
+  const initStats = async (user, stats) => {
+    ensureTable('user_stats');
+    await putRow('user_stats', user.id, {
       userId: user.id,
       currentStreak: stats.currentStreak || 0,
       longestStreak: stats.longestStreak || 0,
@@ -204,28 +222,22 @@ export async function seed(store) {
       totalLessonsCompleted: stats.totalLessonsCompleted || 0,
       totalPracticesCompleted: stats.totalPracticesCompleted || 0,
       updatedAt: now()
-    };
+    });
   };
   
-  initStats(tunz, { currentStreak: 12, longestStreak: 21, lastActivityDate: today, totalLearningMinutes: 840, totalLessonsCompleted: 42, totalPracticesCompleted: 38, totalReviewsDone: 15 });
-  initStats(amara, { currentStreak: 6, longestStreak: 15, lastActivityDate: today, totalLearningMinutes: 620, totalLessonsCompleted: 31, totalPracticesCompleted: 28, totalReviewsDone: 12 });
-  initStats(kofi, { currentStreak: 3, longestStreak: 9, lastActivityDate: today, totalLearningMinutes: 410, totalLessonsCompleted: 21, totalPracticesCompleted: 18, totalReviewsDone: 8 });
-  initStats(lena, { currentStreak: 8, longestStreak: 11, lastActivityDate: today, totalLearningMinutes: 530, totalLessonsCompleted: 26, totalPracticesCompleted: 24, totalReviewsDone: 10 });
-  initStats(diego, { currentStreak: 2, longestStreak: 6, lastActivityDate: today, totalLearningMinutes: 280, totalLessonsCompleted: 14, totalPracticesCompleted: 12, totalReviewsDone: 5 });
-  initStats(priya, { currentStreak: 5, longestStreak: 10, lastActivityDate: today, totalLearningMinutes: 490, totalLessonsCompleted: 24, totalPracticesCompleted: 22, totalReviewsDone: 9 });
+  await initStats(tunz, { currentStreak: 12, longestStreak: 21, lastActivityDate: today, totalLearningMinutes: 840, totalLessonsCompleted: 42, totalPracticesCompleted: 38, totalReviewsDone: 15 });
+  await initStats(amara, { currentStreak: 6, longestStreak: 15, lastActivityDate: today, totalLearningMinutes: 620, totalLessonsCompleted: 31, totalPracticesCompleted: 28, totalReviewsDone: 12 });
+  await initStats(kofi, { currentStreak: 3, longestStreak: 9, lastActivityDate: today, totalLearningMinutes: 410, totalLessonsCompleted: 21, totalPracticesCompleted: 18, totalReviewsDone: 8 });
+  await initStats(lena, { currentStreak: 8, longestStreak: 11, lastActivityDate: today, totalLearningMinutes: 530, totalLessonsCompleted: 26, totalPracticesCompleted: 24, totalReviewsDone: 10 });
+  await initStats(diego, { currentStreak: 2, longestStreak: 6, lastActivityDate: today, totalLearningMinutes: 280, totalLessonsCompleted: 14, totalPracticesCompleted: 12, totalReviewsDone: 5 });
+  await initStats(priya, { currentStreak: 5, longestStreak: 10, lastActivityDate: today, totalLearningMinutes: 490, totalLessonsCompleted: 24, totalPracticesCompleted: 22, totalReviewsDone: 9 });
 
   // Initialize empty tables for other Learn Anything features
-  if (!store.tables['review_schedule']) store.tables['review_schedule'] = {};
-  if (!store.tables['learning_sessions']) store.tables['learning_sessions'] = {};
-  if (!store.tables['learning_goals']) store.tables['learning_goals'] = {};
-  if (!store.tables['mastery_badges']) store.tables['mastery_badges'] = {};
-  if (!store.tables['exercise_attempts']) store.tables['exercise_attempts'] = {};
-  if (!store.tables['quiz_results']) store.tables['quiz_results'] = {};
-  if (!store.tables['knowledge_nodes']) store.tables['knowledge_nodes'] = {};
-  if (!store.tables['user_mastery']) store.tables['user_mastery'] = {};
+  for (const t of ['review_schedule', 'learning_sessions', 'learning_goals', 'mastery_badges',
+    'exercise_attempts', 'quiz_results', 'knowledge_nodes', 'user_mastery']) ensureTable(t);
 
   // ── Learning Goals: Create sample goals for demo users ──
-  const createGoalHelper = (user, goalType, target, currentVal, period = 'weekly') => {
+  const createGoalHelper = async (user, goalType, target, currentVal, period = 'weekly') => {
     const goalId = uid('goal');
     const todayDate = new Date();
     let startsAt, endsAt;
@@ -240,8 +252,8 @@ export async function seed(store) {
       endsAt = new Date(todayDate.setHours(23, 59, 59, 999)).getTime();
     }
     
-    if (!store.tables['learning_goals']) store.tables['learning_goals'] = {};
-    store.tables['learning_goals'][goalId] = {
+    ensureTable('learning_goals');
+    await putRow('learning_goals', goalId, {
       id: goalId,
       userId: user.id,
       goalType,
@@ -253,90 +265,83 @@ export async function seed(store) {
       completed: currentVal >= target,
       completedAt: currentVal >= target ? now() : null,
       createdAt: now()
-    };
+    });
   };
   
   // Tunz (high performer) - all goals progressing well
-  createGoalHelper(tunz, 'weekly_lessons', 5, 4, 'weekly');
-  createGoalHelper(tunz, 'weekly_practices', 3, 3, 'weekly');
-  createGoalHelper(tunz, 'daily_minutes', 30, 25, 'daily');
+  await createGoalHelper(tunz, 'weekly_lessons', 5, 4, 'weekly');
+  await createGoalHelper(tunz, 'weekly_practices', 3, 3, 'weekly');
+  await createGoalHelper(tunz, 'daily_minutes', 30, 25, 'daily');
   
   // Amara - some goals completed
-  createGoalHelper(amara, 'weekly_lessons', 5, 5, 'weekly'); // completed
-  createGoalHelper(amara, 'weekly_practices', 4, 2, 'weekly');
+  await createGoalHelper(amara, 'weekly_lessons', 5, 5, 'weekly'); // completed
+  await createGoalHelper(amara, 'weekly_practices', 4, 2, 'weekly');
   
   // Kofi - just started
-  createGoalHelper(kofi, 'weekly_lessons', 3, 1, 'weekly');
-  createGoalHelper(kofi, 'daily_minutes', 20, 15, 'daily');
+  await createGoalHelper(kofi, 'weekly_lessons', 3, 1, 'weekly');
+  await createGoalHelper(kofi, 'daily_minutes', 20, 15, 'daily');
   
   // Lena - mid-progress
-  createGoalHelper(lena, 'weekly_lessons', 5, 3, 'weekly');
-  createGoalHelper(lena, 'weekly_practices', 3, 2, 'weekly');
+  await createGoalHelper(lena, 'weekly_lessons', 5, 3, 'weekly');
+  await createGoalHelper(lena, 'weekly_practices', 3, 2, 'weekly');
 
   // ── Mastery Badges: Award some badges to demo users ──
-  const awardBadgeHelper = (user, badgeId) => {
+  const awardBadgeHelper = async (user, badgeId) => {
     const badge = {
       id: uid('badge'),
       userId: user.id,
       badgeId,
       earnedAt: now() - Math.floor(Math.random() * 7 * 86400000) // earned within last week
     };
-    if (!store.tables['mastery_badges']) store.tables['mastery_badges'] = {};
-    store.tables['mastery_badges'][badge.id] = badge;
+    ensureTable('mastery_badges');
+    await putRow('mastery_badges', badge.id, badge);
   };
   
   // Tunz (most experienced) - multiple badges
-  awardBadgeHelper(tunz, 'first_lesson');
-  awardBadgeHelper(tunz, 'first_practice');
-  awardBadgeHelper(tunz, 'lesson_streak_3');
-  awardBadgeHelper(tunz, 'lesson_streak_7');
-  awardBadgeHelper(tunz, 'practice_10');
-  awardBadgeHelper(tunz, 'first_goal');
+  await awardBadgeHelper(tunz, 'first_lesson');
+  await awardBadgeHelper(tunz, 'first_practice');
+  await awardBadgeHelper(tunz, 'lesson_streak_3');
+  await awardBadgeHelper(tunz, 'lesson_streak_7');
+  await awardBadgeHelper(tunz, 'practice_10');
+  await awardBadgeHelper(tunz, 'first_goal');
   
   // Amara - solid progress
-  awardBadgeHelper(amara, 'first_lesson');
-  awardBadgeHelper(amara, 'first_practice');
-  awardBadgeHelper(amara, 'lesson_streak_3');
-  awardBadgeHelper(amara, 'practice_10');
-  awardBadgeHelper(amara, 'first_goal');
+  await awardBadgeHelper(amara, 'first_lesson');
+  await awardBadgeHelper(amara, 'first_practice');
+  await awardBadgeHelper(amara, 'lesson_streak_3');
+  await awardBadgeHelper(amara, 'practice_10');
+  await awardBadgeHelper(amara, 'first_goal');
   
   // Lena - getting started
-  awardBadgeHelper(lena, 'first_lesson');
-  awardBadgeHelper(lena, 'first_practice');
-  awardBadgeHelper(lena, 'lesson_streak_3');
-  awardBadgeHelper(lena, 'first_goal');
+  await awardBadgeHelper(lena, 'first_lesson');
+  await awardBadgeHelper(lena, 'first_practice');
+  await awardBadgeHelper(lena, 'lesson_streak_3');
+  await awardBadgeHelper(lena, 'first_goal');
   
   // Kofi - early stage
-  awardBadgeHelper(kofi, 'first_lesson');
-  awardBadgeHelper(kofi, 'first_practice');
-  awardBadgeHelper(kofi, 'first_goal');
+  await awardBadgeHelper(kofi, 'first_lesson');
+  await awardBadgeHelper(kofi, 'first_practice');
+  await awardBadgeHelper(kofi, 'first_goal');
   
   // Priya - moderate progress
-  awardBadgeHelper(priya, 'first_lesson');
-  awardBadgeHelper(priya, 'first_practice');
-  awardBadgeHelper(priya, 'lesson_streak_3');
-  awardBadgeHelper(priya, 'first_goal');
+  await awardBadgeHelper(priya, 'first_lesson');
+  await awardBadgeHelper(priya, 'first_practice');
+  await awardBadgeHelper(priya, 'lesson_streak_3');
+  await awardBadgeHelper(priya, 'first_goal');
 
   // ── Socratic Teaching System: Initialize tables and demo data ──
-  if (!store.tables['socratic_sessions']) store.tables['socratic_sessions'] = {};
-  if (!store.tables['user_glossary']) store.tables['user_glossary'] = {};
-  if (!store.tables['skill_dependencies']) store.tables['skill_dependencies'] = {};
-  if (!store.tables['project_tracks']) store.tables['project_tracks'] = {};
-  if (!store.tables['user_project_progress']) store.tables['user_project_progress'] = {};
-  if (!store.tables['lesson_checkpoints']) store.tables['lesson_checkpoints'] = {};
-  if (!store.tables['checkpoint_responses']) store.tables['checkpoint_responses'] = {};
-  if (!store.tables['code_reviews']) store.tables['code_reviews'] = {};
-  if (!store.tables['study_groups']) store.tables['study_groups'] = {};
-  if (!store.tables['group_discussions']) store.tables['group_discussions'] = {};
+  for (const t of ['socratic_sessions', 'user_glossary', 'skill_dependencies', 'project_tracks',
+    'user_project_progress', 'lesson_checkpoints', 'checkpoint_responses', 'code_reviews',
+    'study_groups', 'group_discussions']) ensureTable(t);
 
   // Helper to create Socratic sessions
-  const createSession = (user, type, topicTitle, opts = {}) => {
+  const createSession = async (user, type, topicTitle, opts = {}) => {
     const sessionId = uid('soc');
     const daysAgo = opts.daysAgo || Math.floor(Math.random() * 14);
     const startedAt = now() - daysAgo * 86400000;
     const duration = opts.duration || (15 + Math.floor(Math.random() * 10)) * 60000; // 15-25 min
     
-    store.tables['socratic_sessions'][sessionId] = {
+    await putRow('socratic_sessions', sessionId, {
       id: sessionId,
       userId: user.id,
       type,
@@ -350,11 +355,11 @@ export async function seed(store) {
       currentQuestionIndex: opts.currentQuestionIndex || 4,
       startedAt,
       completedAt: opts.status === 'completed' ? startedAt + duration : null
-    };
+    });
   };
 
   // Tunz - experienced learner with multiple sessions
-  createSession(tunz, 'pre_lesson', 'HTML Basics', {
+  await createSession(tunz, 'pre_lesson', 'HTML Basics', {
     topicSlug: 'html-basics',
     daysAgo: 12,
     responses: [
@@ -367,7 +372,7 @@ export async function seed(store) {
     ]
   });
   
-  createSession(tunz, 'checkpoint', 'CSS Flexbox', {
+  await createSession(tunz, 'checkpoint', 'CSS Flexbox', {
     topicSlug: 'css-flexbox',
     daysAgo: 8,
     responses: [
@@ -379,7 +384,7 @@ export async function seed(store) {
     ]
   });
 
-  createSession(tunz, 'reflection', 'JavaScript Functions', {
+  await createSession(tunz, 'reflection', 'JavaScript Functions', {
     topicSlug: 'js-functions',
     daysAgo: 3,
     responses: [
@@ -394,7 +399,7 @@ export async function seed(store) {
   });
 
   // Amara - active learner
-  createSession(amara, 'pre_lesson', 'Python Lists', {
+  await createSession(amara, 'pre_lesson', 'Python Lists', {
     topicSlug: 'python-lists',
     daysAgo: 7,
     responses: [
@@ -406,7 +411,7 @@ export async function seed(store) {
     ]
   });
 
-  createSession(amara, 'wait_what', 'List Comprehensions', {
+  await createSession(amara, 'wait_what', 'List Comprehensions', {
     topicSlug: 'python-list-comprehension',
     daysAgo: 6,
     responses: [
@@ -415,7 +420,7 @@ export async function seed(store) {
     ]
   });
 
-  createSession(amara, 'reflection', 'Python Dictionaries', {
+  await createSession(amara, 'reflection', 'Python Dictionaries', {
     topicSlug: 'python-dicts',
     daysAgo: 2,
     responses: [
@@ -428,7 +433,7 @@ export async function seed(store) {
   });
 
   // Lena - UI design learner
-  createSession(lena, 'pre_lesson', 'Color Theory Basics', {
+  await createSession(lena, 'pre_lesson', 'Color Theory Basics', {
     topicSlug: 'color-theory',
     daysAgo: 10,
     responses: [
@@ -437,7 +442,7 @@ export async function seed(store) {
     ]
   });
 
-  createSession(lena, 'checkpoint', 'Typography Hierarchy', {
+  await createSession(lena, 'checkpoint', 'Typography Hierarchy', {
     topicSlug: 'typography',
     daysAgo: 5,
     responses: [
@@ -449,7 +454,7 @@ export async function seed(store) {
   });
 
   // Kofi - marketing learner
-  createSession(kofi, 'pre_lesson', 'Customer Personas', {
+  await createSession(kofi, 'pre_lesson', 'Customer Personas', {
     topicSlug: 'customer-personas',
     daysAgo: 4,
     responses: [
@@ -458,11 +463,11 @@ export async function seed(store) {
   });
 
   // Helper to create glossary entries
-  const createGlossaryTerm = (user, term, definition, level, source) => {
+  const createGlossaryTerm = async (user, term, definition, level, source) => {
     const termId = uid('gloss');
     const daysAgo = Math.floor(Math.random() * 20);
     
-    store.tables['user_glossary'][termId] = {
+    await putRow('user_glossary', termId, {
       id: termId,
       userId: user.id,
       term,
@@ -473,37 +478,37 @@ export async function seed(store) {
       reviewCount: 0,
       lastReviewedAt: null,
       createdAt: now() - daysAgo * 86400000
-    };
+    });
   };
 
   // Tunz's glossary - web development terms
-  createGlossaryTerm(tunz, 'Flexbox', 'A CSS layout system that arranges items in rows or columns with flexible sizing', 'intermediate', 'CSS Flexbox lesson');
-  createGlossaryTerm(tunz, 'Semantic HTML', 'HTML tags that describe the meaning of content, not just appearance', 'beginner', 'HTML Basics lesson');
-  createGlossaryTerm(tunz, 'Callback Function', 'A function passed as an argument to another function to be executed later', 'intermediate', 'JavaScript Functions lesson');
-  createGlossaryTerm(tunz, 'Responsive Design', 'Design approach where layouts adapt to different screen sizes', 'intermediate', 'Manual entry');
-  createGlossaryTerm(tunz, 'Event Delegation', 'Attaching event listeners to parent elements instead of individual children', 'expert', 'Advanced JS lesson');
+  await createGlossaryTerm(tunz, 'Flexbox', 'A CSS layout system that arranges items in rows or columns with flexible sizing', 'intermediate', 'CSS Flexbox lesson');
+  await createGlossaryTerm(tunz, 'Semantic HTML', 'HTML tags that describe the meaning of content, not just appearance', 'beginner', 'HTML Basics lesson');
+  await createGlossaryTerm(tunz, 'Callback Function', 'A function passed as an argument to another function to be executed later', 'intermediate', 'JavaScript Functions lesson');
+  await createGlossaryTerm(tunz, 'Responsive Design', 'Design approach where layouts adapt to different screen sizes', 'intermediate', 'Manual entry');
+  await createGlossaryTerm(tunz, 'Event Delegation', 'Attaching event listeners to parent elements instead of individual children', 'expert', 'Advanced JS lesson');
 
   // Amara's glossary - Python and data
-  createGlossaryTerm(amara, 'List Comprehension', 'Python syntax for creating lists in a single line using a for loop', 'intermediate', 'Python Lists lesson');
-  createGlossaryTerm(amara, 'Dictionary', 'Python data structure that stores key-value pairs', 'beginner', 'Python Dicts lesson');
-  createGlossaryTerm(amara, 'Lambda Function', 'Anonymous one-line function in Python', 'intermediate', 'Manual entry');
-  createGlossaryTerm(amara, 'Pandas DataFrame', 'Table-like data structure for data analysis in Python', 'expert', 'Data Analysis lesson');
+  await createGlossaryTerm(amara, 'List Comprehension', 'Python syntax for creating lists in a single line using a for loop', 'intermediate', 'Python Lists lesson');
+  await createGlossaryTerm(amara, 'Dictionary', 'Python data structure that stores key-value pairs', 'beginner', 'Python Dicts lesson');
+  await createGlossaryTerm(amara, 'Lambda Function', 'Anonymous one-line function in Python', 'intermediate', 'Manual entry');
+  await createGlossaryTerm(amara, 'Pandas DataFrame', 'Table-like data structure for data analysis in Python', 'expert', 'Data Analysis lesson');
 
   // Lena's glossary - design terms
-  createGlossaryTerm(lena, 'Hierarchy', 'Visual arrangement that shows importance of elements', 'beginner', 'Typography lesson');
-  createGlossaryTerm(lena, 'Contrast', 'Difference between elements that creates visual interest', 'beginner', 'Color Theory lesson');
-  createGlossaryTerm(lena, 'White Space', 'Empty space around elements that improves readability', 'intermediate', 'Layout Principles lesson');
-  createGlossaryTerm(lena, 'Gestalt Principles', 'How humans perceive visual elements as organized patterns', 'expert', 'Design Psychology lesson');
+  await createGlossaryTerm(lena, 'Hierarchy', 'Visual arrangement that shows importance of elements', 'beginner', 'Typography lesson');
+  await createGlossaryTerm(lena, 'Contrast', 'Difference between elements that creates visual interest', 'beginner', 'Color Theory lesson');
+  await createGlossaryTerm(lena, 'White Space', 'Empty space around elements that improves readability', 'intermediate', 'Layout Principles lesson');
+  await createGlossaryTerm(lena, 'Gestalt Principles', 'How humans perceive visual elements as organized patterns', 'expert', 'Design Psychology lesson');
 
   // Kofi's glossary - marketing terms
-  createGlossaryTerm(kofi, 'Customer Persona', 'Fictional character representing your ideal customer', 'beginner', 'Customer Personas lesson');
-  createGlossaryTerm(kofi, 'Value Proposition', 'Clear statement of benefits you offer to customers', 'beginner', 'Manual entry');
-  createGlossaryTerm(kofi, 'Conversion Rate', 'Percentage of visitors who take a desired action', 'intermediate', 'Marketing Metrics lesson');
+  await createGlossaryTerm(kofi, 'Customer Persona', 'Fictional character representing your ideal customer', 'beginner', 'Customer Personas lesson');
+  await createGlossaryTerm(kofi, 'Value Proposition', 'Clear statement of benefits you offer to customers', 'beginner', 'Manual entry');
+  await createGlossaryTerm(kofi, 'Conversion Rate', 'Percentage of visitors who take a desired action', 'intermediate', 'Marketing Metrics lesson');
 
   // Priya's glossary - AI and Python
-  createGlossaryTerm(priya, 'Prompt Engineering', 'Crafting inputs to get better outputs from AI models', 'intermediate', 'AI Prompts lesson');
-  createGlossaryTerm(priya, 'API', 'Interface that allows programs to communicate with each other', 'intermediate', 'Python APIs lesson');
-  createGlossaryTerm(priya, 'Token', 'Unit of text that AI models process', 'beginner', 'AI Basics lesson');
+  await createGlossaryTerm(priya, 'Prompt Engineering', 'Crafting inputs to get better outputs from AI models', 'intermediate', 'AI Prompts lesson');
+  await createGlossaryTerm(priya, 'API', 'Interface that allows programs to communicate with each other', 'intermediate', 'Python APIs lesson');
+  await createGlossaryTerm(priya, 'Token', 'Unit of text that AI models process', 'beginner', 'AI Basics lesson');
 
   await Promise.resolve();
   return store;

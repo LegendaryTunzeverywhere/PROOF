@@ -2,6 +2,7 @@
  * Misc — leaderboard, notifications, public proofer profiles.
  */
 import { api } from '../api.js';
+import { app } from '../state.js';
 import { esc, $, $$, ico, toast, fmtNim, timeAgo, walletStatusBadge } from '../ui.js';
 
 const CATS = [
@@ -112,12 +113,6 @@ export async function publicProfileScreen(root, { username }) {
       ${profile.isDemoUser ? '<div class="tiny mt8" style="color:rgba(255,255,255,.5)">Demo profile — fictional identity for the competition build</div>' : ''}
     </div>
 
-  // Add wallet status display
-  const walletStatusEl = root.querySelector('#walletStatusPlaceholder');
-  if (walletStatusEl) {
-    walletStatusEl.innerHTML = walletStatusBadge(profile.walletMode, profile.walletModeIsDemo);
-  }
-
     <div class="section"><div class="section-head"><span class="eyebrow">✓ VERIFIED SKILLS</span></div>
       <div class="stack">${profile.verifiedSkills.length ? profile.verifiedSkills.map((s) => `
         <div class="card" style="padding:14px 16px">
@@ -139,4 +134,10 @@ export async function publicProfileScreen(root, { username }) {
     ${profile.achievements?.length ? `<div class="section"><div class="section-head"><span class="eyebrow">🏅 ACHIEVEMENTS</span></div>
       <div class="chip-row">${profile.achievements.map((a) => `<span class="chip chip-primary">${a.emoji} ${esc(a.name)}</span>`).join('')}</div></div>` : ''}
   </div>`;
+
+  // Add wallet status display
+  const walletStatusEl = root.querySelector('#walletStatusPlaceholder');
+  if (walletStatusEl) {
+    walletStatusEl.innerHTML = walletStatusBadge(app.me?.walletMode, app.me?.walletModeIsDemo);
+  }
 }

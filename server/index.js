@@ -103,7 +103,7 @@ function match(pattern, pathname) {
 const limiter = new RateLimiter();
 
 /* ── AUTH + USER ───────────────────────────────────────────────────── */
-route('POST', '/api/onboard', (ctx) => {
+route('POST', '/api/onboard', async (ctx) => {
   const { body, res } = ctx;
   const errs = validate(body, {
     type: 'object',
@@ -114,9 +114,9 @@ route('POST', '/api/onboard', (ctx) => {
     },
   });
   if (errs.length) throw httpError(400, 'BAD_INPUT', errs[0]);
-  const user = users.createUser({ isDemo: true });
-  users.update(user, { prefs: { goal: body.goal || '', level: body.level || '', minutesPerDay: body.minutesPerDay || 30, style: 'practical', interests: Array.isArray(body.interests) ? body.interests.slice(0, 6) : [] } });
-  const token = auth.createSession(user.id);
+  const user = await users.createUser({ isDemo: true });
+  await users.update(user, { prefs: { goal: body.goal || '', level: body.level || '', minutesPerDay: body.minutesPerDay || 30, style: 'practical', interests: Array.isArray(body.interests) ? body.interests.slice(0, 6) : [] } });
+  const token = await auth.createSession(user.id);
   json(res, 201, { user: publicMe(user), recommended: recommendNextSkill([]) }, { 'set-cookie': sessionCookie(token) });
 });
 
@@ -269,40 +269,28 @@ route('PATCH', '/api/me', async (ctx) => {
 /* ── HOME ──────────────────────────────────────────────────────────── */
 route('GET', '/api/home', async (ctx) => {
   const { user, res } = ctx;
-  const startTime = Date.now();
-  
-  // Get daily challenge first (needed for daily check)
-  const daily = challenges.todayDaily();
-  
-  // Time each query individually to find the bottleneck
-  console.log('[perf] Starting parallel queries...');
-  
-  const promises = [
-    store.filter('paths', (p) => p.userId === user.id).then(r => { console.log(`[perf] paths: ${Date.now() - startTime}ms`); return r; }),
-    skills.userSkills(user.id).then(r => { console.log(`[perf] userSkills: ${Date.now() - startTime}ms`); return r; }),
-    skills.catalog().then(r => { console.log(`[perf] catalog: ${Date.now() - startTime}ms`); return r; }),
-    store.all('sponsored_challenges').then(r => { console.log(`[perf] sponsored_challenges: ${Date.now() - startTime}ms`); return r; }),
-    discoveryFeed(user.id).then(r => { console.log(`[perf] discoveryFeed: ${Date.now() - startTime}ms`); return r; }),
-    // OPTIMIZED: Use findOptimized instead of find to push query to database
-    store.findOptimized('attempts', { userId: user.id, challengeId: daily.id, submittedAt_not_null: true }).then(r => { console.log(`[perf] dailyDone: ${Date.now() - startTime}ms`); return r; }),
-    market.listTasks(user.id, { onlyQualified: true }).then(r => { console.log(`[perf] listTasks: ${Date.now() - startTime}ms`); return r; })
-  ];
-  
-  const [myPaths, mySkills, catalog, sponsored, discovery, dailyDone, allTasks] = await Promise.all(promises);
-  
-  console.log(`[perf] Parallel queries took ${Date.now() - startTime}ms`);
-  
-  const sortedPaths = myPaths.sort((a, b) => b.createdAt - a.createdAt);
+
+  // All queries run concurrently. `await` is safe on both the embedded
+  // store (synchronous methods) and SupabaseStore (async methods), so this
+  // path works identically in either backend.
+  const daily = await challenges.todayDaily();
+
+  const [myPaths, mySkills, catalog, sponsored, discovery, dailyDone, allTasks] = await Promise.all([
+    store.filter('paths', (p) => p.userId === user.id),
+    skills.userSkills(user.id),
+    skills.catalog(),
+    store.all('sponsored_challenges'),
+    discoveryFeed(user.id),
+    store.findOptimized('attempts', { userId: user.id, challengeId: daily.id, submittedAt_not_null: true }),
+    market.listTasks(user.id, { onlyQualified: true }),
+  ]);
+
+  const sortedPaths = myPaths.slice().sort((a, b) => b.createdAt - a.createdAt);
   const active = sortedPaths.find((p) => pathProgress(p) < 100) || null;
-  
+
   const tasks = allTasks.slice(0, 3);
-  
-  const pathViewStart = Date.now();
   const continueLearning = active ? await pathView(active, user.id) : null;
-  console.log(`[perf] pathView took ${Date.now() - pathViewStart}ms`);
-  
-  console.log(`[perf] Total /api/home took ${Date.now() - startTime}ms`);
-  
+
   json(res, 200, {
     user: publicMe(user),
     continueLearning,
@@ -310,7 +298,7 @@ route('GET', '/api/home', async (ctx) => {
     daily: { ...dailyView(daily), done: !!dailyDone, passed: dailyDone?.status === 'passed' },
     trending: [...catalog].sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, 6)
       .map((s) => ({ ...s, learners: 120 + (s.popularity || 0) * 37 })),
-    sponsored: sponsored.sort((a, b) => b.poolLuna - a.poolLuna).slice(0, 3)
+    sponsored: sponsored.slice().sort((a, b) => b.poolLuna - a.poolLuna).slice(0, 3)
       .map((s) => sponsoredView(s, user.id)),
     recommendedTasks: tasks,
     recommendedSkills: recommendNextSkill(mySkills.map((s) => s.skillSlug)),
@@ -323,13 +311,13 @@ async function discoveryFeed(userId) {
   const [topProofers, allTasks, allTeachers] = await Promise.all([
     users.leaderboard('proofs', 3),
     market.listTasks(userId),
-    teaching.list()
+    teaching.list(),
   ]);
-  
-  return { 
-    topProofers, 
-    newTasks: allTasks.slice(0, 2), 
-    teachers: allTeachers.slice(0, 2) 
+
+  return {
+    topProofers,
+    newTasks: allTasks.slice(0, 2),
+    teachers: allTeachers.slice(0, 2),
   };
 }
 
@@ -405,6 +393,15 @@ route('POST', '/api/paths/:id/progress', async (ctx) => {
       await userStats.incrementLessons(user.id);
       await learningGoals.updateGoalProgress(user.id, 'weekly_lessons', 1);
       masteryBadges.checkSpecialBadges(user.id);
+      // Schedule this topic for spaced repetition — learning that repeats.
+      const doneItem = p.days.flatMap((d) => d.items).find((i) => i.topic === body.topicSlug);
+      if (doneItem) {
+        await spacedRepetition.scheduleReview(user.id, {
+          topicSlug: body.topicSlug,
+          topicTitle: doneItem.title,
+          skillSlug: p.skillSlug,
+        });
+      }
     }
     if (body.part === 'practice') {
       users.addXp(user.id, 10, 'Practice complete');
@@ -497,6 +494,27 @@ route('POST', '/api/tutor', async (ctx) => {
 });
 
 /* ── CHALLENGES / PROOFS ───────────────────────────────────────────── */
+route('GET', '/api/challenges', async (ctx) => {
+  const { user, res } = ctx;
+  const [daily, allChallenges] = await Promise.all([
+    challenges.todayDaily(),
+    store.all('challenges'),
+  ]);
+  // Group seeded path/proof challenges by skill so clients can browse by category.
+  const bySkill = new Map();
+  for (const c of allChallenges) {
+    if (!c.skillSlug || c.kind === 'daily') continue;
+    if (!bySkill.has(c.skillSlug)) bySkill.set(c.skillSlug, []);
+    bySkill.get(c.skillSlug).push(c.id);
+  }
+  const categories = [...bySkill.entries()].map(([skillSlug, ids]) => ({ skillSlug, count: ids.length }));
+  json(res, 200, {
+    daily: { ...dailyView(daily), kind: 'daily' },
+    categories,
+    total: allChallenges.length,
+  });
+});
+
 route('GET', '/api/challenges/:id', (ctx) => {
   const { user, params, res } = ctx;
   const ch = challenges.get(params.id);
@@ -507,8 +525,7 @@ route('GET', '/api/challenges/:id', (ctx) => {
 
 route('GET', '/api/daily', async (ctx) => {
   const { user, res } = ctx;
-  const daily = challenges.todayDaily();
-  // OPTIMIZED: Use findOptimized to push query to database
+  const daily = await challenges.todayDaily();
   const done = await store.findOptimized('attempts', { userId: user.id, challengeId: daily.id, submittedAt_not_null: true });
   json(res, 200, { challenge: { ...challengeView(daily), kind: 'daily' }, done: !!done, passed: done?.status === 'passed', attemptId: done?.id || null });
 });
@@ -589,12 +606,16 @@ route('POST', '/api/tips', (ctx) => {
   json(res, 201, { ok: true, tx: { ...tx, amountNim: toNim(tx.amountLuna) } });
 });
 
-route('GET', '/api/rewards', (ctx) => {
+route('GET', '/api/rewards', async (ctx) => {
   const { user, res } = ctx;
+  const [rows, today] = await Promise.all([
+    store.filter('rewards', (r) => r.userId === user.id),
+    rewards.dailyRewardTotals(user.id),
+  ]);
   json(res, 200, {
-    rewards: store.filter('rewards', (r) => r.userId === user.id).sort((a, b) => b.createdAt - a.createdAt)
+    rewards: rows.sort((a, b) => b.createdAt - a.createdAt)
       .map((r) => ({ ...r, amountNim: toNim(r.amountLuna) })),
-    today: rewards.dailyRewardTotals(user.id),
+    today,
   });
 });
 
@@ -707,16 +728,44 @@ function sponsoredView(s, userId) {
   };
 }
 
-route('GET', '/api/skills/:slug', (ctx) => {
+route('GET', '/api/skills', async (ctx) => {
+  const { user, res } = ctx;
+  const [catalog, mine] = await Promise.all([
+    skills.catalog(),
+    skills.userSkills(user.id),
+  ]);
+  const myBySlug = new Map(mine.map((s) => [s.skillSlug, s]));
+  json(res, 200, {
+    skills: catalog.map((s) => {
+      const us = myBySlug.get(s.slug);
+      return {
+        ...s,
+        my: us ? { score: us.score, tier: skills.tierFor(us.score), verified: us.verified, proofs: us.proofs } : null,
+      };
+    }),
+    total: catalog.length,
+  });
+});
+
+route('GET', '/api/skills/tree', async (ctx) => {
+  const { user, res } = ctx;
+  json(res, 200, { skills: await skills.skillTree(user.id) });
+});
+
+route('GET', '/api/skills/:slug', async (ctx) => {
   const { user, params, res } = ctx;
-  const skill = skills.bySlug(params.slug);
+  const skill = await skills.bySlug(params.slug);
   if (!skill) throw httpError(404, 'NOT_FOUND', 'Skill not found.');
   const us = skills.userSkill(user.id, params.slug);
-  const sessions = teaching.list({ skillSlug: params.slug }).slice(0, 3);
-  const tasks = market.listTasks(user.id).filter((t) => t.minProof?.skillSlug === params.slug).slice(0, 3);
+  const [sessions, tasks] = await Promise.all([
+    teaching.list({ skillSlug: params.slug }),
+    market.listTasks(user.id),
+  ]);
   json(res, 200, {
-    skill, my: us ? { score: us.score, tier: skills.tierFor(us.score), verified: us.verified, proofs: us.proofs } : null,
-    teachers: sessions, tasks,
+    skill,
+    my: us ? { score: us.score, tier: skills.tierFor(us.score), verified: us.verified, proofs: us.proofs } : null,
+    teachers: sessions.slice(0, 3),
+    tasks: tasks.filter((t) => t.minProof?.skillSlug === params.slug).slice(0, 3),
     learners: 90 + (skill.popularity || 0) * 29,
   });
 });
@@ -820,6 +869,14 @@ route('GET', '/api/reviews/due', async (ctx) => {
   const limit = parseInt(query.get('limit') || '20', 10);
   const reviews = await spacedRepetition.getDueReviews(user.id, limit);
   json(res, 200, { reviews, count: reviews.length });
+});
+
+// `/api/review` — concise alias for the review queue (the mobile Review tab).
+route('GET', '/api/review', async (ctx) => {
+  const { user, query, res } = ctx;
+  const limit = parseInt(query.get('limit') || '20', 10);
+  const reviews = await spacedRepetition.getDueReviews(user.id, limit);
+  json(res, 200, { reviews, count: reviews.length, due: reviews.length });
 });
 
 route('POST', '/api/reviews', async (ctx) => {

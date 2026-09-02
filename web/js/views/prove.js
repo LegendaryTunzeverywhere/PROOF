@@ -4,7 +4,7 @@
  */
 import { api } from '../api.js';
 import { refreshMe, app } from '../state.js';
-import { esc, el, $, $$, ico, toast, sheet, confettiBurst, countUp, animateRings, fmtNim, timeAgo, walletStatusBadge, emptyState } from '../ui.js';
+import { esc, el, $, $$, ico, toast, sheet, confettiBurst, countUp, animateRings, scoreRing, fmtNim, timeAgo, walletStatusBadge, emptyState } from '../ui.js';
 
 export async function hub(root) {
   const [pathsRes, dailyRes, attemptsRes, sponsoredRes] = await Promise.all([
@@ -325,7 +325,7 @@ export async function attemptScreen(root, { id }) {
       <h1 class="display mt8" style="font-size:30px">Keep going.</h1>
     </div>`}
 
-    <div class="mt16" style="display:flex;justify-content:center">${scoreRingHtml(evaluation?.score || 0, passed, evaluation?.passScore || 70)}</div>
+    <div class="mt16" style="display:flex;justify-content:center">${scoreRing(Math.round(evaluation?.score || 0), { pass: passed, label: passed ? 'PASS' : 'KEEP GOING' })}</div>
 
     <div class="row mt16" style="gap:8px;justify-content:center;flex-wrap:wrap">
       <span class="chip chip-primary">+${extra?.xpGained ?? 0} XP</span>
@@ -381,17 +381,6 @@ export async function attemptScreen(root, { id }) {
   });
 }
 
-function scoreRingHtml(score, passed, passScore) {
-  const pct = Math.min(100, Math.round((score / Math.max(passScore, 1)) * 100));
-  const color = passed ? 'var(--ok)' : score >= passScore * 0.7 ? 'var(--warn)' : 'var(--bad)';
-  return `<div class="score-ring" style="--p:${pct}%;--c:${color}">
-    <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="none" stroke="var(--line)" stroke-width="8"/>
-      <circle cx="50" cy="50" r="45" fill="none" stroke="var(--c)" stroke-width="8" stroke-dasharray="var(--p) 283" stroke-dashoffset="calc(283px - var(--p) * 2.83px)" transform="rotate(-90 50 50)"/>
-    </svg>
-    <b class="num" style="font-size:28px;color:var(--c)">${score}</b><span style="font-size:12px;color:var(--muted)">/100</span>
-  </div>`;
-}
-
 function skillCard(skill) {
   return `<div class="card mt12" style="background:linear-gradient(120deg,rgba(255,178,94,.12),rgba(255,178,94,.06));border-color:#FFDFBF">
     <div class="row" style="gap:12px">
@@ -425,9 +414,9 @@ function shareCard(proofId) {
 function rubricTable(evaluation) {
   return `<div class="mt16"><span class="eyebrow">RUBRIC</span>
     <table class="rubric">
-      <thead><tr><th>Criteria</th><th>Weight</th><th>Score</th></tr></thead>
+      <thead><tr><th>Criteria</th><th>Max</th><th>Score</th></tr></thead>
       <tbody>${evaluation.criteria.map((c) => `
-        <tr><td>${esc(c.name)}</td><td>${c.weight}%</td><td><b>${c.score}/${c.max}</b></td></tr>`).join('')}
+        <tr><td>${esc(c.label)}</td><td>${c.max}</td><td><b>${c.earned}/${c.max}</b></td></tr>`).join('')}
       </tbody>
     </table></div>`;
 }
