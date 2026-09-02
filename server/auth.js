@@ -41,15 +41,26 @@ export class AuthService {
     return { nonce, message };
   }
 
-  async consumeNonce(nonce) {
+  /**
+   * Look up an issued nonce WITHOUT consuming it.
+   *
+   * The verify route uses this first so a failed signature check does not
+   * burn the nonce — otherwise a transient wallet-side failure makes the
+   * user's very next retry hit BAD_NONCE ("This sign-in request expired").
+   * @param {string} nonce
+   * @returns {Promise<object|null>} the fresh, unused nonce row, or null
+   */
+  async findNonce(nonce) {
     const row = await this.store.find('nonces', (n) => n.nonce === nonce && !n.used);
-    if (!row) {
-      return null;
-    }
-    const age = now() - row.createdAt;
-    if (age > NONCE_TTL_MS) {
-      return null;
-    }
+    if (!row) return null;
+    if (now() - row.createdAt > NONCE_TTL_MS) return null;
+    return row;
+  }
+
+  /** Atomically mark an issued nonce as used (single-use). Returns the row or null. */
+  async consumeNonce(nonce) {
+    const row = await this.findNonce(nonce);
+    if (!row) return null;
     await this.store.update('nonces', row.id, { used: true });
     this.store.save();
     return row;
