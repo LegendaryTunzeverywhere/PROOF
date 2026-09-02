@@ -269,27 +269,43 @@ route('PATCH', '/api/me', async (ctx) => {
 /* ── HOME ──────────────────────────────────────────────────────────── */
 route('GET', '/api/home', async (ctx) => {
   const { user, res } = ctx;
+  const startTime = Date.now();
   
-  // Run independent queries in parallel for better performance
-  const [myPaths, mySkills, catalog, sponsored, discovery] = await Promise.all([
-    store.filter('paths', (p) => p.userId === user.id),
-    skills.userSkills(user.id),
-    skills.catalog(),
-    store.all('sponsored_challenges'),
-    discoveryFeed(user.id)
-  ]);
+  // Get daily challenge first (needed for daily check)
+  const daily = challenges.todayDaily();
+  
+  // Time each query individually to find the bottleneck
+  console.log('[perf] Starting parallel queries...');
+  
+  const promises = [
+    store.filter('paths', (p) => p.userId === user.id).then(r => { console.log(`[perf] paths: ${Date.now() - startTime}ms`); return r; }),
+    skills.userSkills(user.id).then(r => { console.log(`[perf] userSkills: ${Date.now() - startTime}ms`); return r; }),
+    skills.catalog().then(r => { console.log(`[perf] catalog: ${Date.now() - startTime}ms`); return r; }),
+    store.all('sponsored_challenges').then(r => { console.log(`[perf] sponsored_challenges: ${Date.now() - startTime}ms`); return r; }),
+    discoveryFeed(user.id).then(r => { console.log(`[perf] discoveryFeed: ${Date.now() - startTime}ms`); return r; }),
+    // OPTIMIZED: Use findOptimized instead of find to push query to database
+    store.findOptimized('attempts', { userId: user.id, challengeId: daily.id, submittedAt_not_null: true }).then(r => { console.log(`[perf] dailyDone: ${Date.now() - startTime}ms`); return r; }),
+    market.listTasks(user.id, { onlyQualified: true }).then(r => { console.log(`[perf] listTasks: ${Date.now() - startTime}ms`); return r; })
+  ];
+  
+  const [myPaths, mySkills, catalog, sponsored, discovery, dailyDone, allTasks] = await Promise.all(promises);
+  
+  console.log(`[perf] Parallel queries took ${Date.now() - startTime}ms`);
   
   const sortedPaths = myPaths.sort((a, b) => b.createdAt - a.createdAt);
   const active = sortedPaths.find((p) => pathProgress(p) < 100) || null;
   
-  const daily = challenges.todayDaily();
-  const dailyDone = await store.find('attempts', (a) => a.userId === user.id && a.challengeId === daily.id && a.submittedAt);
+  const tasks = allTasks.slice(0, 3);
   
-  const tasks = (await market.listTasks(user.id, { onlyQualified: true })).slice(0, 3);
+  const pathViewStart = Date.now();
+  const continueLearning = active ? await pathView(active, user.id) : null;
+  console.log(`[perf] pathView took ${Date.now() - pathViewStart}ms`);
+  
+  console.log(`[perf] Total /api/home took ${Date.now() - startTime}ms`);
   
   json(res, 200, {
     user: publicMe(user),
-    continueLearning: active ? pathView(active, user.id) : null,
+    continueLearning,
     mySkills: mySkills.map((s) => ({ skillSlug: s.skillSlug, score: s.score, verified: s.verified })),
     daily: { ...dailyView(daily), done: !!dailyDone, passed: dailyDone?.status === 'passed' },
     trending: [...catalog].sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, 6)
@@ -357,22 +373,22 @@ route('POST', '/api/paths', async (ctx) => {
   }
   store.update('paths', pathRow.id, { days: pathRow.days });
   store.save();
-  json(res, 201, { path: pathView(pathRow, user.id), generatedBy: gen.engine });
+  json(res, 201, { path: await pathView(pathRow, user.id), generatedBy: gen.engine });
 });
 
 route('GET', '/api/paths', async (ctx) => {
   const { user, res } = ctx;
   const filtered = await store.filter('paths', (p) => p.userId === user.id);
-  const mine = filtered.sort((a, b) => b.createdAt - a.createdAt)
-    .map((p) => pathView(p, user.id));
+  const sorted = filtered.sort((a, b) => b.createdAt - a.createdAt);
+  const mine = await Promise.all(sorted.map((p) => pathView(p, user.id)));
   json(res, 200, { paths: mine });
 });
 
-route('GET', '/api/paths/:id', (ctx) => {
+route('GET', '/api/paths/:id', async (ctx) => {
   const { user, params, res } = ctx;
-  const p = store.get('paths', params.id);
+  const p = await store.get('paths', params.id);
   if (!p || p.userId !== user.id) throw httpError(404, 'NOT_FOUND', 'Path not found.');
-  json(res, 200, { path: pathView(p, user.id) });
+  json(res, 200, { path: await pathView(p, user.id) });
 });
 
 route('POST', '/api/paths/:id/progress', async (ctx) => {
@@ -428,21 +444,25 @@ function pathProgress(p) {
   return Math.round((doneItems.length / total) * 100);
 }
 
-function pathView(p, userId) {
+async function pathView(p, userId) {
+  // OPTIMIZED: Fetch all user attempts once using optimized query
+  const userAttempts = await store.filterOptimized('attempts', { userId: userId, submittedAt_not_null: true });
+  const attemptsByChallenge = new Map(userAttempts.map(a => [a.challengeId, a]));
+  
   const days = p.days.map((d) => ({
     ...d,
     items: d.items.map((i) => ({
       ...i,
       lessonDone: !!p.progress[`${d.index}:${i.topic}:lesson`],
       practiceDone: !!p.progress[`${d.index}:${i.topic}:practice`],
-      attempt: i.challengeId ? (store.find('attempts', (a) => a.challengeId === i.challengeId && a.userId === userId && a.submittedAt) || null) : null,
+      attempt: i.challengeId ? (attemptsByChallenge.get(i.challengeId) || null) : null,
     })),
   }));
   return {
     id: p.id, title: p.title, description: p.description, goal: p.goal,
     skillSlug: p.skillSlug, skillName: p.skillName, skillEmoji: p.skillEmoji,
     level: p.level, minutesPerDay: p.minutesPerDay, engine: p.engine,
-    totalXp: p.totalXp, rewardNim: p.rewardNim,
+    totalXp: p.totalXp,
     days, percent: pathProgress(p), createdAt: p.createdAt,
   };
 }
@@ -485,10 +505,11 @@ route('GET', '/api/challenges/:id', (ctx) => {
   json(res, 200, { challenge: challengeView(ch), openAttemptId: open?.id || null });
 });
 
-route('GET', '/api/daily', (ctx) => {
+route('GET', '/api/daily', async (ctx) => {
   const { user, res } = ctx;
   const daily = challenges.todayDaily();
-  const done = store.find('attempts', (a) => a.userId === user.id && a.challengeId === daily.id && a.submittedAt);
+  // OPTIMIZED: Use findOptimized to push query to database
+  const done = await store.findOptimized('attempts', { userId: user.id, challengeId: daily.id, submittedAt_not_null: true });
   json(res, 200, { challenge: { ...challengeView(daily), kind: 'daily' }, done: !!done, passed: done?.status === 'passed', attemptId: done?.id || null });
 });
 

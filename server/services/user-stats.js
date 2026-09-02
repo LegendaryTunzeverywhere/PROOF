@@ -253,6 +253,18 @@ async function checkStreakAchievements(userId, currentStreak) {
  */
 export async function getStreakStatus(userId) {
   const stats = await getUserStats(userId);
+  
+  // Handle case where stats couldn't be retrieved
+  if (!stats) {
+    return {
+      currentStreak: 0,
+      longestStreak: 0,
+      lastActivityDate: null,
+      atRisk: true,
+      emoji: '📚'
+    };
+  }
+  
   const today = new Date().toISOString().split('T')[0];
   
   // Check if streak is at risk (no activity today)

@@ -74,7 +74,7 @@ export async function getBadgeProgress(userId) {
   const total = Object.keys(BADGE_DEFINITIONS).length;
   
   const byCategory = {};
-  const earnedBadges = getUserBadges(userId);
+  const earnedBadges = await getUserBadges(userId);
   
   for (const badge of earnedBadges) {
     const cat = badge.definition.category;

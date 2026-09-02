@@ -195,10 +195,13 @@ export class SupabaseStore {
       return cached.data;
     }
 
+    // UserStats uses userId as primary key, not id
+    const pkField = table === 'user_stats' ? 'userId' : 'id';
+
     const { data, error } = await this.client
       .from(supabaseTable)
       .select('*')
-      .eq('id', id)
+      .eq(pkField, id)
       .single();
 
     if (error) {
@@ -219,10 +222,13 @@ export class SupabaseStore {
     // Convert timestamps in patch
     const convertedPatch = this.convertTimestamps(patch, table);
 
+    // UserStats uses userId as primary key, not id
+    const pkField = table === 'user_stats' ? 'userId' : 'id';
+
     const { data, error } = await this.client
       .from(supabaseTable)
       .update(convertedPatch)
-      .eq('id', id)
+      .eq(pkField, id)
       .select()
       .single();
 
@@ -234,7 +240,7 @@ export class SupabaseStore {
       throw new Error(`Update failed: ${error.message}`);
     }
 
-    // Invalidate only this table's cache, not single item cache
+    // Invalidate only this table's cache
     this.cache.delete(`${table}:all`);
 
     return data;
@@ -243,10 +249,13 @@ export class SupabaseStore {
   async remove(table, id) {
     const supabaseTable = this.tableMap[table] || table;
 
+    // UserStats uses userId as primary key, not id
+    const pkField = table === 'user_stats' ? 'userId' : 'id';
+
     const { error } = await this.client
       .from(supabaseTable)
       .delete()
-      .eq('id', id);
+      .eq(pkField, id);
 
     if (error) {
       console.error(`Remove error (${table}/${id}):`, error);
@@ -267,14 +276,19 @@ export class SupabaseStore {
     const cached = this.cache.get(cacheKey);
     const ttl = this.cacheTTLs[table] || this.cacheTTLs.default;
     if (cached && Date.now() - cached.time < ttl) {
+      console.log(`[cache] HIT ${table} (age: ${Math.round((Date.now() - cached.time) / 1000)}s)`);
       return cached.data;
     }
 
+    console.log(`[cache] MISS ${table} - fetching from Supabase`);
+    const fetchStart = Date.now();
     const { data, error } = await this.client
       .from(supabaseTable)
       .select('*')
       .order('createdAt', { ascending: false })
       .limit(1000); // Safety limit
+
+    console.log(`[cache] Supabase fetch ${table} took ${Date.now() - fetchStart}ms`);
 
     if (error) {
       console.error(`All error (${table}):`, error);
@@ -293,8 +307,79 @@ export class SupabaseStore {
   }
 
   async filter(table, pred) {
+    console.log(`[cache] filter(${table})`);
     const rows = await this.all(table);
     return rows.filter(pred);
+  }
+  
+  /**
+   * Optimized find for common query patterns
+   * Falls back to regular find() for complex predicates
+   */
+  async findOptimized(table, conditions) {
+    const supabaseTable = this.tableMap[table] || table;
+    
+    console.log(`[perf] findOptimized(${table}) with conditions:`, JSON.stringify(conditions));
+    const startTime = Date.now();
+    
+    let query = this.client.from(supabaseTable).select('*');
+    
+    for (const [key, value] of Object.entries(conditions)) {
+      if (value === undefined) continue;
+      if (value === null) {
+        query = query.is(key, null);
+      } else if (key.endsWith('_not_null')) {
+        const fieldName = key.replace('_not_null', '');
+        query = query.not(fieldName, 'is', null);
+      } else {
+        query = query.eq(key, value);
+      }
+    }
+    
+    query = query.limit(1);
+    
+    const { data, error } = await query;
+    
+    console.log(`[perf] findOptimized(${table}) took ${Date.now() - startTime}ms, found: ${data?.length || 0} rows`);
+    
+    if (error) {
+      console.error(`Optimized find error (${table}):`, error);
+      return null;
+    }
+    
+    return data[0] ? this.convertFromDatabase(data[0], table) : null;
+  }
+  
+  /**
+   * Optimized filter for common query patterns
+   * Falls back to regular filter() for complex predicates
+   */
+  async filterOptimized(table, conditions) {
+    const supabaseTable = this.tableMap[table] || table;
+    
+    let query = this.client.from(supabaseTable).select('*');
+    
+    for (const [key, value] of Object.entries(conditions)) {
+      if (value === undefined) continue;
+      if (value === null) {
+        query = query.is(key, null);
+      } else if (key.endsWith('_not_null')) {
+        const fieldName = key.replace('_not_null', '');
+        query = query.not(fieldName, 'is', null);
+      } else {
+        query = query.eq(key, value);
+      }
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error(`Optimized filter error (${table}):`, error);
+      // Fall back to in-memory filter
+      return [];
+    }
+    
+    return data.map(row => this.convertFromDatabase(row, table));
   }
 
   async count(table, pred) {

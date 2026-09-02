@@ -32,10 +32,17 @@ export class MarketplaceService {
     // (caller saves)
   }
 
-  async taskView(task, userId = null) {
+  async taskView(task, userId = null, allApplications = null, userSkillsMap = null) {
     const client = this.users.get(task.clientId);
-    const apps = await this.store.filter('task_applications', (a) => a.taskId === task.id);
-    const us = userId && task.minProof ? this.skills.userSkill(userId, task.minProof.skillSlug) : null;
+    // If allApplications is provided (batch mode), use it; otherwise fetch individually
+    const apps = allApplications 
+      ? allApplications.filter((a) => a.taskId === task.id)
+      : await this.store.filter('task_applications', (a) => a.taskId === task.id);
+    
+    // Use pre-fetched user skills if provided, otherwise fetch individually
+    const us = userId && task.minProof 
+      ? (userSkillsMap ? userSkillsMap.get(task.minProof.skillSlug) || null : this.skills.userSkill(userId, task.minProof.skillSlug))
+      : null;
     return {
       id: task.id,
       title: task.title,
@@ -61,7 +68,19 @@ export class MarketplaceService {
   async listTasks(userId, { onlyQualified = false } = {}) {
     const filtered = await this.store.filter('marketplace_tasks', (t) => t.status === 'open');
     const sorted = filtered.sort((a, b) => b.postedAt - a.postedAt);
-    const tasks = await Promise.all(sorted.map((t) => this.taskView(t, userId)));
+    
+    // Batch fetch all applications ONCE instead of querying for each task
+    const allApplications = await this.store.all('task_applications');
+    
+    // Batch fetch user skills ONCE to avoid N+1 skill lookups
+    let userSkillsMap = null;
+    if (userId) {
+      const userSkillsArray = await this.skills.userSkills(userId);
+      userSkillsMap = new Map(userSkillsArray.map(us => [us.skillSlug, us]));
+    }
+    
+    // Pass both allApplications and userSkillsMap to taskView to avoid N+1 queries
+    const tasks = await Promise.all(sorted.map((t) => this.taskView(t, userId, allApplications, userSkillsMap)));
     return onlyQualified ? tasks.filter((t) => t.qualification.qualified) : tasks;
   }
 
@@ -162,12 +181,20 @@ export class MarketplaceService {
 
   async myTasks(userId) {
     const postedFiltered = await this.store.filter('marketplace_tasks', (t) => t.clientId === userId);
-    const posted = await Promise.all(postedFiltered.map((t) => this.taskView(t, userId)));
     
-    const appliedFiltered = await this.store.filter('task_applications', (a) => a.userId === userId);
+    // Batch fetch all applications ONCE
+    const allApplications = await this.store.all('task_applications');
+    
+    // Batch fetch user skills ONCE
+    const userSkillsArray = await this.skills.userSkills(userId);
+    const userSkillsMap = new Map(userSkillsArray.map(us => [us.skillSlug, us]));
+    
+    const posted = await Promise.all(postedFiltered.map((t) => this.taskView(t, userId, allApplications, userSkillsMap)));
+    
+    const appliedFiltered = allApplications.filter((a) => a.userId === userId);
     const applied = await Promise.all(appliedFiltered.map(async (a) => {
       const task = this.store.get('marketplace_tasks', a.taskId);
-      return { ...a, task: task ? await this.taskView(task, userId) : null };
+      return { ...a, task: task ? await this.taskView(task, userId, allApplications, userSkillsMap) : null };
     }));
     
     return { posted, applied };
