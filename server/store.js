@@ -129,6 +129,41 @@ export class Store {
     return pred ? this.filter(table, pred).length : this.all(table).length;
   }
 
+  /* ── optimized query helpers ─────────────────────────────────────
+     SupabaseStore exposes async findOptimized/filterOptimized that push
+     simple equality conditions to PostgreSQL. The embedded store mirrors
+     the same async contract (conditions object) so route/service code can
+     call them uniformly across both backends. Supported operators:
+       { field: value }        → row[field] === value
+       { field: null }         → row[field] == null
+       { field_not_null: true }→ row[field] != null
+  */
+  #matchesConditions(row, conditions) {
+    for (const [k, v] of Object.entries(conditions || {})) {
+      if (v === undefined) continue;
+      if (k.endsWith('_not_null')) {
+        const field = k.slice(0, -'_not_null'.length);
+        if (row[field] == null) return false;
+      } else if (v === null) {
+        if (row[k] != null) return false;
+      } else if (row[k] !== v) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  async findOptimized(table, conditions = {}) {
+    for (const row of this.all(table)) {
+      if (this.#matchesConditions(row, conditions)) return row;
+    }
+    return null;
+  }
+
+  async filterOptimized(table, conditions = {}) {
+    return this.all(table).filter((row) => this.#matchesConditions(row, conditions));
+  }
+
   /** Serialized write + atomic flush. Call after mutations (services batch this). */
   save() {
     this.#queue = this.#queue.then(() => this.#flush()).catch(() => {});

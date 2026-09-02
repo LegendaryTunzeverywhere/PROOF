@@ -2,6 +2,7 @@
  * Learn — paths, path detail, lesson (EXPLAIN → PRACTICE → PROVE) + AI tutor.
  */
 import { api } from '../api.js';
+import { app } from '../state.js';
 import { esc, el, $, $$, ico, toast, fmtNim, walletStatusBadge } from '../ui.js';
 import { generateAndOpenPath } from './generate.js';
 import { startSocraticSession } from './socratic.js';
@@ -41,6 +42,7 @@ const SKILLS_CATALOG = [
   ['languages', '🗣️', 'Languages', 'German, French, Spanish, Mandarin'],
   ['music-production', '🎵', 'Music Production', 'Chords to finished tracks'],
   ['practical-skills', '🔧', 'Practical Skills', 'Budgeting & life ops'],
+  ['nimiq-blockchain', '⛓️', 'Nimiq Blockchain', 'Keys, wallets, staking & building'],
 ];
 
 export async function hub(root) {
@@ -414,113 +416,197 @@ function showPreLessonPrompt(root, pathId, topic, dayIndex, lesson, path) {
 }
 
 /**
- * Render the actual lesson content
+ * Render the lesson as a staged, school-like flow:
+ * HOOK → LEARN → QUIZ → RECALL → PRACTICE (then the proof).
+ * Each stage is self-paced; the quiz gates progress until answered.
  */
 function renderLessonContent(root, pathId, topic, dayIndex, p, day, item, lesson) {
-  // Add checkpoint after halfway through sections
-  const midpoint = Math.floor(lesson.lesson.sections.length / 2);
-  
+  const stages = [
+    { key: 'hook', label: 'Hook', icon: '🧭' },
+    { key: 'learn', label: 'Learn', icon: '📖' },
+    { key: 'quiz', label: 'Quiz', icon: '❓' },
+    { key: 'recall', label: 'Recall', icon: '🧠' },
+    { key: 'practice', label: 'Practice', icon: '✍️' },
+  ];
+  const quizQs = (lesson.quiz || []).slice(0, 3);
+  const recallPrompts = lesson.recall || [];
+
+  let idx = 0;
+  let quizDone = false;
+  const completed = new Set();
+  let lessonMarkedDone = false;
+
   root.innerHTML = `<div class="pad bento-read" style="padding-top:max(14px, env(safe-area-inset-top))">
     <div class="row-between">
       <button class="btn btn-ghost btn-sm" id="back">${ico.back} Path</button>
       <div id="walletStatusPlaceholder"></div>
     </div>
     <div class="row-between mt8">
-      <button class="btn btn-soft btn-sm" id="waitWhatBtn" style="background: var(--warn-soft); color: var(--warn); border: 1px solid var(--warn);">
-        ❓ Wait, what?
-      </button>
+      <button class="btn btn-soft btn-sm" id="waitWhatBtn" style="background: var(--warn-soft); color: var(--warn); border: 1px solid var(--warn);">❓ Wait, what?</button>
       <button class="btn btn-soft btn-sm" id="tutorBtn">${ico.chat.replace('<svg', '<svg width="16" height="16"')} Ask tutor</button>
     </div>
     <div class="mt16">
-      <span class="eyebrow">DAY ${day.index} · EXPLAIN</span>
+      <span class="eyebrow">DAY ${day.index} · LESSON</span>
       <h1 class="h1 mt8">${esc(lesson.title)}</h1>
       <div class="chip-row mt8"><span class="chip">⏱ ${lesson.estMin} min</span><span class="chip">+20 XP</span>${lesson.challenge ? `<span class="chip chip-nim">${ico.coin} ${lesson.challenge.rewardNim} NIM proof ahead</span>` : ''}</div>
     </div>
 
-    <div class="card mt16">
-      <div class="callout callout-ask"><b>TL;DR — </b>${esc(lesson.lesson.tldr)}</div>
-      
-      ${lesson.lesson.sections.slice(0, midpoint).map((s) => `<div class="lesson-sec"><h4>${esc(s.h)}</h4><p>${esc(s.body)}</p></div>`).join('')}
-      
-      ${renderCheckpoint(1, lesson.title, topic)}
-      
-      ${lesson.lesson.sections.slice(midpoint).map((s) => `<div class="lesson-sec"><h4>${esc(s.h)}</h4><p>${esc(s.body)}</p></div>`).join('')}
-      ${exampleBlock(lesson.lesson.example)}
-      <div class="callout callout-warn mt8">⚠️ ${esc(lesson.lesson.misconception)}</div>
-      <div class="lesson-sec mt16"><h4>Key points</h4><ul class="keypoints">${lesson.lesson.keyPoints.map((k) => `<li>${esc(k)}</li>`).join('')}</ul></div>
-      
-      ${renderCheckpoint(2, lesson.title, topic)}
-      
-      <div class="divider"></div>
-      <button class="btn btn-primary btn-block" id="toPractice">Got it — practice ${ico.arrow}</button>
-      <div class="tiny center mt8">${esc(lesson.lesson.ask)}</div>
+    <div class="stepper mt16" id="stepper">
+      ${stages.map((s, i) => `<div class="step ${i === 0 ? 'active' : ''}" data-step="${i}"><span class="step-dot">${s.icon}</span><span class="step-label">${s.label}</span></div>`).join('')}
     </div>
 
-    <div id="practiceZone"></div>
+    <div id="stageZone" class="mt16"></div>
+
+    <div class="row mt16" style="gap:10px" id="navRow">
+      <button class="btn btn-ghost" style="flex:0 0 110px" id="prev">${ico.back} Back</button>
+      <button class="btn btn-primary btn-block" id="next">Next ${ico.arrow}</button>
+    </div>
   </div>`;
 
-  // Add wallet status display
+  const zone = () => root.querySelector('#stageZone');
+  const navRow = () => root.querySelector('#navRow');
+  const nextBtn = () => root.querySelector('#next');
+  const prevBtn = () => root.querySelector('#prev');
+
   const walletStatusEl = root.querySelector('#walletStatusPlaceholder');
-  if (walletStatusEl) {
-    walletStatusEl.innerHTML = walletStatusBadge(app.me?.walletMode, app.me?.walletModeIsDemo);
-  }
+  if (walletStatusEl) walletStatusEl.innerHTML = walletStatusBadge(app.me?.walletMode, app.me?.walletModeIsDemo);
 
   root.querySelector('#back').addEventListener('click', () => { location.hash = `#/learn/path/${pathId}`; });
   root.querySelector('#waitWhatBtn').addEventListener('click', () => {
-    startSocraticSession('wait_what', topic, lesson.title, {
-      skillSlug: p.skillSlug,
-      lessonContent: lesson.lesson.tldr
-    });
+    startSocraticSession('wait_what', topic, lesson.title, { skillSlug: p.skillSlug, lessonContent: lesson.lesson.tldr });
   });
   root.querySelector('#tutorBtn').addEventListener('click', () => tutorChat(p.skillSlug, topic, lesson));
-  
-  // Handle checkpoint buttons
-  root.querySelectorAll('[data-checkpoint]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const checkpointNum = btn.dataset.checkpoint;
-      startCheckpointSession(checkpointNum, topic, lesson.title, p.skillSlug);
-    });
-  });
-  
-  root.querySelector('#toPractice').addEventListener('click', async () => {
-    await api.post(`/api/paths/${pathId}/progress`, { dayIndex: day.index, topicSlug: topic, part: 'lesson' });
-    runPractice(root, pathId, day, item, lesson);
-  });
-}
 
-/**
- * Render a checkpoint question callout
- */
-function renderCheckpoint(num, lessonTitle, topicSlug) {
-  const checkpointTexts = [
-    {
-      icon: '🤔',
-      question: 'Before we continue...',
-      prompt: 'In your own words, what have you learned so far?',
-      cta: 'Quick Check-In'
-    },
-    {
-      icon: '💭',
-      question: 'One more thing...',
-      prompt: 'How would you explain this to a friend who\'s never heard of it?',
-      cta: 'Final Check'
-    }
-  ];
-  
-  const checkpoint = checkpointTexts[num - 1];
-  
-  return `
-    <div class="checkpoint-callout">
-      <div class="checkpoint-icon">${checkpoint.icon}</div>
-      <div class="checkpoint-content">
-        <h4>${checkpoint.question}</h4>
-        <p>${checkpoint.prompt}</p>
-        <button class="btn-soft btn-sm" data-checkpoint="${num}">
-          ${checkpoint.cta}
-        </button>
+  function syncStepper() {
+    root.querySelectorAll('.step').forEach((s, i) => {
+      s.classList.toggle('active', i === idx);
+      s.classList.toggle('done', completed.has(i) && i !== idx);
+      const dot = s.querySelector('.step-dot');
+      dot.textContent = completed.has(i) ? '✓' : stages[i].icon;
+    });
+    prevBtn().disabled = idx === 0;
+    nextBtn().disabled = (idx === 2 && !quizDone);
+    nextBtn().textContent = idx === 3 ? `Practice ${ico.arrow}` : `Next ${ico.arrow}`;
+    zone().scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  async function markLessonDone() {
+    if (lessonMarkedDone) return;
+    lessonMarkedDone = true;
+    await api.post(`/api/paths/${pathId}/progress`, { dayIndex: day.index, topicSlug: topic, part: 'lesson' });
+  }
+
+  /* ── stage 1: hook ── */
+  function renderHook() {
+    zone().innerHTML = `
+      ${lesson.story ? `<div class="story-card"><span class="story-emoji">${esc(p.skillEmoji || '💡')}</span><p>${esc(lesson.story)}</p></div>` : ''}
+      <div class="card mt12">
+        <span class="eyebrow">WHY THIS LESSON</span>
+        <p class="sub mt8" style="color:var(--ink-2)">${esc(lesson.lesson.tldr)}</p>
       </div>
-    </div>
-  `;
+      ${lesson.objectives?.length ? `<div class="card mt12">
+        <span class="eyebrow">BY THE END, YOU WILL</span>
+        <ul class="objectives mt8">${lesson.objectives.map((o) => `<li>${esc(o)}</li>`).join('')}</ul>
+      </div>` : ''}
+      <div class="callout callout-ask mt12"><b>Ready?</b> Read it, quiz it, recall it — then prove it.</div>`;
+  }
+
+  /* ── stage 2: learn ── */
+  function renderLearn() {
+    zone().innerHTML = `
+      <div class="card">
+        ${lesson.lesson.sections.map((s) => `<div class="lesson-sec"><h4>${esc(s.h)}</h4><p>${esc(s.body)}</p></div>`).join('')}
+        ${exampleBlock(lesson.lesson.example)}
+        <div class="callout callout-warn mt8">⚠️ ${esc(lesson.lesson.misconception)}</div>
+        <div class="lesson-sec mt16"><h4>Key points</h4><ul class="keypoints">${lesson.lesson.keyPoints.map((k) => `<li>${esc(k)}</li>`).join('')}</ul></div>
+        ${lesson.memoryHook ? `<div class="memory-hook mt12"><b>🧠 Remember:</b> ${esc(lesson.memoryHook)}</div>` : ''}
+        <div class="divider"></div>
+        <button class="btn btn-soft btn-sm" id="socraticCheck">${ico.chat.replace('<svg', '<svg width="15" height="15"')} Socratic check-in</button>
+        <div class="tiny mt8" style="color:var(--muted)">${esc(lesson.lesson.ask)}</div>
+      </div>`;
+    zone().querySelector('#socraticCheck')?.addEventListener('click', () => startCheckpointSession(1, topic, lesson.title, p.skillSlug));
+  }
+
+  /* ── stage 3: quiz ── */
+  function renderQuiz() {
+    if (!quizQs.length) { quizDone = true; zone().innerHTML = `<div class="card center"><p class="sub">No quiz for this lesson — straight to recall.</p></div>`; return; }
+    quizDone = false;
+    let answered = 0;
+    zone().innerHTML = `<div class="stack">${quizQs.map((q, i) => `
+      <div class="card quiz-card" data-q="${i}">
+        <div class="row-between"><span class="eyebrow">QUESTION ${i + 1} / ${quizQs.length}</span><span class="tiny" id="qstatus${i}" style="color:var(--muted)"></span></div>
+        <b style="display:block;margin-top:10px;font-size:15.5px">${esc(q.q)}</b>
+        <div class="mt12" data-opts>${q.choices.map((c, ci) => `<button class="opt" data-ci="${ci}">${'ABCD'[ci]}. ${esc(c)}</button>`).join('')}</div>
+        <div id="qverdict${i}"></div>
+      </div>`).join('')}</div>`;
+
+    zone().querySelectorAll('[data-q]').forEach((card) => {
+      const qi = parseInt(card.dataset.q, 10);
+      const q = quizQs[qi];
+      card.querySelectorAll('.opt').forEach((b) => b.addEventListener('click', () => {
+        const chosen = parseInt(b.dataset.ci, 10);
+        const right = chosen === q.answerIdx;
+        card.querySelectorAll('.opt').forEach((x) => (x.disabled = true));
+        b.classList.add(right ? 'correct' : 'wrong');
+        if (!right) card.querySelectorAll('.opt')[q.answerIdx]?.classList.add('correct');
+        answered++;
+        card.querySelector(`#qstatus${qi}`).textContent = right ? '✓ correct' : '✗ review';
+        card.querySelector(`#qverdict${qi}`).innerHTML = `<div class="callout mt12" style="background:${right ? 'var(--ok-soft)' : 'var(--bad-soft)'};color:${right ? 'var(--ok-deep)' : 'var(--bad)'}"><b>${right ? 'Correct — ' : 'Not quite. '}</b>${esc(q.why || '')}</div>`;
+        if (answered >= quizQs.length) { quizDone = true; completed.add(2); nextBtn().disabled = false; nextBtn().textContent = `Keep going — recall time ${ico.arrow}`; }
+      }));
+    });
+    nextBtn().disabled = true;
+  }
+
+  /* ── stage 4: recall ── */
+  function renderRecall() {
+    zone().innerHTML = `<div class="card">
+      <span class="eyebrow">ACTIVE RECALL</span>
+      <p class="sub mt8">Answer these in your own words — out loud or typed. Retrieval is what makes it stick.</p>
+      ${recallPrompts.length ? `<div class="stack mt12">${recallPrompts.map((rp, i) => `
+        <div class="recall-card">
+          <b style="font-size:14px">${i + 1}. ${esc(rp)}</b>
+          <textarea class="input mt8" rows="3" placeholder="Type your answer here — no one grades this but you…"></textarea>
+          <div class="row mt8" style="gap:8px">
+            <button class="btn btn-soft btn-sm" data-feel="ok">✓ I knew that</button>
+            <button class="btn btn-soft btn-sm" data-feel="weak">↻ I need to review</button>
+          </div>
+        </div>`).join('')}</div>` : `<div class="callout callout-ask mt12"><b>No recall prompts here.</b> The quiz + practice cover this topic.</div>`}
+    </div>`;
+    zone().querySelectorAll('[data-feel]').forEach((b) => b.addEventListener('click', () => {
+      const card = b.closest('.recall-card');
+      card.querySelectorAll('[data-feel]').forEach((x) => (x.disabled = true));
+      b.classList.toggle('recall-ok', b.dataset.feel === 'ok');
+      b.classList.toggle('recall-weak', b.dataset.feel === 'weak');
+      toast(b.dataset.feel === 'ok' ? 'Nice — retrieval locks it in 🧠' : 'Reviewing the weak spot is the smart move 💪', b.dataset.feel === 'ok' ? 'ok' : '');
+    }));
+    quizDone = true;
+  }
+
+  /* ── stage 5: practice (marks the lesson done) ── */
+  async function renderPractice() {
+    navRow().style.display = 'none';
+    await markLessonDone();
+    zone().innerHTML = `<div id="practiceZone"></div>`;
+    runPractice(root, pathId, day, item, lesson);
+  }
+
+  function go(step) {
+    idx = step;
+    completed.add(Math.max(0, step - 1));
+    if (idx === 4) { renderPractice(); return; }
+    navRow().style.display = 'flex';
+    if (idx === 0) renderHook();
+    else if (idx === 1) renderLearn();
+    else if (idx === 2) renderQuiz();
+    else renderRecall();
+    syncStepper();
+  }
+
+  nextBtn().addEventListener('click', () => go(idx + 1));
+  prevBtn().addEventListener('click', () => go(idx - 1));
+
+  go(0);
 }
 
 /**

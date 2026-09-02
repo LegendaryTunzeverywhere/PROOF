@@ -12,7 +12,7 @@ let currentLevel = 'all'; // all, beginner, intermediate, expert
  * Main glossary view
  */
 export async function glossary(screen) {
-  const { terms, count } = await api('GET', `/api/glossary?limit=100`);
+  const { terms, count } = await api.get(`/api/glossary?limit=100`);
   
   screen.innerHTML = `
     <div class="container glossary-view">
@@ -76,7 +76,7 @@ async function filterGlossary(screen) {
     ? '/api/glossary?limit=100'
     : `/api/glossary?level=${currentLevel}&limit=100`;
   
-  const { terms, count } = await api('GET', url);
+  const { terms, count } = await api.get(url);
   
   const termsContainer = screen.querySelector('#glossaryTerms');
   if (termsContainer) {
@@ -340,7 +340,7 @@ function showAddTermModal() {
       submitBtn.disabled = true;
       submitBtn.textContent = 'Adding...';
       
-      await api('POST', '/api/glossary', {
+      await api.post('/api/glossary', {
         term,
         definition,
         level: selectedLevel,
@@ -389,7 +389,7 @@ async function deleteTerm(termId, screen) {
   if (!confirm('Remove this term from your glossary?')) return;
   
   try {
-    await api('DELETE', `/api/glossary/${termId}`);
+    await api.del(`/api/glossary/${termId}`);
     toast('Term removed', 'ok');
     
     // Refresh the view
@@ -405,7 +405,7 @@ async function deleteTerm(termId, screen) {
  * Export add term function for use in other views
  */
 export function quickAddTerm(term, definition, level, source) {
-  return api('POST', '/api/glossary', {
+  return api.post('/api/glossary', {
     term,
     definition,
     level,

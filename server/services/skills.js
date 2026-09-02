@@ -113,7 +113,7 @@ export class SkillService {
     const branches = [
       { name: 'Build', slugs: ['web-development', 'python', 'data-analysis'] },
       { name: 'Create', slugs: ['ui-design', 'writing', 'music-production', 'social-media'] },
-      { name: 'Grow', slugs: ['marketing', 'business', 'ai', 'languages', 'practical-skills'] },
+      { name: 'Grow', slugs: ['marketing', 'business', 'ai', 'nimiq-blockchain', 'languages', 'practical-skills'] },
     ];
     let bi = 0, si = 0;
     const catalogItems = await this.catalog();

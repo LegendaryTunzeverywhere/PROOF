@@ -34,7 +34,11 @@ export class ChallengeService {
     this.rewards = rewards;
     this.notify = notifications;
     this.evaluations = new EvaluationService(store, config);
+    /** @type {{key: string, challenge: object}|null} per-day memo of the daily challenge */
+    this.#dailyCache = null;
   }
+
+  #dailyCache;
 
   /* ── challenge creation (from generated paths & daily) ─────────── */
   createFromTemplate({ skillSlug, template, pathId = null, dayIndex = null, kindOverride = null }) {
@@ -62,12 +66,24 @@ export class ChallengeService {
   get(id) { return this.store.get('challenges', id); }
 
   /** The daily challenge — deterministic per day, one reward per user per day. */
-  todayDaily() {
+  async todayDaily() {
     const dateKey = new Date().toISOString().slice(0, 10);
-    let ch = this.store.find('challenges', (c) => c.kind === 'daily' && c.dailyKey === dateKey);
+    // Process-level cache: the daily challenge is stable for a whole day, so we
+    // avoid a DB round-trip (Supabase) or a full-table scan on every request.
+    if (this.#dailyCache && this.#dailyCache.key === dateKey) return this.#dailyCache.challenge;
+
+    let ch = null;
+    try {
+      ch = await this.store.findOptimized('challenges', { kind: 'daily', dailyKey: dateKey });
+    } catch {
+      ch = null; // fall through to in-memory scan below
+    }
+    if (!ch) {
+      ch = await this.store.find('challenges', (c) => c.kind === 'daily' && c.dailyKey === dateKey);
+    }
     if (!ch) {
       const d = dailyChallengeFor(dateKey);
-      ch = this.store.insert('challenges', {
+      ch = await this.store.insert('challenges', {
         id: uid('ch'), skillSlug: null, pathId: null, dailyKey: dateKey,
         kind: 'daily', type: d.type, title: d.title, brief: d.brief,
         requirements: ['your own words', 'concrete example', d.evaluator.config.minWords + '+ words'],
@@ -76,6 +92,7 @@ export class ChallengeService {
       });
       this.store.save();
     }
+    this.#dailyCache = { key: dateKey, challenge: ch };
     return ch;
   }
 

@@ -11,6 +11,8 @@
  * All scoring is server-side and deterministic.
  */
 
+import { NIMIQ_SKILL, NIMIQ_KB, ENRICH } from './curriculum.js';
+
 export const CATEGORIES = [
   { id: 'coding', label: 'Coding', emoji: '💻' },
   { id: 'design', label: 'Design', emoji: '🎨' },
@@ -23,6 +25,7 @@ export const CATEGORIES = [
   { id: 'writing', label: 'Writing', emoji: '✍️' },
   { id: 'data', label: 'Data', emoji: '📊' },
   { id: 'practical', label: 'Practical Skills', emoji: '🔧' },
+  { id: 'blockchain', label: 'Blockchain', emoji: '⛓️' },
 ];
 
 export const SKILLS = [
@@ -38,6 +41,7 @@ export const SKILLS = [
   { slug: 'writing', name: 'Writing', category: 'writing', emoji: '✍️', blurb: 'Clear, persuasive writing for the web.' },
   { slug: 'data-analysis', name: 'Data Analysis', category: 'data', emoji: '📊', blurb: 'Find the story in numbers and defend it.' },
   { slug: 'practical-skills', name: 'Practical Skills', category: 'practical', emoji: '🔧', blurb: 'Everyday competence: budgeting, repair, planning.' },
+  NIMIQ_SKILL,
 ];
 
 const T = (o) => o; // readability helper
@@ -1061,6 +1065,25 @@ export const KB = {
     },
   }),
 };
+
+/* ── curriculum merge ────────────────────────────────────────────────
+   Registers the Nimiq skill and enriches every existing topic with
+   objectives, story hooks, memory hooks, mid-lesson quizzes and recall
+   drills (see ./curriculum/*). */
+KB['nimiq-blockchain'] = NIMIQ_KB;
+for (const [skillSlug, topics] of Object.entries(ENRICH)) {
+  const kb = KB[skillSlug];
+  if (!kb) continue;
+  for (const t of kb.topics) {
+    const e = topics[t.slug];
+    if (!e) continue;
+    if (e.objectives) t.objectives = e.objectives;
+    if (e.story) t.story = e.story;
+    if (e.memoryHook) t.memoryHook = e.memoryHook;
+    if (e.quiz) t.quiz = e.quiz;
+    if (e.recall) t.recall = e.recall;
+  }
+}
 
 /** Domain suggestion for a free-text goal. */
 export function suggestDomain(goal) {

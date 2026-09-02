@@ -20,7 +20,7 @@ export async function socratic(screen) {
   }
   
   // Show recent sessions list
-  const { sessions } = await api('GET', '/api/socratic/sessions?limit=10');
+  const { sessions } = await api.get('/api/socratic/sessions?limit=10');
   
   screen.innerHTML = `
     <div class="container socratic-hub">
@@ -256,7 +256,7 @@ function renderRecommendation(rec) {
  */
 export async function startSocraticSession(type, topicSlug, topicTitle, context = {}) {
   try {
-    const { session } = await api('POST', '/api/socratic/start', {
+    const { session } = await api.post('/api/socratic/start', {
       type,
       topicSlug,
       topicTitle,
@@ -290,7 +290,7 @@ window.socraticSubmitResponse = async function() {
   if (!activeSession || currentResponse.trim().length < 10) return;
   
   try {
-    const result = await api('POST', `/api/socratic/${activeSession.sessionId}/respond`, {
+    const result = await api.post(`/api/socratic/${activeSession.sessionId}/respond`, {
       response: currentResponse.trim()
     });
     
@@ -419,7 +419,7 @@ window.socraticFinish = function() {
  */
 window.showSessionInsights = async function(sessionId) {
   try {
-    const insights = await api('GET', `/api/socratic/${sessionId}/insights`);
+    const insights = await api.get(`/api/socratic/${sessionId}/insights`);
     
     const screen = document.querySelector('.screen');
     if (screen) {
