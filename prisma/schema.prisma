@@ -139,12 +139,15 @@ model LearningPath {
   userId       String
   goal         String
   skillSlug    String
+  skillName    String   @default("")
+  skillEmoji   String   @default("📘")
   title        String
   description  String
   level        String
   minutesPerDay Int
   days         Json
   progress     Json     @default("{}")
+  totalXp      Int      @default(0)
   engine       String   @default("proof-engine")
   createdAt    DateTime @default(now())
 

@@ -32,7 +32,7 @@ export const config = {
     provider: process.env.AI_PROVIDER || 'auto',   // auto | engine | gemini
     apiKey: process.env.AI_API_KEY || '',          // Google Gemini API key
     baseUrl: process.env.AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta',
-    model: process.env.AI_MODEL || 'gemini-2.5-flash',
+    model: process.env.AI_MODEL || 'gemini-3.6-flash',
   },
 
   nimiq: {

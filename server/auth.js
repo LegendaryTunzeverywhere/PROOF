@@ -156,6 +156,15 @@ export class AuthService {
       this.store.save();
       return null;
     }
+
+    // A session row must reference a real user. Guarding here prevents a
+    // malformed/legacy row with a null userId from firing a pointless
+    // `Get error (users/null)` query on every request that carries the cookie.
+    if (!row.userId) {
+      await this.store.remove('sessions', token);
+      this.store.save();
+      return null;
+    }
     
     const user = await this.store.get('users', row.userId);
     return user;
