@@ -130,27 +130,23 @@ route('POST', '/api/auth/nonce', async (ctx) => {
 });
 
 route('POST', '/api/auth/verify', async (ctx) => {
-  const { body, req, res } = ctx;
-  
-  // Debug: Request received with mode, nonce, publicKey, signature, address
-  
+  const { body, res } = ctx;
   const mode = body?.mode === 'nimiqpay' ? 'nimiqpay' : body?.mode === 'hub' ? 'hub' : 'demo';
-  const nonceRow = await auth.consumeNonce(String(body?.nonce || ''));
-  
-  // Debug: Nonce lookup result
-  
-  if (!nonceRow) {
-    // Debug: BAD_NONCE
-    throw httpError(400, 'BAD_NONCE', 'This sign-in request expired. Try again.');
-  }
-  
+
+  // Look the nonce up WITHOUT consuming it yet: if the wallet step fails below
+  // (bad signature, mismatch, network blip) the user can retry the same
+  // sign-in. Burning the nonce up-front is what turned a single failed attempt
+  // into a guaranteed BAD_NONCE on the retry.
+  const nonceRow = await auth.findNonce(String(body?.nonce || ''));
+  if (!nonceRow) throw httpError(400, 'BAD_NONCE', 'This sign-in request expired. Try again.');
+
   // For Hub mode, trust the address from Hub since it handles contract addresses
   // For nimiqpay, validate that address matches the public key (basic account only)
   if (mode === 'nimiqpay') {
     const derivedAddress = nimiqAddressFromPublicKey(String(body?.publicKey || ''));
     const providedAddress = String(body.address).replace(/\s+/g, ' ').trim();
     const normalizedDerived = derivedAddress ? derivedAddress.replace(/\s+/g, ' ').trim() : null;
-    
+
     if (!looksLikeNimiqAddress(body.address) || !derivedAddress || normalizedDerived !== providedAddress) {
       throw httpError(401, 'ADDRESS_MISMATCH', 'Wallet address does not match the public key.');
     }
@@ -160,10 +156,14 @@ route('POST', '/api/auth/verify', async (ctx) => {
       throw httpError(401, 'INVALID_ADDRESS', 'Invalid Nimiq address format.');
     }
   }
-  
+
   const ok = auth.verifySignature({ mode, publicKey: body.publicKey, signature: body.signature, message: nonceRow.message });
-  
+
   if (!ok) throw httpError(401, 'BAD_SIGNATURE', 'Signature verification failed — wallet ownership not proven.');
+
+  // Signature proved wallet ownership — only now burn the single-use nonce.
+  if (!(await auth.consumeNonce(String(body?.nonce || ''))))
+    throw httpError(400, 'BAD_NONCE', 'This sign-in request expired. Try again.');
 
   let user = null;
   const isNimiqMode = mode === 'nimiqpay' || mode === 'hub';
@@ -176,17 +176,10 @@ route('POST', '/api/auth/verify', async (ctx) => {
     if (!user) user = await users.createUser({ walletMode: 'demo' });
     await users.update(user, { publicKey: body.publicKey, walletMode: 'demo' });
   }
-  
-  // console.log('[verify] User created/found:', { id: user.id, username: user.username });
-  
+
   const token = await auth.createSession(user.id);
-  
-  // console.log('[verify] Session created:', { token: token.slice(0, 20) + '...', userId: user.id });
-  // console.log('[verify] Setting cookie...');
-  
+
   json(res, 200, { user: publicMe(user), demo: mode === 'demo' }, { 'set-cookie': sessionCookie(token) });
-  
-  // console.log('[verify] Response sent with session cookie');
 });
 
 route('POST', '/api/wallet/demo', (ctx) => {
@@ -1186,7 +1179,7 @@ const server = http.createServer(async (req, res) => {
         if (!params) continue;
         const body = ['POST', 'PATCH', 'PUT'].includes(req.method) ? await readBody(req) : null;
         const user = await auth.userFromRequest(req);
-        if (!pathname.startsWith('/p/') && requiresUser(r.pattern) && !user)
+        if (!pathname.startsWith('/p/') && requiresUser(r.pattern, r.method) && !user)
           throw httpError(401, 'UNAUTHENTICATED', 'Connect a wallet first — it takes one tap.');
         await r.handler({ req, res, params, query: url.searchParams, body, user });
         return;
@@ -1201,10 +1194,27 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-const USER_ROUTES = new Set(['/api/home', '/api/paths', '/api/wallet', '/api/rewards', '/api/achievements', '/api/notifications', '/api/market', '/api/teach', '/api/sponsored', '/api/challenges', '/api/attempts', '/api/tips', '/api/tutor']);
-function requiresUser(pattern) {
-  const publicDemoWalletRoute = pattern === '/api/wallet/demo' || pattern === '/api/wallet/demo/sign';
-  return !publicDemoWalletRoute && (USER_ROUTES.has('/' + pattern.split('/').slice(0, 3).join('/').replace(/^\//, '')) || pattern.startsWith('/api/paths') || pattern.startsWith('/api/attempts') || pattern.startsWith('/api/challenges') || pattern.startsWith('/api/wallet') || pattern.startsWith('/api/rewards') || pattern.startsWith('/api/tips') || pattern.startsWith('/api/tutor') || pattern === '/api/home' || pattern.startsWith('/api/market') || pattern.startsWith('/api/teach') || pattern === '/api/notifications/read');
+/**
+ * Guard: does this route need a signed-in user?
+ *
+ * Everything not explicitly public touches the current user's private data or
+ * mutates user-owned state, so anonymous callers must get a clean 401 instead
+ * of a 500 from a null `user` (and must never read another context's data).
+ */
+function requiresUser(pattern, method = 'GET') {
+  if (!pattern.startsWith('/api/')) return false;          // /p/… and /share/… are public pages
+  if (pattern === '/api/wallet/demo' || pattern === '/api/wallet/demo/sign') return false; // demo sign-in itself is public
+  if (pattern.startsWith('/api/auth/')) return false;      // nonce / verify / logout handshake
+  if (pattern === '/api/onboard') return false;            // creates the guest demo user
+  if (pattern === '/api/health') return false;
+  if (pattern === '/api/me' && method === 'GET') return false; // guest-safe by design: { user: null }
+  // Read-only public content:
+  if (pattern.startsWith('/api/lesson/')) return false;    // lesson text (learning is public content)
+  if (pattern.startsWith('/api/profile/')) return false;   // public profile pages
+  if (pattern.startsWith('/api/leaderboard')) return false;
+  if (pattern.startsWith('/api/share/')) return false;     // shared proof pages
+  if (pattern === '/api/badges/definitions') return false; // static badge catalog
+  return true; // user-scoped (incl. glossary, goals, reviews, stats…) or mutating → must be authenticated
 }
 
 function readBody(req) {

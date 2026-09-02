@@ -314,22 +314,37 @@ export class WalletServiceClass {
     }
   }
 
-  /** nonce → signature → server verification → session (spec §22). */
   /**
    * nonce → signature → server verification → session (spec §22).
+   *
+   * If the server answers BAD_NONCE (nonce expired under the 10-min TTL, or
+   * was already consumed by a previous attempt), retry ONCE with a fresh
+   * nonce before surfacing the error — this is what kept demo sign-in
+   * failing with "This sign-in request expired" on slow or retried connects.
+   *
    * @param {string} mode
    * @param {any} signer
    */
   async #authenticate(mode, signer) {
     const subject = mode === 'nimiqpay' ? signer.address : signer.publicKey;
-    const { nonce, message } = await api.post('/api/auth/nonce', { subject });
-    const signed = await signer.signMessage(message);
-    const payload = mode === 'nimiqpay'
-      ? { mode, nonce, address: signer.address, publicKey: signed.publicKey, signature: signed.signature }
-      : { mode, nonce, publicKey: signed.publicKey, signature: signed.signature };
-    const res = await api.post('/api/auth/verify', payload);
-    state.sessionUser = res.user;
-    return res;
+    for (let attempt = 0; ; attempt++) {
+      const { nonce, message } = await api.post('/api/auth/nonce', { subject });
+      const signed = await signer.signMessage(message);
+      const payload = mode === 'nimiqpay'
+        ? { mode, nonce, address: signer.address, publicKey: signed.publicKey, signature: signed.signature }
+        : { mode, nonce, publicKey: signed.publicKey, signature: signed.signature };
+      try {
+        const res = await api.post('/api/auth/verify', payload);
+        state.sessionUser = res.user;
+        return res;
+      } catch (err) {
+        if (attempt === 0 && err?.code === 'BAD_NONCE') {
+          console.warn('wallet: nonce rejected — retrying once with a fresh nonce');
+          continue;
+        }
+        throw err;
+      }
+    }
   }
 
   /** NIM payment (only meaningful inside Nimiq Pay). */
