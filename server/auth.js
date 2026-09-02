@@ -38,27 +38,20 @@ export class AuthService {
       `Signing proves you control this wallet. It does NOT move funds.`;
     await this.store.insert('nonces', { id: uid('nc'), nonce, message, subject: String(subject || '').slice(0, 120), createdAt: now(), used: false });
     this.store.save();
-    console.log('[issueNonce] Nonce created and saved:', nonce);
     return { nonce, message };
   }
 
   async consumeNonce(nonce) {
-    console.log('[consumeNonce] Looking up nonce:', nonce);
     const row = await this.store.find('nonces', (n) => n.nonce === nonce && !n.used);
-    console.log('[consumeNonce] Nonce row:', row ? { id: row.id, nonce: row.nonce, used: row.used, createdAt: row.createdAt } : 'null');
     if (!row) {
-      console.log('[consumeNonce] Nonce not found or already used');
       return null;
     }
     const age = now() - row.createdAt;
-    console.log('[consumeNonce] Nonce age:', age, 'ms, TTL:', NONCE_TTL_MS, 'ms');
     if (age > NONCE_TTL_MS) {
-      console.log('[consumeNonce] Nonce expired!');
       return null;
     }
     await this.store.update('nonces', row.id, { used: true });
     this.store.save();
-    console.log('[consumeNonce] Nonce consumed successfully');
     return row;
   }
 
@@ -115,25 +108,22 @@ export class AuthService {
   async userFromRequest(req) {
     const cookie = req.headers.cookie || '';
     const m = cookie.match(/(?:^|;\s*)proof_session=([^;]+)/);
-    console.log('[userFromRequest] Cookie match:', m ? 'found' : 'not found');
     if (!m) return null;
     const token = decodeURIComponent(m[1]);
-    console.log('[userFromRequest] Token:', token.slice(0, 30) + '...');
     const user = await this.userFromToken(token);
-    console.log('[userFromRequest] User from token:', user ? `${user.username} (${user.id})` : 'null');
     return user;
   }
 
   async userFromToken(token) {
-    console.log('[userFromToken] Looking up token:', token.slice(0, 30) + '...');
+    // console.log('[userFromToken] Looking up token:', token.slice(0, 30) + '...');
     if (!token || !token.includes('.')) {
-      console.log('[userFromToken] Invalid token format');
+      // console.log('[userFromToken] Invalid token format');
       return null;
     }
     const row = await this.store.get('sessions', token);
-    console.log('[userFromToken] Session row:', row ? { userId: row.userId, expiresAt: row.expiresAt } : 'null');
+    // console.log('[userFromToken] Session row:', row ? { userId: row.userId, expiresAt: row.expiresAt } : 'null');
     if (!row || row.expiresAt < now()) {
-      console.log('[userFromToken] Session not found or expired');
+      // console.log('[userFromToken] Session not found or expired');
       return null;
     }
     
@@ -142,10 +132,7 @@ export class AuthService {
     const payload = `${row.userId}:${row.createdAt}:${row.bootTime}:${row.entropy}`;
     const expectedSignature = hmac(payload, this.config.authSecret).slice(0, 32);
     
-    console.log('[userFromToken] Signature check:', { provided: providedSignature?.slice(0, 10), expected: expectedSignature?.slice(0, 10) });
-    
     if (providedSignature !== expectedSignature) {
-      console.log('[userFromToken] Signature mismatch!');
       await this.store.remove('sessions', token);
       this.store.save();
       return null;
@@ -154,14 +141,12 @@ export class AuthService {
     // Boot time check for in-memory store only
     const isSupabase = this.store.constructor.name === 'SupabaseStore';
     if (!isSupabase && row.bootTime !== SERVER_BOOT_TIME) {
-      console.log('[userFromToken] Boot time mismatch');
       await this.store.remove('sessions', token);
       this.store.save();
       return null;
     }
     
     const user = await this.store.get('users', row.userId);
-    console.log('[userFromToken] Final user lookup:', user ? `${user.username} (${user.id})` : 'null');
     return user;
   }
 

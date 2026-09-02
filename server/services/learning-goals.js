@@ -64,20 +64,21 @@ export async function createGoal(userId, { goalType, targetValue, period = 'week
 export async function getActiveGoals(userId) {
   const nowTs = now();
   
-  const goals = store().filter('learning_goals', (g) => 
+  const filtered = await store().filter('learning_goals', (g) => 
     g.userId === userId && 
     g.endsAt >= nowTs &&
     !g.completed
   );
   
-  return goals.sort((a, b) => a.endsAt - b.endsAt);
+  return filtered.sort((a, b) => a.endsAt - b.endsAt);
 }
 
 /**
  * Get all goals (active + completed)
  */
 export async function getAllGoals(userId, limit = 20) {
-  const goals = store().filter('learning_goals', (g) => g.userId === userId)
+  const filtered = await store().filter('learning_goals', (g) => g.userId === userId);
+  const goals = filtered
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, limit);
   

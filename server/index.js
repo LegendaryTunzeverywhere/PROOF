@@ -132,21 +132,15 @@ route('POST', '/api/auth/nonce', async (ctx) => {
 route('POST', '/api/auth/verify', async (ctx) => {
   const { body, req, res } = ctx;
   
-  console.log('[verify] Request received:', {
-    mode: body?.mode,
-    hasNonce: !!body?.nonce,
-    hasPublicKey: !!body?.publicKey,
-    hasSignature: !!body?.signature,
-    hasAddress: !!body?.address,
-  });
+  // Debug: Request received with mode, nonce, publicKey, signature, address
   
   const mode = body?.mode === 'nimiqpay' ? 'nimiqpay' : body?.mode === 'hub' ? 'hub' : 'demo';
   const nonceRow = await auth.consumeNonce(String(body?.nonce || ''));
   
-  console.log('[verify] Nonce lookup result:', nonceRow ? 'found' : 'NOT FOUND');
+  // Debug: Nonce lookup result
   
   if (!nonceRow) {
-    console.log('[verify] BAD_NONCE - nonce:', body?.nonce);
+    // Debug: BAD_NONCE
     throw httpError(400, 'BAD_NONCE', 'This sign-in request expired. Try again.');
   }
   
@@ -183,16 +177,16 @@ route('POST', '/api/auth/verify', async (ctx) => {
     await users.update(user, { publicKey: body.publicKey, walletMode: 'demo' });
   }
   
-  console.log('[verify] User created/found:', { id: user.id, username: user.username });
+  // console.log('[verify] User created/found:', { id: user.id, username: user.username });
   
   const token = await auth.createSession(user.id);
   
-  console.log('[verify] Session created:', { token: token.slice(0, 20) + '...', userId: user.id });
-  console.log('[verify] Setting cookie...');
+  // console.log('[verify] Session created:', { token: token.slice(0, 20) + '...', userId: user.id });
+  // console.log('[verify] Setting cookie...');
   
   json(res, 200, { user: publicMe(user), demo: mode === 'demo' }, { 'set-cookie': sessionCookie(token) });
   
-  console.log('[verify] Response sent with session cookie');
+  // console.log('[verify] Response sent with session cookie');
 });
 
 route('POST', '/api/wallet/demo', (ctx) => {
@@ -233,8 +227,8 @@ function publicMe(user) {
 
 route('GET', '/api/me', async (ctx) => {
   const { user, res } = ctx;
-  console.log('[/api/me] Request - user:', user ? `${user.username} (${user.id})` : 'null');
-  console.log('[/api/me] Cookie header:', ctx.req.headers.cookie ? 'present' : 'missing');
+  // console.log('[/api/me] Request - user:', user ? `${user.username} (${user.id})` : 'null');
+  // console.log('[/api/me] Cookie header:', ctx.req.headers.cookie ? 'present' : 'missing');
   if (!user) {
     // Public view for anonymous visitors — avoid noisy 401s on first load.
     return json(res, 200, { user: null, skills: [], unread: 0, opportunities: 0 });
@@ -273,34 +267,54 @@ route('PATCH', '/api/me', async (ctx) => {
 });
 
 /* ── HOME ──────────────────────────────────────────────────────────── */
-route('GET', '/api/home', (ctx) => {
+route('GET', '/api/home', async (ctx) => {
   const { user, res } = ctx;
-  const myPaths = store.filter('paths', (p) => p.userId === user.id).sort((a, b) => b.createdAt - a.createdAt);
-  const active = myPaths.find((p) => pathProgress(p) < 100) || null;
+  
+  // Run independent queries in parallel for better performance
+  const [myPaths, mySkills, catalog, sponsored, discovery] = await Promise.all([
+    store.filter('paths', (p) => p.userId === user.id),
+    skills.userSkills(user.id),
+    skills.catalog(),
+    store.all('sponsored_challenges'),
+    discoveryFeed(user.id)
+  ]);
+  
+  const sortedPaths = myPaths.sort((a, b) => b.createdAt - a.createdAt);
+  const active = sortedPaths.find((p) => pathProgress(p) < 100) || null;
+  
   const daily = challenges.todayDaily();
-  const dailyDone = store.find('attempts', (a) => a.userId === user.id && a.challengeId === daily.id && a.submittedAt);
-  const mySkills = skills.userSkills(user.id);
-  const tasks = market.listTasks(user.id, { onlyQualified: true }).slice(0, 3);
+  const dailyDone = await store.find('attempts', (a) => a.userId === user.id && a.challengeId === daily.id && a.submittedAt);
+  
+  const tasks = (await market.listTasks(user.id, { onlyQualified: true })).slice(0, 3);
+  
   json(res, 200, {
     user: publicMe(user),
     continueLearning: active ? pathView(active, user.id) : null,
     mySkills: mySkills.map((s) => ({ skillSlug: s.skillSlug, score: s.score, verified: s.verified })),
     daily: { ...dailyView(daily), done: !!dailyDone, passed: dailyDone?.status === 'passed' },
-    trending: [...skills.catalog()].sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, 6)
+    trending: [...catalog].sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, 6)
       .map((s) => ({ ...s, learners: 120 + (s.popularity || 0) * 37 })),
-    sponsored: store.all('sponsored_challenges').sort((a, b) => b.poolLuna - a.poolLuna).slice(0, 3)
+    sponsored: sponsored.sort((a, b) => b.poolLuna - a.poolLuna).slice(0, 3)
       .map((s) => sponsoredView(s, user.id)),
     recommendedTasks: tasks,
     recommendedSkills: recommendNextSkill(mySkills.map((s) => s.skillSlug)),
-    discovery: discoveryFeed(user.id),
+    discovery,
   });
 });
 
-function discoveryFeed(userId) {
-  const topProofers = users.leaderboard('proofs', 3);
-  const newTasks = market.listTasks(userId).slice(0, 2);
-  const teachers = teaching.list().slice(0, 2);
-  return { topProofers, newTasks, teachers };
+async function discoveryFeed(userId) {
+  // Run all queries in parallel
+  const [topProofers, allTasks, allTeachers] = await Promise.all([
+    users.leaderboard('proofs', 3),
+    market.listTasks(userId),
+    teaching.list()
+  ]);
+  
+  return { 
+    topProofers, 
+    newTasks: allTasks.slice(0, 2), 
+    teachers: allTeachers.slice(0, 2) 
+  };
 }
 
 /* ── PATHS ─────────────────────────────────────────────────────────── */
@@ -325,7 +339,7 @@ route('POST', '/api/paths', async (ctx) => {
     goal: gen.goal, skillSlug: gen.skillSlug, skillName: gen.skillName, skillEmoji: gen.skillEmoji,
     title: gen.title, description: gen.description,
     level: gen.level, minutesPerDay: gen.minutesPerDay,
-    days: gen.days, totalXp: gen.totalXp, rewardNim: gen.rewardNim,
+    days: gen.days, totalXp: gen.totalXp,
     engine: gen.engine, progress: {}, createdAt: now(),
   });
   for (const day of pathRow.days) {
@@ -346,9 +360,10 @@ route('POST', '/api/paths', async (ctx) => {
   json(res, 201, { path: pathView(pathRow, user.id), generatedBy: gen.engine });
 });
 
-route('GET', '/api/paths', (ctx) => {
+route('GET', '/api/paths', async (ctx) => {
   const { user, res } = ctx;
-  const mine = store.filter('paths', (p) => p.userId === user.id).sort((a, b) => b.createdAt - a.createdAt)
+  const filtered = await store.filter('paths', (p) => p.userId === user.id);
+  const mine = filtered.sort((a, b) => b.createdAt - a.createdAt)
     .map((p) => pathView(p, user.id));
   json(res, 200, { paths: mine });
 });
@@ -494,9 +509,10 @@ route('GET', '/api/attempts/:id', (ctx) => {
   json(res, 200, challenges.attemptResult(user.id, params.id));
 });
 
-route('GET', '/api/me/attempts', (ctx) => {
+route('GET', '/api/me/attempts', async (ctx) => {
   const { user, res } = ctx;
-  json(res, 200, { attempts: challenges.userAttempts(user.id) });
+  const attempts = await challenges.userAttempts(user.id);
+  json(res, 200, { attempts });
 });
 
 route('GET', '/api/me/proofs', (ctx) => {
@@ -523,7 +539,7 @@ function dailyView(ch) {
 }
 
 /* ── WALLET / ECONOMY ──────────────────────────────────────────────── */
-route('GET', '/api/wallet', (ctx) => {
+route('GET', '/api/wallet', async (ctx) => {
   const { user, res } = ctx;
   json(res, 200, {
     mode: user.walletMode || 'disconnected',
@@ -531,7 +547,7 @@ route('GET', '/api/wallet', (ctx) => {
     address: user.walletAddress,
     balanceNim: toNim(user.balanceLuna),
     earnedNim: toNim(user.earnedLuna),
-    txs: rewards.txHistory(user.id).map((t) => ({ ...t, amountNim: toNim(t.amountLuna) })),
+    txs: (await rewards.txHistory(user.id)).map((t) => ({ ...t, amountNim: toNim(t.amountLuna) })),
   });
 });
 
@@ -584,9 +600,10 @@ route('POST', '/api/market/tasks', (ctx) => {
   const { user, body, res } = ctx;
   json(res, 201, { task: market.postTask(user, body || {}) });
 });
-route('GET', '/api/market/my', (ctx) => {
+route('GET', '/api/market/my', async (ctx) => {
   const { user, res } = ctx;
-  json(res, 200, market.myTasks(user.id));
+  const tasks = await market.myTasks(user.id);
+  json(res, 200, tasks);
 });
 
 /* ── TEACHING ──────────────────────────────────────────────────────── */
@@ -612,23 +629,26 @@ route('POST', '/api/teach/sessions/:id/review', (ctx) => {
 });
 
 /* ── EXTRAS ────────────────────────────────────────────────────────── */
-route('GET', '/api/leaderboard', (ctx) => {
+route('GET', '/api/leaderboard', async (ctx) => {
   const { query, res } = ctx;
   const cat = ['proofs', 'score', 'helpful', 'teacher', 'consistent', 'tasks', 'earned'].includes(query.get('cat')) ? query.get('cat') : 'proofs';
-  json(res, 200, { category: cat, entries: users.leaderboard(cat, 12) });
+  json(res, 200, { category: cat, entries: await users.leaderboard(cat, 12) });
 });
 
-route('GET', '/api/achievements', (ctx) => {
+route('GET', '/api/achievements', async (ctx) => {
   const { user, res } = ctx;
-  const unlocked = store.filter('achievements', (a) => a.userId === user.id).map((a) => a.achievementId);
+  const filtered = await store.filter('achievements', (a) => a.userId === user.id);
+  const unlocked = filtered.map((a) => a.achievementId);
   json(res, 200, {
     achievements: users.ACHIEVEMENTS.map((a) => ({ ...a, unlocked: unlocked.includes(a.id) })),
   });
 });
 
-route('GET', '/api/notifications', (ctx) => {
+route('GET', '/api/notifications', async (ctx) => {
   const { user, res } = ctx;
-  json(res, 200, { notifications: notifications.list(user.id), unread: notifications.unreadCount(user.id) });
+  const list = await notifications.list(user.id);
+  const unread = await notifications.unreadCount(user.id);
+  json(res, 200, { notifications: list, unread });
 });
 route('POST', '/api/notifications/read', (ctx) => {
   const { user, res } = ctx;
@@ -636,9 +656,10 @@ route('POST', '/api/notifications/read', (ctx) => {
   json(res, 200, { ok: true });
 });
 
-route('GET', '/api/sponsored', (ctx) => {
+route('GET', '/api/sponsored', async (ctx) => {
   const { user, res } = ctx;
-  json(res, 200, { sponsored: store.all('sponsored_challenges').map((s) => sponsoredView(s, user.id)) });
+  const all = await store.all('sponsored_challenges');
+  json(res, 200, { sponsored: all.map((s) => sponsoredView(s, user.id)) });
 });
 
 route('POST', '/api/sponsored/:id/join', (ctx) => {
@@ -848,8 +869,8 @@ route('POST', '/api/reviews/:id/suspend', async (ctx) => {
 // Mastery Badges
 route('GET', '/api/badges', async (ctx) => {
   const { user, res } = ctx;
-  const badges = masteryBadges.getUserBadges(user.id);
-  const progress = masteryBadges.getBadgeProgress(user.id);
+  const badges = await masteryBadges.getUserBadges(user.id);
+  const progress = await masteryBadges.getBadgeProgress(user.id);
   const next = masteryBadges.getNextBadges(user.id, 5);
   json(res, 200, { badges, progress, next });
 });

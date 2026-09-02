@@ -350,7 +350,7 @@ CREATE TABLE IF NOT EXISTS "sessions" (
   "bootTime" BIGINT NOT NULL,
   "expiresAt" BIGINT NOT NULL,
   entropy TEXT,
-  "createdAt" TIMESTAMP DEFAULT NOW()
+  "createdAt" BIGINT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS "nonces" (

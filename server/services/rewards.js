@@ -74,17 +74,17 @@ export class RewardService {
     this.store.update('wallet_txs', tx.id, { status: tx.status, confirmedAt: tx.confirmedAt });
   }
 
-  txHistory(userId, limit = 30) {
-    return this.store.filter('wallet_txs', (t) => t.userId === userId)
-      .sort((a, b) => b.createdAt - a.createdAt).slice(0, limit);
+  async txHistory(userId, limit = 30) {
+    const filtered = await this.store.filter('wallet_txs', (t) => t.userId === userId);
+    return filtered.sort((a, b) => b.createdAt - a.createdAt).slice(0, limit);
   }
 
   /* ── challenge rewards ─────────────────────────────────────────── */
   todayKey() { return new Date().toISOString().slice(0, 10); }
 
-  dailyRewardTotals(userId) {
+  async dailyRewardTotals(userId) {
     const t0 = new Date(this.todayKey() + 'T00:00:00.000Z').getTime();
-    const txs = this.store.filter('wallet_txs', (t) => t.userId === userId && t.kind === 'reward' && t.createdAt >= t0 && t.status === 'confirmed');
+    const txs = await this.store.filter('wallet_txs', (t) => t.userId === userId && t.kind === 'reward' && t.createdAt >= t0 && t.status === 'confirmed');
     return { count: txs.length, amountLuna: txs.reduce((a, x) => a + x.amountLuna, 0) };
   }
 

@@ -55,9 +55,9 @@ const BADGE_DEFINITIONS = {
 /**
  * Get all badges for a user
  */
-export function getUserBadges(userId) {
-  const badges = store().filter('mastery_badges', (b) => b.userId === userId)
-    .sort((a, b) => b.earnedAt - a.earnedAt);
+export async function getUserBadges(userId) {
+  const filtered = await store().filter('mastery_badges', (b) => b.userId === userId);
+  const badges = filtered.sort((a, b) => b.earnedAt - a.earnedAt);
   
   return badges.map(b => ({
     ...b,
@@ -68,8 +68,8 @@ export function getUserBadges(userId) {
 /**
  * Get badge progress summary
  */
-export function getBadgeProgress(userId) {
-  const allBadges = store().filter('mastery_badges', (b) => b.userId === userId);
+export async function getBadgeProgress(userId) {
+  const allBadges = await store().filter('mastery_badges', (b) => b.userId === userId);
   const earned = allBadges.length;
   const total = Object.keys(BADGE_DEFINITIONS).length;
   

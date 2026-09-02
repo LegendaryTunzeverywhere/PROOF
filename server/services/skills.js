@@ -14,16 +14,16 @@ export class SkillService {
     store.declareUniques('user_skills', []);
   }
 
-  seedCatalog() {
+  async seedCatalog() {
     for (const s of SKILLS) {
-      if (this.store.find('skills', (x) => x.slug === s.slug)) continue;
-      this.store.insert('skills', { id: uid('sk'), ...s });
+      if (await this.store.find('skills', (x) => x.slug === s.slug)) continue;
+      await this.store.insert('skills', { id: uid('sk'), ...s });
     }
-    this.store.save();
+    await this.store.save();
   }
 
-  catalog() { return this.store.all('skills'); }
-  bySlug(slug) { return this.store.find('skills', (s) => s.slug === slug); }
+  async catalog() { return await this.store.all('skills'); }
+  async bySlug(slug) { return await this.store.find('skills', (s) => s.slug === slug); }
 
   tierFor(score) {
     const tiers = this.config.economy.skillTiers;
@@ -74,8 +74,8 @@ export class SkillService {
     return { userSkill: us, before, changed: before.score !== us.score || before.tier !== us.tier };
   }
 
-  userSkills(userId) {
-    return this.store.filter('user_skills', (s) => s.userId === userId);
+  async userSkills(userId) {
+    return await this.store.filter('user_skills', (s) => s.userId === userId);
   }
 
   userSkill(userId, slug) {
@@ -106,8 +106,9 @@ export class SkillService {
   }
 
   /** Skill tree: nodes + progress + activation. */
-  skillTree(userId) {
-    const mine = new Map(this.userSkills(userId).map((s) => [s.skillSlug, s]));
+  async skillTree(userId) {
+    const userSkillsArray = await this.userSkills(userId);
+    const mine = new Map(userSkillsArray.map((s) => [s.skillSlug, s]));
     // Tree layout: three branches off a trunk (Learn → Prove → Earn).
     const branches = [
       { name: 'Build', slugs: ['web-development', 'python', 'data-analysis'] },
@@ -115,7 +116,8 @@ export class SkillService {
       { name: 'Grow', slugs: ['marketing', 'business', 'ai', 'languages', 'practical-skills'] },
     ];
     let bi = 0, si = 0;
-    return this.catalog().map((s) => {
+    const catalogItems = await this.catalog();
+    return catalogItems.map((s) => {
       const us = mine.get(s.slug);
       const node = {
         skillSlug: s.slug, name: s.name, emoji: s.emoji,

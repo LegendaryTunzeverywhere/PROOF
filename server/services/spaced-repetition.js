@@ -133,13 +133,14 @@ export async function recordReview(userId, reviewId, quality) {
  */
 export async function getDueReviews(userId, limit = 20) {
   const currentTime = now();
-  return store().filter('review_schedule', (r) => 
+  const filtered = await store().filter('review_schedule', (r) => 
     r.userId === userId && 
     r.nextReviewAt <= currentTime &&
     !r.suspended
-  )
-  .sort((a, b) => a.nextReviewAt - b.nextReviewAt)
-  .slice(0, limit);
+  );
+  return filtered
+    .sort((a, b) => a.nextReviewAt - b.nextReviewAt)
+    .slice(0, limit);
 }
 
 /**
@@ -149,20 +150,20 @@ export async function getUpcomingReviews(userId, daysAhead = 7) {
   const currentTime = now();
   const futureTime = currentTime + daysAhead * 86400000;
   
-  return store().filter('review_schedule', (r) => 
+  const filtered = await store().filter('review_schedule', (r) => 
     r.userId === userId && 
     r.nextReviewAt > currentTime && 
     r.nextReviewAt <= futureTime &&
     !r.suspended
-  )
-  .sort((a, b) => a.nextReviewAt - b.nextReviewAt);
+  );
+  return filtered.sort((a, b) => a.nextReviewAt - b.nextReviewAt);
 }
 
 /**
  * Get user's review statistics
  */
 export async function getReviewStats(userId) {
-  const allReviews = store().filter('review_schedule', (r) => r.userId === userId && !r.suspended);
+  const allReviews = await store().filter('review_schedule', (r) => r.userId === userId && !r.suspended);
   const dueReviews = await getDueReviews(userId);
   const upcomingReviews = await getUpcomingReviews(userId);
 

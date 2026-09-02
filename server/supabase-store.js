@@ -31,7 +31,9 @@ export class SupabaseStore {
       'skills': 'Skill',
       'user_skills': 'UserSkill',
       'learning_paths': 'LearningPath',
+      'paths': 'LearningPath',  // Alias for learning_paths
       'challenges': 'Challenge',
+      'attempts': 'ChallengeAttempt',  // Alias for challenge_attempts
       'challenge_attempts': 'ChallengeAttempt',
       'submissions': 'Submission',
       'evaluations': 'Evaluation',
@@ -40,6 +42,7 @@ export class SupabaseStore {
       'user_achievements': 'UserAchievement',
       'rewards': 'Reward',
       'wallet_transactions': 'WalletTransaction',
+      'wallet_txs': 'WalletTransaction',  // Alias for wallet_transactions
       'notifications': 'Notification',
       'sponsored_challenges': 'SponsoredChallenge',
       'sponsored_participants': 'SponsoredParticipant',
@@ -48,6 +51,7 @@ export class SupabaseStore {
       'teaching_sessions': 'TeachingSession',
       'bookings': 'Booking',
       'reviews': 'Review',
+      'review_schedule': 'ReviewSchedule',  // Add review schedule mapping
       'sessions': 'sessions',
       'nonces': 'nonces',
       'socratic_sessions': 'socratic_sessions',
@@ -65,7 +69,15 @@ export class SupabaseStore {
 
     // Cache for frequently accessed data
     this.cache = new Map();
-    this.cacheTTL = 60000; // 1 minute
+    // Different TTLs for different types of data
+    this.cacheTTLs = {
+      'skills': 3600000,        // 1 hour - skills rarely change
+      'challenges': 1800000,    // 30 minutes - challenges are static
+      'achievements': 1800000,  // 30 minutes - achievements are static
+      'users': 300000,          // 5 minutes - user data changes occasionally
+      'sessions': 60000,        // 1 minute - sessions need to be fresh
+      'default': 180000         // 3 minutes - default for everything else
+    };
   }
 
   async open(bootstrap) {
@@ -77,6 +89,15 @@ export class SupabaseStore {
     }
 
     console.log('✅ Connected to Supabase');
+
+    // Warm up cache for frequently accessed tables
+    console.log('🔥 Warming up cache...');
+    await Promise.all([
+      this.all('skills'),        // Skills catalog - rarely changes
+      this.all('challenges'),    // Challenge definitions - static
+      this.all('achievements')   // Achievement definitions - static
+    ]);
+    console.log('✅ Cache warmed');
 
     // Run bootstrap if provided (for seeding)
     if (bootstrap) {
@@ -213,8 +234,7 @@ export class SupabaseStore {
       throw new Error(`Update failed: ${error.message}`);
     }
 
-    // Invalidate cache
-    this.cache.delete(`${table}:${id}`);
+    // Invalidate only this table's cache, not single item cache
     this.cache.delete(`${table}:all`);
 
     return data;
@@ -233,8 +253,7 @@ export class SupabaseStore {
       return false;
     }
 
-    // Invalidate cache
-    this.cache.delete(`${table}:${id}`);
+    // Invalidate only this table's cache
     this.cache.delete(`${table}:all`);
 
     return true;
@@ -244,9 +263,10 @@ export class SupabaseStore {
     const supabaseTable = this.tableMap[table] || table;
     const cacheKey = `${table}:all`;
 
-    // Check cache
+    // Check cache with table-specific TTL
     const cached = this.cache.get(cacheKey);
-    if (cached && Date.now() - cached.time < this.cacheTTL) {
+    const ttl = this.cacheTTLs[table] || this.cacheTTLs.default;
+    if (cached && Date.now() - cached.time < ttl) {
       return cached.data;
     }
 

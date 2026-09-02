@@ -306,9 +306,11 @@ export class ChallengeService {
     return { attempt, evaluation, challenge: ch };
   }
 
-  userAttempts(userId, limit = 30) {
-    return this.store.filter('attempts', (a) => a.userId === userId && a.submittedAt)
-      .sort((a, b) => b.submittedAt - a.submittedAt).slice(0, limit)
+  async userAttempts(userId, limit = 30) {
+    const filtered = await this.store.filter('attempts', (a) => a.userId === userId && a.submittedAt);
+    return filtered
+      .sort((a, b) => b.submittedAt - a.submittedAt)
+      .slice(0, limit)
       .map((a) => ({ ...a, challenge: this.get(a.challengeId) }));
   }
 }

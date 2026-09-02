@@ -63,15 +63,17 @@ export class TeachingService {
     };
   }
 
-  list({ skillSlug = null } = {}) {
-    return this.store.all('teaching_sessions')
+  async list({ skillSlug = null } = {}) {
+    const all = await this.store.all('teaching_sessions');
+    return all
       .filter((s) => !skillSlug || s.skillSlug === skillSlug)
       .sort((a, b) => (b.rating || 0) - (a.rating || 0) || b.createdAt - a.createdAt)
       .map((s) => this.view(s));
   }
 
-  mine(userId) {
-    return this.store.filter('teaching_sessions', (s) => s.teacherId === userId).map((s) => this.view(s));
+  async mine(userId) {
+    const filtered = await this.store.filter('teaching_sessions', (s) => s.teacherId === userId);
+    return filtered.map((s) => this.view(s));
   }
 
   book(sessionId, user) {

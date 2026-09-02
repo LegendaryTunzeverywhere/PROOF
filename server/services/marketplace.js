@@ -32,9 +32,9 @@ export class MarketplaceService {
     // (caller saves)
   }
 
-  taskView(task, userId = null) {
+  async taskView(task, userId = null) {
     const client = this.users.get(task.clientId);
-    const apps = this.store.filter('task_applications', (a) => a.taskId === task.id);
+    const apps = await this.store.filter('task_applications', (a) => a.taskId === task.id);
     const us = userId && task.minProof ? this.skills.userSkill(userId, task.minProof.skillSlug) : null;
     return {
       id: task.id,
@@ -58,10 +58,10 @@ export class MarketplaceService {
     };
   }
 
-  listTasks(userId, { onlyQualified = false } = {}) {
-    const tasks = this.store.filter('marketplace_tasks', (t) => t.status === 'open')
-      .sort((a, b) => b.postedAt - a.postedAt)
-      .map((t) => this.taskView(t, userId));
+  async listTasks(userId, { onlyQualified = false } = {}) {
+    const filtered = await this.store.filter('marketplace_tasks', (t) => t.status === 'open');
+    const sorted = filtered.sort((a, b) => b.postedAt - a.postedAt);
+    const tasks = await Promise.all(sorted.map((t) => this.taskView(t, userId)));
     return onlyQualified ? tasks.filter((t) => t.qualification.qualified) : tasks;
   }
 
@@ -160,10 +160,16 @@ export class MarketplaceService {
     }
   }
 
-  myTasks(userId) {
-    const posted = this.store.filter('marketplace_tasks', (t) => t.clientId === userId).map((t) => this.taskView(t, userId));
-    const applied = this.store.filter('task_applications', (a) => a.userId === userId)
-      .map((a) => ({ ...a, task: this.store.get('marketplace_tasks', a.taskId) ? this.taskView(this.store.get('marketplace_tasks', a.taskId), userId) : null }));
+  async myTasks(userId) {
+    const postedFiltered = await this.store.filter('marketplace_tasks', (t) => t.clientId === userId);
+    const posted = await Promise.all(postedFiltered.map((t) => this.taskView(t, userId)));
+    
+    const appliedFiltered = await this.store.filter('task_applications', (a) => a.userId === userId);
+    const applied = await Promise.all(appliedFiltered.map(async (a) => {
+      const task = this.store.get('marketplace_tasks', a.taskId);
+      return { ...a, task: task ? await this.taskView(task, userId) : null };
+    }));
+    
     return { posted, applied };
   }
 }

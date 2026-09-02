@@ -15,18 +15,19 @@ export class NotificationService {
     return n;
   }
 
-  list(userId, limit = 40) {
-    return this.store.filter('notifications', (n) => n.userId === userId)
-      .sort((a, b) => b.createdAt - a.createdAt).slice(0, limit);
+  async list(userId, limit = 40) {
+    const filtered = await this.store.filter('notifications', (n) => n.userId === userId);
+    return filtered.sort((a, b) => b.createdAt - a.createdAt).slice(0, limit);
   }
 
-  unreadCount(userId) {
-    return this.store.count('notifications', (n) => n.userId === userId && !n.read);
+  async unreadCount(userId) {
+    return await this.store.count('notifications', (n) => n.userId === userId && !n.read);
   }
 
-  markAllRead(userId) {
-    for (const n of this.store.filter('notifications', (x) => x.userId === userId && !x.read))
-      this.store.update('notifications', n.id, { read: true });
-    this.store.save();
+  async markAllRead(userId) {
+    const unread = await this.store.filter('notifications', (x) => x.userId === userId && !x.read);
+    for (const n of unread)
+      await this.store.update('notifications', n.id, { read: true });
+    await this.store.save();
   }
 }

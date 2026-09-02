@@ -176,8 +176,9 @@ export class UserService {
     };
   }
 
-  leaderboard(category = 'proofs', limit = 10) {
-    const users = this.store.all('users').filter((u) => !u.isClient);
+  async leaderboard(category = 'proofs', limit = 10) {
+    const allUsers = await this.store.all('users');
+    const users = allUsers.filter((u) => !u.isClient);
     const score = {
       proofs: (u) => u.proofsPassed * 10 + u.xp / 50,
       score: (u) => avgScore(this.store, u.id),
