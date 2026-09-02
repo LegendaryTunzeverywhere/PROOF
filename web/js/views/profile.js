@@ -72,7 +72,7 @@ export async function screen(root) {
       e.stopPropagation();
       const goalId = btn.dataset.deleteGoal;
       try {
-        await api.delete(`/api/goals/${goalId}`);
+        await api.del(`/api/goals/${goalId}`);
         toast('Goal removed', 'ok');
         screen(root);
       } catch (err) {
@@ -266,11 +266,12 @@ async function renderTree(root, u) {
     ['ui-design', '🎨', 30, 44], ['writing', '✍️', 66, 40], ['ai', '🤖', 86, 52],
     ['marketing', '📈', 24, 72], ['business', '💼', 56, 78], ['social-media', '📱', 82, 84],
     ['languages', '🗣️', 12, 56], ['music-production', '🎵', 88, 30], ['practical-skills', '🔧', 44, 92],
+    ['nimiq-blockchain', '⛓️', 58, 60],
   ];
   const wrap = root.querySelector('#treeWrap');
   wrap.innerHTML = `
     <svg style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-      ${[['web-development', 'ui-design'], ['web-development', 'python'], ['python', 'data-analysis'], ['ui-design', 'writing'], ['writing', 'ai'], ['python', 'ai'], ['ui-design', 'marketing'], ['marketing', 'business'], ['business', 'social-media'], ['languages', 'ui-design'], ['data-analysis', 'ai']]
+      ${[['web-development', 'ui-design'], ['web-development', 'python'], ['python', 'data-analysis'], ['ui-design', 'writing'], ['writing', 'ai'], ['python', 'ai'], ['ui-design', 'marketing'], ['marketing', 'business'], ['business', 'social-media'], ['languages', 'ui-design'], ['data-analysis', 'ai'], ['business', 'nimiq-blockchain'], ['ai', 'nimiq-blockchain']]
         .map(([a, b]) => {
           const A = NODES.find((n) => n[0] === a), B = NODES.find((n) => n[0] === b);
           return `<line x1="${A[2]}" y1="${A[3]}" x2="${B[2]}" y2="${B[3]}" stroke="#DCDAEE" stroke-width="0.7" stroke-dasharray="2 2"/>`;

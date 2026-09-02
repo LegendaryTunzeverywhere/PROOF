@@ -105,11 +105,18 @@ export function lessonFor(domain, topicSlug) {
   const topic = topicBySlug(domain, topicSlug);
   if (!topic) return null;
   return {
+    skillSlug: domain,
     topicSlug: topic.slug,
     title: topic.title,
     estMin: topic.estMin,
     lesson: topic.lesson,
     practice: topic.practice || [],
+    // ── enriched "school-like" lesson fields (curriculum upgrade) ──
+    objectives: topic.objectives || [],
+    story: topic.story || '',
+    memoryHook: topic.memoryHook || '',
+    quiz: topic.quiz || [],
+    recall: topic.recall || [],
     challenge: topic.challenge ? { title: topic.challenge.title, kind: topic.challenge.kind, rewardNim: topic.challenge.rewardNim, xp: topic.challenge.xp, timeMin: topic.challenge.timeMin } : null,
   };
 }
@@ -194,7 +201,7 @@ export function identifyWeaknesses(evaluation) {
 
 export function recommendNextSkill(userSkillSlugs = [], allSkillSlugs = []) {
   const remaining = SKILLS.filter((s) => !userSkillSlugs.includes(s.slug) && allSkillSlugs.includes(s.slug));
-  const demandRank = ['web-development', 'python', 'ai', 'ui-design', 'marketing', 'data-analysis', 'writing', 'social-media', 'business', 'languages', 'music-production', 'practical-skills'];
+  const demandRank = ['web-development', 'python', 'ai', 'nimiq-blockchain', 'ui-design', 'marketing', 'data-analysis', 'writing', 'social-media', 'business', 'languages', 'music-production', 'practical-skills'];
   remaining.sort((a, b) => demandRank.indexOf(a.slug) - demandRank.indexOf(b.slug));
   return remaining.slice(0, 3).map((s) => ({ slug: s.slug, name: s.name, emoji: s.emoji, reason: `High marketplace demand — verified ${s.name} pros are earning on tasks right now.` }));
 }

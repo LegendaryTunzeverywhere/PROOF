@@ -133,6 +133,11 @@ async function router() {
     if (!opts.public) renderNav(activeKey); else document.getElementById('bottomNav')?.remove(), navRendered = false;
     const screen = document.createElement('div');
     screen.className = 'screen';
+    screen.innerHTML = `<div class="pad" style="padding-top:max(16px, env(safe-area-inset-top))">
+      <div class="skeleton" style="height:120px;border-radius:20px"></div>
+      <div class="skeleton mt12" style="height:84px;border-radius:16px"></div>
+      <div class="skeleton mt12" style="height:84px;border-radius:16px"></div>
+    </div>`;
     appEl().replaceChildren(screen);
     try {
       await view(screen, params);

@@ -6,6 +6,7 @@
  */
 
 import { uid, now } from '../util.js';
+import { topicBySlug } from '../ai/kb.js';
 
 let _store = null;
 export const setStore = (s) => { _store = s; };
@@ -140,7 +141,24 @@ export async function getDueReviews(userId, limit = 20) {
   );
   return filtered
     .sort((a, b) => a.nextReviewAt - b.nextReviewAt)
-    .slice(0, limit);
+    .slice(0, limit)
+    .map((r) => enrichWithRecall(r));
+}
+
+/**
+ * Attach a recall prompt + mini-quiz question to a review so the Review
+ * screen is a true active-recall session, not just a "rate yourself" card.
+ * Falls back gracefully when the topic no longer exists in the curriculum.
+ */
+function enrichWithRecall(review) {
+  const topic = topicBySlug(review.skillSlug, review.topicSlug);
+  if (!topic) return review;
+  const quizQ = (topic.quiz && topic.quiz[0]) || (topic.practice && topic.practice[0]) || null;
+  return {
+    ...review,
+    question: quizQ ? { q: quizQ.q, choices: quizQ.choices, answerIdx: quizQ.answerIdx, why: quizQ.why || '' } : null,
+    prompt: (topic.recall && topic.recall[0]) || null,
+  };
 }
 
 /**
