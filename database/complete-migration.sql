@@ -104,12 +104,15 @@ CREATE TABLE IF NOT EXISTS "LearningPath" (
   "userId" TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
   goal TEXT NOT NULL,
   "skillSlug" TEXT NOT NULL,
+  "skillName" TEXT NOT NULL DEFAULT '',
+  "skillEmoji" TEXT NOT NULL DEFAULT '📘',
   title TEXT NOT NULL,
   description TEXT NOT NULL,
   level TEXT NOT NULL,
   "minutesPerDay" INT NOT NULL,
   days JSONB NOT NULL,
   progress JSONB DEFAULT '{}',
+  "totalXp" INT NOT NULL DEFAULT 0,
   engine TEXT DEFAULT 'proof-engine',
   "createdAt" TIMESTAMP DEFAULT NOW()
 );
