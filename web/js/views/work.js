@@ -55,7 +55,7 @@ async function renderMarket(body) {
 
     <div class="section"><div class="section-head"><span class="eyebrow">RECOMMENDED FOR YOU</span></div>
       <div class="stack">
-        ${tasks.map((t) => taskCard(t)).join('') || '<div class="card"><div class="empty">No open tasks right now.</div></div>'}
+        ${tasks.length ? tasks.map((t) => taskCard(t)).join('') : `<div class="card"><div class="empty"><span class="big">💼</span><b style="font-size:14px;display:block;margin-top:8px">No open tasks right now</b><span class="sub">New paid work appears here when clients post tasks. Your verified skills unlock opportunities.</span></div></div>`}
       </div></div>
 
     ${myRes.applied.length ? `<div class="section"><div class="section-head"><span class="eyebrow">MY GIGS</span></div>
@@ -150,7 +150,7 @@ async function renderTeach(body) {
       <div class="stack">${mineRes.sessions.map((t) => sessionCard(t, true)).join('')}</div></div>` : ''}
 
     <div class="section"><div class="section-head"><span class="eyebrow">BOOK A PROVEN TEACHER</span></div>
-      <div class="stack">${sessionsRes.sessions.map((t) => sessionCard(t)).join('')}</div></div>`;
+      ${sessionsRes.sessions.length ? `<div class="stack">${sessionsRes.sessions.map((t) => sessionCard(t)).join('')}</div>` : `<div class="card"><div class="empty"><span class="big">🎓</span><b style="font-size:14px;display:block;margin-top:8px">No sessions available yet</b><span class="sub">Teachers with verified skills can create paid 1-on-1 sessions. Check back soon.</span></div></div>`}</div>`;
 
   body.querySelector('#createSession')?.addEventListener('click', () => createSessionSheet(body, verified));
   $$('[data-book]', body).forEach((b) => b.addEventListener('click', async () => {

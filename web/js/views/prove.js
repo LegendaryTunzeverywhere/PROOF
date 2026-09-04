@@ -44,22 +44,22 @@ export async function hub(root) {
       ${proofs.length ? `<div class="stack">${proofs.slice(0, 6).map(({ p, d, i }) => `
         <div class="card card-click" data-ch="${i.challengeId}" style="padding:16px 18px">
           <div class="row-between">
-            <div style="flex:1"><b style="font-size:15px;font-weight:700;line-height:1.3">${esc(i.title)}</b>
+            <div style="flex:1;min-width:0"><b style="font-size:15px;font-weight:700;line-height:1.3">${esc(i.title)}</b>
               <div class="tiny mt8" style="color:var(--muted)">${p.skillEmoji} ${esc(p.skillName)} · Day ${d.index} · ${i.kind === 'final' ? 'FINAL' : i.kind === 'project' ? 'PROJECT' : 'CHECKPOINT'}</div></div>
-            ${i.rewardNim ? `<span class="chip chip-nim" style="font-weight:800">${ico.coin} ${i.rewardNim}</span>` : `<span class="chip chip-primary">+${i.xp} XP</span>`}
+            ${i.rewardNim ? `<span class="chip chip-nim" style="font-weight:800;flex-shrink:0">${ico.coin} ${i.rewardNim}</span>` : `<span class="chip chip-primary" style="flex-shrink:0">+${i.xp} XP</span>`}
           </div>
         </div>`).join('')}</div>`
-      : `<div class="card"><div class="empty"><span class="big">🗺️</span>No proofs queued. Start or continue a learning path.<br/><a href="#/learn" class="btn btn-soft btn-sm mt8" style="display:inline-flex">Go to Learn</a></div></div>`}
+      : `<div class="card"><div class="empty"><span class="big">🗺️</span><b style="font-size:14px;display:block;margin-top:8px">No proofs queued yet</b><span class="sub">Start learning to unlock proof checkpoints with real rewards.</span><a href="#/learn" class="btn btn-soft mt12" style="display:inline-flex">Start Learning</a></div></div>`}
     </div>
 
     <div class="section"><div class="section-head"><span class="eyebrow">💰 SPONSORED CHALLENGES</span></div>
-      <div class="stack">${sponsoredRes.sponsored.map((s) => `
+      ${sponsoredRes.sponsored.length ? `<div class="stack">${sponsoredRes.sponsored.map((s) => `
         <div class="card" style="padding:16px 18px">
-          <div class="row-between" style="margin-bottom:10px"><div class="row" style="gap:12px;align-items:center"><span style="font-size:24px;line-height:1">${s.emoji}</span><b style="font-size:15px;font-weight:700">${esc(s.title)}</b></div>
-            <span class="chip chip-nim" style="font-weight:800">${fmtNim(s.poolNim)} NIM</span></div>
+          <div class="row-between" style="margin-bottom:10px"><div class="row" style="gap:12px;align-items:center;min-width:0;flex:1"><span style="font-size:24px;line-height:1;flex-shrink:0">${s.emoji}</span><b style="font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis">${esc(s.title)}</b></div>
+            <span class="chip chip-nim" style="font-weight:800;flex-shrink:0">${fmtNim(s.poolNim)} NIM</span></div>
           <div class="tiny" style="color:var(--muted);line-height:1.5">${esc(s.sponsor)} · ${s.participants} proofers · top ${fmtNim(s.topNim)} + qualified share ${fmtNim(s.qualifiedNim)}</div>
           <button class="btn ${s.joined ? 'btn-ghost' : 'btn-soft'} btn-sm mt12" data-join="${s.id}" ${s.joined ? 'disabled' : ''}>${s.joined ? '✓ Joined — pass the final proof' : 'Join challenge'}</button>
-        </div>`).join('')}</div></div>
+        </div>`).join('')}</div>` : `<div class="card"><div class="empty"><span class="big">💰</span><b style="font-size:14px;display:block;margin-top:8px">No live challenges right now</b><span class="sub">Sponsors fund challenge pools — when they're live, anyone can join and prove their way to the prize pool.</span></div></div>`}</div>
 
     ${attemptsRes.attempts.length ? `<div class="section bento-full"><div class="section-head"><span class="eyebrow">📜 PROOF HISTORY</span><a class="link" href="#/profile">Profile →</a></div>
       <div class="stack">${attemptsRes.attempts.slice(0, 5).map((a) => `
@@ -217,7 +217,9 @@ export async function challengeScreen(root, { id }) {
   });
   const submitBtn = $('#submit', root);
   submitBtn.addEventListener('click', async () => {
-    submitBtn.disabled = true; submitBtn.innerHTML = 'Submitting…';
+    submitBtn.disabled = true; 
+    const originalHtml = submitBtn.innerHTML;
+    submitBtn.innerHTML = 'Submitting proof…';
     try {
       const payload = { 
         attemptId,
@@ -237,7 +239,8 @@ export async function challengeScreen(root, { id }) {
       const r = await api.post(`/api/attempts/${attemptId}/submit`, payload);
       location.hash = `#/prove/attempt/${r.attemptId}`;
     } catch (e) {
-      submitBtn.disabled = false; submitBtn.innerHTML = `Submit my proof ${ico.send.replace('<svg', '<svg width="18" height="18"')}`;
+      submitBtn.disabled = false; 
+      submitBtn.innerHTML = originalHtml;
       toast(esc(e.message), 'bad');
     }
   });

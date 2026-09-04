@@ -134,7 +134,7 @@ function tasks(d) {
         <div class="row-between"><b style="font-size:14.5px">${esc(t.title)}</b><span class="chip chip-nim">${fmtNim(t.budgetNim)} NIM</span></div>
         <div class="row-between mt8"><span class="tiny">needs ${esc(t.minProof.skillSlug.replace(/-/g, ' '))} ${t.minProof.min}+</span>
           <span class="chip ${t.qualification.qualified ? 'chip-ok' : ''}" style="font-size:11px;padding:4px 9px">${t.qualification.qualified ? '✓ you qualify' : `you: ${t.qualification.yourScore}%`}</span></div>
-      </div>`).join('') : `<div class="card"><div class="empty" style="padding:14px">Prove a skill to unlock paid tasks. <a href="#/prove">Start a proof →</a></div></div>`}
+      </div>`).join('') : `<div class="card"><div class="empty" style="padding:14px"><span class="big">🎯</span><b style="font-size:14px;display:block;margin-top:8px">Prove a skill to unlock work</b><span class="sub">Your verified skills unlock paid tasks matched to what you can actually do.</span><a href="#/prove" class="btn btn-soft btn-sm mt8" style="display:inline-flex">Start a proof →</a></div></div>`}
     </div></div>`;
 }
 

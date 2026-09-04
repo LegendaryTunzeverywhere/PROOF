@@ -302,18 +302,26 @@ async function renderSkills(root, u) {
   zone.innerHTML = `<div class="section">
     <div class="section-head"><span class="eyebrow">✓ VERIFIED SKILLS (${verified.length})</span></div>
     ${verified.length ? `<div class="stack">${verified.map((s) => `
-      <div class="card" style="padding:14px 16px">
-        <div class="row-between">
-          <div><b style="font-size:14px;text-transform:capitalize">${esc(s.skillSlug.replace(/-/g, ' '))}</b>
-            <div class="tiny">${s.tier} · ${s.proofs} proofs</div></div>
-          <div class="row" style="gap:6px">
-            <b class="num" style="font-size:16px;color:var(--ok-deep)">${s.score}%</b>
-            <button class="btn btn-soft btn-sm" data-share="${esc(s.skillSlug)}">${ico.share.replace('<svg', '<svg width="14" height="14"')}</button>
+      <div class="card" style="padding:16px 18px;background:linear-gradient(120deg,rgba(18,183,106,.05),rgba(18,183,106,.02));border-color:#BDEBD4">
+        <div class="row-between" style="margin-bottom:10px">
+          <div style="flex:1;min-width:0">
+            <div class="row" style="gap:8px;align-items:center;margin-bottom:4px">
+              <span style="font-size:20px;line-height:1">✓</span>
+              <b style="font-size:15px;text-transform:capitalize;color:var(--ok-deep)">${esc(s.skillSlug.replace(/-/g, ' '))}</b>
+            </div>
+            <div class="tiny" style="color:var(--ink-2)">${s.tier} · ${s.proofs} ${s.proofs === 1 ? 'proof' : 'proofs'} passed</div>
+          </div>
+          <div class="row" style="gap:8px;align-items:center">
+            <div style="text-align:center">
+              <b class="num" style="font-size:22px;color:var(--ok-deep);display:block">${s.score}%</b>
+              <span class="tiny" style="color:var(--ok);font-weight:800;font-size:10px">VERIFIED</span>
+            </div>
+            <button class="btn btn-soft btn-sm" data-share="${esc(s.skillSlug)}" title="Share this skill">${ico.share.replace('<svg', '<svg width="14" height="14"')}</button>
           </div>
         </div>
-        <div class="bar bar-ok mt8"><i style="width:${s.score}%"></i></div>
+        <div class="bar bar-ok" style="height:6px"><i style="width:${s.score}%"></i></div>
       </div>`).join('')}</div>`
-      : `<div class="card"><div class="empty"><span class="big">🎯</span>No verified skills yet.<br/>Pass a proof checkpoint to light up your first node.<br/><a href="#/prove" class="btn btn-primary btn-sm mt8" style="display:inline-flex">Go prove</a></div></div>`}
+      : `<div class="card"><div class="empty"><span class="big">🎯</span><b style="font-size:14px;display:block;margin-top:8px">No verified skills yet</b><span class="sub">Pass a proof checkpoint to earn your first verified skill.</span><a href="#/prove" class="btn btn-primary mt12" style="display:inline-flex">Start a Proof</a></div></div>`}
     ${learning.length ? `<div class="mt16"><div class="section-head"><span class="eyebrow">IN PROGRESS</span></div>
       <div class="stack">${learning.map((s) => `
         <div class="card" style="padding:12px 16px"><div class="row-between">
