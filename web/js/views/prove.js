@@ -30,7 +30,7 @@ export async function hub(root) {
       <div id="walletStatusPlaceholder"></div>
     </div>
 
-    <div class="card mt16 card-click ${dailyRes.done ? '' : ''}" id="dailyCard" style="${dailyRes.done ? 'opacity:.8' : 'box-shadow:0 10px 30px rgba(245,138,33,.18);border-color:#FFDFBF;border-width:2px'}">
+    <div class="card mt16 card-click ${dailyRes.done ? '' : ''}" id="dailyCard" style="${dailyRes.done ? 'opacity:.8' : 'box-shadow:0 10px 30px rgba(233,178,19,.2);border-color:rgba(233,178,19,.4);border-width:2px'}">
       <div class="row-between" style="margin-bottom:10px">
         <span class="eyebrow">TODAY'S PROOF</span>
         <span class="chip chip-nim" style="font-weight:800">${ico.coin} +${dailyRes.challenge.rewardNim} NIM</span>
@@ -133,7 +133,7 @@ export async function challengeScreen(root, { id }) {
     </div>
 
     <div class="mt16 bento-full">
-      <div class="card" style="background:var(--nim-soft);border-color:#FFDFBF;padding:12px 16px;display:inline-flex;align-items:center;gap:8px">
+      <div class="card" style="background:var(--tint-gold, rgba(233,178,19,.13));border-color:rgba(233,178,19,.4);padding:12px 16px;display:inline-flex;align-items:center;gap:8px">
         <span style="font-size:18px">${ch.kind === 'final' ? '🏆' : ch.kind === 'project' ? '🛠️' : ch.kind === 'daily' ? '🎯' : '🎯'}</span>
         <span class="eyebrow" style="color:var(--nim-deep);margin:0">${ch.kind === 'final' ? 'FINAL ASSESSMENT' : ch.kind === 'project' ? 'PROJECT PROOF' : ch.kind === 'daily' ? "TODAY'S PROOF" : 'PROOF CHECKPOINT'}</span>
       </div>
@@ -340,7 +340,7 @@ export async function attemptScreen(root, { id }) {
 
     ${skill ? skillCard(skill) : ''}
     ${reward?.granted && extra?.qualification ? qualifyCard(extra.qualification) : ''}
-    ${extra?.newAchievements?.length ? `<div class="card mt12 center" style="background:linear-gradient(120deg,#FFF7E8,#FFEDD3)">${extra.newAchievements.map((a) => `<div><b>${a.emoji} ${esc(a.name)}</b><div class="tiny" style="color:#7A4A10">${esc(a.desc)}</div></div>`).join('<div class="divider" style="margin:8px 0"></div>')}</div>` : ''}
+    ${extra?.newAchievements?.length ? `<div class="card mt12 center" style="background:linear-gradient(120deg,rgba(233,178,19,.16),rgba(233,178,19,.06))">${extra.newAchievements.map((a) => `<div><b>${a.emoji} ${esc(a.name)}</b><div class="tiny" style="color:#6B5410">${esc(a.desc)}</div></div>`).join('<div class="divider" style="margin:8px 0"></div>')}</div>` : ''}
 
     <div class="card mt12" style="text-align:left">
       <b style="font-size:14.5px">${esc(title)}</b>
@@ -385,7 +385,7 @@ export async function attemptScreen(root, { id }) {
 }
 
 function skillCard(skill) {
-  return `<div class="card mt12" style="background:linear-gradient(120deg,rgba(255,178,94,.12),rgba(255,178,94,.06));border-color:#FFDFBF">
+  return `<div class="card mt12" style="background:linear-gradient(120deg,rgba(233,178,19,.12),rgba(233,178,19,.05));border-color:rgba(233,178,19,.4)">
     <div class="row" style="gap:12px">
       <div style="font-size:24px">${skill.emoji}</div>
       <div style="flex:1">
@@ -399,7 +399,7 @@ function skillCard(skill) {
 }
 
 function qualifyCard(q) {
-  return `<div class="card mt12" style="background:linear-gradient(120deg,rgba(139,92,246,.12),rgba(139,92,246,.06));border-color:#C4B5FD">
+  return `<div class="card mt12" style="background:linear-gradient(120deg,rgba(95,75,139,.12),rgba(95,75,139,.05));border-color:rgba(95,75,139,.35)">
     <b style="font-size:14px">🎯 You now qualify for ${q.opportunities} opportunities!</b>
     <p class="tiny mt8" style="color:var(--muted)">Your verified skill unlocked access to paid work and teaching sessions.</p>
   </div>`;

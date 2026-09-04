@@ -34,7 +34,7 @@ export async function screen(root) {
     <div class="card card-hero quest-hero mt16" style="padding:22px 20px">
       <div class="row-between">
         ${walletStatusBadge(u.wallet.mode, u.walletModeIsDemo)}
-        <span class="chip chip-dark chip-nim" style="background:rgba(255,178,94,.18);border-color:rgba(255,178,94,.4);color:#FFC98A">${ico.coin} ${fmtNim(u.balanceNim, 2)} NIM</span>
+        <span class="chip chip-dark chip-nim" style="background:rgba(233,178,19,.22);border-color:rgba(233,178,19,.45);color:#F8DE7A">${ico.coin} ${fmtNim(u.balanceNim, 2)} NIM</span>
       </div>
       <h1 class="display quest-title mt16" style="font-size:25px;color:#fff">Learn anything.<br/>Prove it. <span style="background:var(--nim-grad);-webkit-background-clip:text;background-clip:text;color:transparent">Earn with it.</span></h1>
       <div class="quest-launcher mt16">

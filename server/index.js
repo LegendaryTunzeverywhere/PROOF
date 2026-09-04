@@ -8,8 +8,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config, validateConfig } from './config.js';
-import { Store } from './store.js';
-import { SupabaseStore, createStore } from './supabase-store.js';
 import { seed } from './seed.js';
 import { AuthService, sessionCookie, CLEAR_COOKIE } from './auth.js';
 import { UserService } from './services/users.js';
@@ -26,9 +24,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = path.resolve(__dirname, '../web');
 
 /* ── boot ──────────────────────────────────────────────────────────── */
-// Use createStore() to automatically choose between Store and SupabaseStore
-// based on DB_MODE environment variable
-const store = await createStore();
+// Use the embedded JSON store by default (zero npm dependencies). Only when
+// DB_MODE=supabase do we dynamic-import the Supabase store — and with it the
+// @supabase/supabase-js dependency — so a fresh clone boots with `npm start`.
+const { Store } = await import('./store.js');
+const store = process.env.DB_MODE === 'supabase'
+  ? await (await import('./supabase-store.js')).createStore()
+  : await new Store().open();
 if (store instanceof Store) {
   // Only seed if using in-memory store (Supabase data managed separately)
   if (!fs.existsSync(path.join(config.dataDir, 'proof.json'))) {
@@ -82,6 +84,13 @@ const routes = [];
 const route = (method, pattern, handler) => routes.push({ method, pattern, handler });
 
 function json(res, status, data, headers = {}) {
+  // Dev guard: an un-awaited async service call serializes to {} — catch it loudly
+  // instead of letting the client silently receive empty objects.
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    for (const [k, v] of Object.entries(data)) {
+      if (v instanceof Promise) console.warn(`[proof] BUG: response field "${k}" is an un-awaited Promise (will serialize to {}). Await it in the route handler.`);
+    }
+  }
   const body = JSON.stringify(data);
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', ...headers });
   res.end(body);
@@ -470,11 +479,14 @@ async function pathView(p, userId) {
       attempt: i.challengeId ? (attemptsByChallenge.get(i.challengeId) || null) : null,
     })),
   }));
+  // Total NIM attachable across all proof items in the path (mirrors the
+  // generator's rewardPool) — the UI shows this as the path's reward pool.
+  const rewardNim = days.reduce((a, d) => a + (d.items || []).reduce((s, i) => s + (i.rewardNim || 0), 0), 0);
   return {
     id: p.id, title: p.title, description: p.description, goal: p.goal,
     skillSlug: p.skillSlug, skillName: p.skillName, skillEmoji: p.skillEmoji,
     level: p.level, minutesPerDay: p.minutesPerDay, engine: p.engine,
-    totalXp: p.totalXp,
+    totalXp: p.totalXp, rewardNim,
     days, percent: pathProgress(p), createdAt: p.createdAt,
   };
 }
@@ -604,19 +616,19 @@ route('GET', '/api/wallet', async (ctx) => {
   });
 });
 
-route('POST', '/api/wallet/payout', (ctx) => {
+route('POST', '/api/wallet/payout', async (ctx) => {
   const { user, body, res } = ctx;
   const amountNim = parseNumber(body?.amountNim, { min: 0, max: 1_000_000 });
-  const tx = rewards.requestPayout(user.id, amountNim);
+  const tx = await rewards.requestPayout(user.id, amountNim);
   json(res, 201, { tx: { ...tx, amountNim: toNim(tx.amountLuna) } });
 });
 
-route('POST', '/api/tips', (ctx) => {
+route('POST', '/api/tips', async (ctx) => {
   const { user, body, res } = ctx;
-  const to = users.get(String(body?.toUserId || ''));
+  const to = await users.get(String(body?.toUserId || ''));
   if (!to) throw httpError(404, 'NOT_FOUND', 'User not found.');
   const amountNim = parseNumber(body?.amountNim, { min: 0.01, max: 10_000 });
-  const tx = rewards.tip(user.id, to.id, amountNim, String(body?.note || '').slice(0, 140));
+  const tx = await rewards.tip(user.id, to.id, amountNim, String(body?.note || '').slice(0, 140));
   notifications.push(to.id, { type: 'tip', emoji: '💸', title: `${user.username} tipped you ${amountNim} NIM`, body: String(body?.note || ''), href: '#/profile' });
   json(res, 201, { ok: true, tx: { ...tx, amountNim: toNim(tx.amountLuna) } });
 });
@@ -635,13 +647,13 @@ route('GET', '/api/rewards', async (ctx) => {
 });
 
 /* ── MARKETPLACE ───────────────────────────────────────────────────── */
-route('GET', '/api/market/tasks', (ctx) => {
+route('GET', '/api/market/tasks', async (ctx) => {
   const { user, query, res } = ctx;
-  json(res, 200, { tasks: market.listTasks(user.id, { onlyQualified: query.get('qualified') === '1' }) });
+  json(res, 200, { tasks: await market.listTasks(user.id, { onlyQualified: query.get('qualified') === '1' }) });
 });
-route('GET', '/api/market/tasks/:id', (ctx) => {
+route('GET', '/api/market/tasks/:id', async (ctx) => {
   const { user, params, res } = ctx;
-  const t = market.get(params.id, user.id);
+  const t = await market.get(params.id, user.id);
   if (!t) throw httpError(404, 'NOT_FOUND', 'Task not found.');
   json(res, 200, { task: t });
 });
@@ -649,13 +661,13 @@ route('POST', '/api/market/tasks/:id/apply', (ctx) => {
   const { user, params, body, res } = ctx;
   json(res, 201, { application: market.apply(params.id, user, body?.pitch) });
 });
-route('POST', '/api/market/tasks/:id/complete', (ctx) => {
+route('POST', '/api/market/tasks/:id/complete', async (ctx) => {
   const { user, params, res } = ctx;
-  json(res, 200, market.completeTask(params.id, user));
+  json(res, 200, await market.completeTask(params.id, user));
 });
-route('POST', '/api/market/tasks', (ctx) => {
+route('POST', '/api/market/tasks', async (ctx) => {
   const { user, body, res } = ctx;
-  json(res, 201, { task: market.postTask(user, body || {}) });
+  json(res, 201, { task: await market.postTask(user, body || {}) });
 });
 route('GET', '/api/market/my', async (ctx) => {
   const { user, res } = ctx;
@@ -664,21 +676,21 @@ route('GET', '/api/market/my', async (ctx) => {
 });
 
 /* ── TEACHING ──────────────────────────────────────────────────────── */
-route('GET', '/api/teach/sessions', (ctx) => {
+route('GET', '/api/teach/sessions', async (ctx) => {
   const { user, query, res } = ctx;
-  json(res, 200, { sessions: teaching.list({ skillSlug: query.get('skill') || null }) });
+  json(res, 200, { sessions: await teaching.list({ skillSlug: query.get('skill') || null }) });
 });
 route('POST', '/api/teach/sessions', (ctx) => {
   const { user, body, res } = ctx;
   json(res, 201, { session: teaching.view(teaching.createSession(user, body || {})) });
 });
-route('GET', '/api/teach/mine', (ctx) => {
+route('GET', '/api/teach/mine', async (ctx) => {
   const { user, res } = ctx;
-  json(res, 200, { sessions: teaching.mine(user.id) });
+  json(res, 200, { sessions: await teaching.mine(user.id) });
 });
-route('POST', '/api/teach/sessions/:id/book', (ctx) => {
+route('POST', '/api/teach/sessions/:id/book', async (ctx) => {
   const { user, params, res } = ctx;
-  json(res, 201, { session: teaching.book(params.id, user) });
+  json(res, 201, { session: await teaching.book(params.id, user) });
 });
 route('POST', '/api/teach/sessions/:id/review', (ctx) => {
   const { user, params, body, res } = ctx;
@@ -1106,19 +1118,19 @@ route('GET', '/p/:publicId', (ctx) => {
 <meta property="og:title" content="${escapeHtml(d.username)} — verified ${escapeHtml(d.skillName)}">
 <meta property="og:description" content="Score ${proof_score(d)}/100 · verified on PROOF. Don't just say you can build. Prove it.">
 <style>
-  body{margin:0;min-height:100vh;display:grid;place-items:center;background:linear-gradient(160deg,#141639,#3d2f8f 55%,#8f5bd6);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#fff;padding:24px}
-  .card{width:100%;max-width:420px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:28px;padding:34px 30px;backdrop-filter:blur(12px);box-shadow:0 30px 80px rgba(0,0,0,.45);text-align:center}
-  .badge{display:inline-flex;align-items:center;gap:8px;background:#12b76a;color:#04150c;font-weight:800;font-size:12px;letter-spacing:.14em;padding:7px 14px;border-radius:999px}
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(120% 120% at 100% 0%, rgba(233,178,19,.16), transparent 42%),linear-gradient(160deg,#1F2348,#2A2E66 55%,#5F4B8B);font-family:'Muli',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#fff;padding:24px}
+  .card{width:100%;max-width:420px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:34px 30px;backdrop-filter:blur(12px);box-shadow:0 30px 80px rgba(0,0,0,.45);text-align:center}
+  .badge{display:inline-flex;align-items:center;gap:8px;background:radial-gradient(100% 100% at bottom right,#41A38E,#21BCA5);color:#fff;font-weight:800;font-size:12px;letter-spacing:.14em;padding:7px 14px;border-radius:999px}
   h1{font-size:30px;margin:18px 0 2px;letter-spacing:-.02em}
-  .skill{color:#c9c4ff;font-weight:700;font-size:17px}
-  .score{font-size:64px;font-weight:900;margin:16px 0 2px;background:linear-gradient(90deg,#ffd28a,#ff9d43);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .skill{color:rgba(255,255,255,.75);font-weight:700;font-size:17px}
+  .score{font-size:64px;font-weight:900;margin:16px 0 2px;background:linear-gradient(90deg,#F8DE7A,#EC991C);-webkit-background-clip:text;background-clip:text;color:transparent}
   .of{color:rgba(255,255,255,.55);font-size:13px;letter-spacing:.2em;font-weight:700}
   .meta{display:flex;justify-content:center;gap:22px;margin-top:22px;color:rgba(255,255,255,.75);font-size:13px}
   .meta b{display:block;color:#fff;font-size:16px}
   .chal{margin-top:18px;padding:14px 16px;background:rgba(255,255,255,.06);border-radius:14px;font-size:13px;color:rgba(255,255,255,.8)}
   .foot{margin-top:26px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.5)}
   .logo{font-weight:900;letter-spacing:.22em;font-size:13px}
-  .logo span{color:#ffb15e}
+  .logo span{color:#E9B213}
 </style></head><body>
 <div class="card">
   <div class="badge">✓ PROOF VERIFIED</div>
@@ -1149,18 +1161,18 @@ route('GET', '/share/:file', (ctx) => {
 <svg xmlns="http://www.w3.org/2000/svg" width="600" height="336" viewBox="0 0 600 336">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#15173b"/><stop offset=".55" stop-color="#3d2f8f"/><stop offset="1" stop-color="#8f5bd6"/>
+      <stop offset="0" stop-color="#1F2348"/><stop offset=".55" stop-color="#2A2E66"/><stop offset="1" stop-color="#5F4B8B"/>
     </linearGradient>
     <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#ffd28a"/><stop offset="1" stop-color="#ff9d43"/>
+      <stop offset="0" stop-color="#F8DE7A"/><stop offset="1" stop-color="#EC991C"/>
     </linearGradient>
   </defs>
   <rect width="600" height="336" rx="28" fill="url(#bg)"/>
   <rect x="1" y="1" width="598" height="334" rx="27" fill="none" stroke="rgba(255,255,255,.18)"/>
-  <text x="40" y="58" fill="#ffffff" font-family="Arial,Helvetica,sans-serif" font-size="15" font-weight="bold" letter-spacing="6">PRO<span fill="#ffb15e">O</span>F</text>
-  <text x="560" y="58" text-anchor="end" fill="#7ef0b0" font-family="Arial" font-size="13" font-weight="bold">✓ VERIFIED SKILL</text>
+  <text x="40" y="58" fill="#ffffff" font-family="Arial,Helvetica,sans-serif" font-size="15" font-weight="bold" letter-spacing="6">PRO<span fill="#E9B213">O</span>F</text>
+  <text x="560" y="58" text-anchor="end" fill="#63D8C6" font-family="Arial" font-size="13" font-weight="bold">✓ VERIFIED SKILL</text>
   <text x="40" y="120" fill="#ffffff" font-family="Arial" font-size="30" font-weight="bold">${escapeHtml(d.avatar + ' ' + d.username)}</text>
-  <text x="40" y="156" fill="#c9c4ff" font-family="Arial" font-size="20" font-weight="bold">${escapeHtml(d.skillName.toUpperCase())}${d.tier ? ' · ' + escapeHtml(d.tier.toUpperCase()) : ''}</text>
+  <text x="40" y="156" fill="#C0BBE3" font-family="Arial" font-size="20" font-weight="bold">${escapeHtml(d.skillName.toUpperCase())}${d.tier ? ' · ' + escapeHtml(d.tier.toUpperCase()) : ''}</text>
   <text x="40" y="238" fill="url(#gold)" font-family="Arial" font-size="64" font-weight="900">${proof_score(d)}%</text>
   <text x="40" y="266" fill="rgba(255,255,255,.6)" font-family="Arial" font-size="13">${d.proofsPassed} PROOFS PASSED · ⭐ REPUTATION ${d.user ? d.user.reputation : '—'}</text>
   <text x="40" y="308" fill="rgba(255,255,255,.55)" font-family="Arial" font-size="13" font-style="italic">“Don’t just say you can build. Prove it.”</text>

@@ -4,7 +4,7 @@ import { testbed, goodHtml, typedMeta } from './helpers.js';
 
 test('marketplace: qualification gate blocks unqualified applicants', async (t) => {
   const tb = await testbed();
-  const pro = tb.users.createUser({});
+  const pro = await tb.users.createUser({});
   const task = tb.market.seedTask({ title: 'Build a landing page', description: 'x', budgetNim: 50, skillSlug: 'web-development', minScore: 70, clientName: 'KickLayer' });
   tb.store.save();
   assert.throws(() => tb.market.apply(task.id, pro, 'pick me'), (e) => e.code === 'QUALIFICATION_NOT_MET');
@@ -12,7 +12,7 @@ test('marketplace: qualification gate blocks unqualified applicants', async (t) 
 
 test('marketplace: verified proofer can apply; demo client auto-accepts; completion pays', async (t) => {
   const tb = await testbed();
-  const pro = tb.users.createUser({});
+  const pro = await tb.users.createUser({});
   // prove the skill first — the only way in
   const ch = tb.challenges.createFromTemplate({
     skillSlug: 'web-development',
@@ -30,7 +30,7 @@ test('marketplace: verified proofer can apply; demo client auto-accepts; complet
   const app2 = tb.market.apply(task.id, pro, 'I just proved this at ' + res.evaluation.score);
   assert.equal(app2.status, 'accepted', 'demo client auto-accepts');
   const before = tb.users.get(pro.id).balanceLuna;
-  const pay = tb.market.completeTask(task.id, tb.users.get(pro.id));
+  const pay = await tb.market.completeTask(task.id, tb.users.get(pro.id));
   assert.ok(pay.netLuna > 4800000);
   assert.ok(tb.users.get(pro.id).balanceLuna > before);
   assert.ok(tb.users.get(pro.id).reputation > 50, 'reputation rises on completed work');
@@ -38,10 +38,10 @@ test('marketplace: verified proofer can apply; demo client auto-accepts; complet
 
 test('marketplace: double-apply and own-task are rejected', async (t) => {
   const tb = await testbed();
-  const owner = tb.users.createUser({});
-  const pro = tb.users.createUser({});
-  tb.rewards.credit(owner.id, 5000000, 'reward', 'seed');
-  const t1 = tb.market.postTask(tb.users.get(owner.id), { title: 'Logo', description: 'd', budgetNim: 20, skillSlug: 'ui-design', minScore: 60 });
+  const owner = await tb.users.createUser({});
+  const pro = await tb.users.createUser({});
+  await tb.rewards.credit(owner.id, 5000000, 'reward', 'seed');
+  const t1 = await tb.market.postTask(tb.users.get(owner.id), { title: 'Logo', description: 'd', budgetNim: 20, skillSlug: 'ui-design', minScore: 60 });
   assert.throws(() => tb.market.apply(t1.id, tb.users.get(owner.id), ''), (e) => e.code === 'OWN_TASK');
   // qualify pro minimally
   tb.skills.ensureUserSkill(pro.id, 'ui-design');
@@ -52,9 +52,9 @@ test('marketplace: double-apply and own-task are rejected', async (t) => {
 
 test('teaching: only verified skills 70+ can teach; booking pays the teacher', async (t) => {
   const tb = await testbed();
-  const teacher = tb.users.createUser({});
-  const student = tb.users.createUser({});
-  tb.rewards.credit(student.id, 1000000, 'reward', 'seed');
+  const teacher = await tb.users.createUser({});
+  const student = await tb.users.createUser({});
+  await tb.rewards.credit(student.id, 1000000, 'reward', 'seed');
 
   assert.throws(
     () => tb.teaching.createSession(tb.users.get(teacher.id), { title: 'X', description: 'd', durationMin: 20, priceNim: 5, maxStudents: 5, skillSlug: 'python' }),
@@ -64,7 +64,7 @@ test('teaching: only verified skills 70+ can teach; booking pays the teacher', a
   tb.skills.applyProofResult(teacher.id, 'python', { score: 92, passed: true });
   const session = tb.teaching.createSession(tb.users.get(teacher.id), { title: 'Python for Beginners — 20 minutes', description: 'd', durationMin: 20, priceNim: 5, maxStudents: 5, skillSlug: 'python' });
   const before = tb.users.get(teacher.id).balanceLuna;
-  tb.teaching.book(session.id, tb.users.get(student.id));
+  await tb.teaching.book(session.id, tb.users.get(student.id));
   const after = tb.users.get(teacher.id).balanceLuna;
   assert.equal(after - before, 490000, 'teacher receives 5 NIM − 2% fee');
   assert.equal(tb.users.get(student.id).balanceLuna, 500000);
@@ -78,7 +78,7 @@ test('teaching: only verified skills 70+ can teach; booking pays the teacher', a
 
 test('gamification: achievements unlock through the pipeline', async (t) => {
   const tb = await testbed();
-  const u = tb.users.createUser({});
+  const u = await tb.users.createUser({});
   const ch = tb.challenges.createFromTemplate({
     skillSlug: 'web-development',
     template: {

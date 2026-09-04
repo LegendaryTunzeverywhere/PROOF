@@ -17,7 +17,7 @@ export async function screen(root) {
   root.innerHTML = `
   <div class="pad bento-read" style="padding-top:max(20px, env(safe-area-inset-top))">
     <div class="row-between mt8">
-      <div class="logo-mini" style="font-weight:900;letter-spacing:.3em;font-size:14px">PR<span style="color:var(--nim)">O</span>OF</div>
+      <div class="logo-mini nq-logo" style="font-weight:900;letter-spacing:.3em;font-size:14px">${ico.signet}<span>PR<span style="color:var(--nim-gold, #E9B213)">O</span>OF</span></div>
       <button class="btn btn-ghost btn-sm" id="btnWallet">${ico.wallet} Connect wallet</button>
     </div>
 
@@ -88,8 +88,8 @@ export async function walletEntry(root) {
   const env = environment();
 
   const payBtn = `<button class="btn ${env.kind === 'nimiqpay' ? 'btn-primary' : 'btn-ghost'} btn-block ${env.kind === 'nimiqpay' ? 'mt16' : 'mt8'}" id="wNimiq">${ico.wallet} Connect Nimiq Pay</button>`;
-  const hubBtn = `<button class="btn btn-primary btn-block mt16" id="wHub">🔗 Connect Nimiq Hub</button>`;
-  const demoBtn = `<button class="btn ${env.kind === 'nimiqpay' ? 'btn-soft' : 'btn-nim'} btn-block mt8" id="wDemo">🧪 Explore with demo wallet</button>`;
+  const hubBtn = `<button class="btn btn-primary btn-block mt16" id="wHub">${ico.link} Connect Nimiq Hub</button>`;
+  const demoBtn = `<button class="btn ${env.kind === 'nimiqpay' ? 'btn-soft' : 'btn-nim'} btn-block mt8" id="wDemo">${ico.flask} Explore with demo wallet</button>`;
 
   let options;
   let note;
@@ -98,7 +98,7 @@ export async function walletEntry(root) {
     note = '✅ Running inside Nimiq Pay — your keys never leave the wallet. All rewards are on-chain.';
   } else if (env.kind === 'desktop') {
     options = hubBtn + demoBtn +
-      `<button class="btn btn-ghost btn-block mt8" id="wNimiq" style="opacity:.75">⚡ Nimiq Pay <span class="tiny">· mobile app only</span></button>`;
+      `<button class="btn btn-ghost btn-block mt8" id="wNimiq" style="opacity:.75">${ico.bolt} Nimiq Pay <span class="tiny">· mobile app only</span></button>`;
     note = '💻 Desktop detected → Use <b>Nimiq Hub</b> for on-chain rewards (secure popup). Or try the demo wallet instantly.';
   } else {
     options = hubBtn + demoBtn + payBtn;
@@ -114,14 +114,14 @@ export async function walletEntry(root) {
 
   s.el.querySelector('#wHub')?.addEventListener('click', async (e) => {
     const btn = e.currentTarget;
-    btn.disabled = true; btn.innerHTML = `🔗 Connecting to Nimiq Hub…`;
+    btn.disabled = true; btn.innerHTML = `${ico.link} Connecting to Nimiq Hub…`;
     try {
       await WalletService.connectNimiqHub();
       await refreshMe();
       s.close(); toast('Nimiq Hub connected ✅ On-chain rewards enabled!', 'ok');
       location.hash = '#/';
     } catch (err) {
-      btn.disabled = false; btn.innerHTML = `🔗 Connect Nimiq Hub`;
+      btn.disabled = false; btn.innerHTML = `${ico.link} Connect Nimiq Hub`;
       const msg = String(err.message || err);
       let hint = '';
       if (msg.includes('HUB_TIMEOUT') || msg.includes('Connection was closed')) {
@@ -143,22 +143,32 @@ export async function walletEntry(root) {
       toast('Nimiq Pay is mobile-only. On desktop, use Nimiq Hub for on-chain rewards.', '', 4200);
       return;
     }
-    btn.disabled = true; btn.innerHTML = `⚡ Connecting to Nimiq Pay…`;
+    // Not inside the Nimiq Pay webview → fail instantly with guidance
+    // instead of stalling through CDN imports that can never connect.
+    if (!env.inNimiqPay) {
+      toast('Open this app inside Nimiq Pay to connect your wallet (browser users: choose Nimiq Hub or the demo wallet).', '', 5000);
+      return;
+    }
+    btn.disabled = true; btn.innerHTML = `${ico.bolt} Connecting to Nimiq Pay…`;
     try {
       await WalletService.connectNimiqPay();
       await refreshMe();
       s.close(); toast('Nimiq Pay connected ✅ On-chain rewards enabled!', 'ok');
       location.hash = '#/';
     } catch (err) {
-      btn.disabled = false; btn.innerHTML = `⚡ Connect Nimiq Pay`;
+      btn.disabled = false; btn.innerHTML = `${ico.bolt} Connect Nimiq Pay`;
       const msg = String(err.message || err);
       let hint = '';
-      if (msg.includes('NIMIQ_') || msg.includes('timeout')) {
-        hint = 'Connection timed out. Make sure you\'re using the Nimiq Pay app.';
+      if (msg.includes('NIMIQ_SDK_UNAVAILABLE')) {
+        hint = 'The wallet SDK could not load. Check your connection and reopen PROOF from Nimiq Pay.';
+      } else if (msg.includes('NIMIQ_PAY_UNAVAILABLE')) {
+        hint = 'Nimiq Pay host not detected. Open PROOF inside the Nimiq Pay app.';
       } else if (msg.includes('NO_ACCOUNTS')) {
-        hint = 'No accounts found. Please create an account in Nimiq Pay first.';
-      } else if (msg.includes('UNAVAILABLE') || msg.includes('SCRIPT_LOAD')) {
-        hint = 'Nimiq Pay not available. Open PROOF inside the Nimiq Pay mobile app.';
+        hint = 'No accounts found. Create an account in Nimiq Pay first, then retry.';
+      } else if (msg.includes('TIMEOUT') || msg.includes('timeout')) {
+        hint = 'The wallet did not respond. Reopen PROOF inside Nimiq Pay and try again.';
+      } else if (msg.includes('BAD_SIGNATURE') || msg.includes('MALFORMED')) {
+        hint = 'The wallet returned an unexpected response. Please try again.';
       }
       toast('Nimiq Pay connection failed. ' + hint, 'bad', 4500);
     }
@@ -170,10 +180,10 @@ export async function walletEntry(root) {
     try {
       await WalletService.connectDemo();
       await refreshMe();
-      s.close(); toast('Demo wallet ready! 🧪 Full experience with simulated rewards.', 'ok', 3500);
+      s.close(); toast('Demo wallet ready! Full experience with simulated rewards.', 'ok', 3500);
       location.hash = '#/';
     } catch (err) {
-      btn.disabled = false; btn.innerHTML = `🧪 Explore with demo wallet`;
+      btn.disabled = false; btn.innerHTML = `${ico.flask} Explore with demo wallet`;
       const errorMsg = err?.message?.includes('BAD_NONCE')
         ? 'Sign-in request expired. Please try again.'
         : err?.message || 'Could not create demo wallet. Please check your connection and try again.';

@@ -6,7 +6,7 @@ import { generateKeyPair, signBytes, nimiqMessageDigest, nimiqAddressFromPublicK
 test('WalletService (server): demo wallet sign-in issues a verified session', async (t) => {
   const tb = await testbed();
   const demo = tb.auth.createDemoWallet();
-  const { nonce, message } = tb.auth.issueNonce(demo.publicKey);
+  const { nonce, message } = await tb.auth.issueNonce(demo.publicKey);
   const signature = tb.auth.signDemoMessage(demo.privateKey, message);
   assert.equal(tb.auth.verifySignature({ mode: 'demo', publicKey: demo.publicKey, signature, message }), true, 'demo signature must verify with real Ed25519');
 });
@@ -14,9 +14,9 @@ test('WalletService (server): demo wallet sign-in issues a verified session', as
 test('WalletService (server): messages cannot be replayed across nonces', async (t) => {
   const tb = await testbed();
   const demo = tb.auth.createDemoWallet();
-  const n1 = tb.auth.issueNonce(demo.publicKey);
+  const n1 = await tb.auth.issueNonce(demo.publicKey);
   const sig = tb.auth.signDemoMessage(demo.privateKey, n1.message);
-  const n2 = tb.auth.issueNonce(demo.publicKey);
+  const n2 = await tb.auth.issueNonce(demo.publicKey);
   assert.equal(tb.auth.verifySignature({ mode: 'demo', publicKey: demo.publicKey, signature: sig, message: n2.message }), false);
 });
 

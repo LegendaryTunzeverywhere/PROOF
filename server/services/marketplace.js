@@ -123,7 +123,7 @@ export class MarketplaceService {
     return this.store.get('task_applications', app.id);
   }
 
-  completeTask(taskId, user) {
+  async completeTask(taskId, user) {
     const task = this.store.get('marketplace_tasks', taskId);
     if (!task) throw Object.assign(new Error('Task not found.'), { code: 'NOT_FOUND', status: 404 });
     const app = this.store.find('task_applications', (a) => a.taskId === taskId && a.userId === user.id && a.status === 'accepted');
@@ -132,7 +132,7 @@ export class MarketplaceService {
 
     task.status = 'completed';
     app.status = 'completed';
-    const { net, fee } = this.rewards.releaseEscrow({
+    const { net, fee } = await this.rewards.releaseEscrow({
       fromUserId: task.clientId, toUserId: user.id,
       amountNim: task.budgetLuna / 100000,
       kind: 'task_payment', note: `Task: ${task.title}`,
@@ -148,7 +148,7 @@ export class MarketplaceService {
     return { netLuna: net, feeLuna: fee };
   }
 
-  postTask(user, { title, description, budgetNim, skillSlug = null, minScore = 0, tags = [] }) {
+  async postTask(user, { title, description, budgetNim, skillSlug = null, minScore = 0, tags = [] }) {
     const budget = luna(budgetNim);
     if (!title || !description) throw Object.assign(new Error('Title and description are required.'), { code: 'BAD_INPUT', status: 400 });
     if (!(budget >= luna(1))) throw Object.assign(new Error('Minimum budget is 1 NIM.'), { code: 'BAD_INPUT', status: 400 });
@@ -156,7 +156,7 @@ export class MarketplaceService {
     // Escrow funds — wrap in try/catch to rollback on failure
     let debitTx = null;
     try {
-      debitTx = this.rewards.debit(user.id, budget, 'task_escrow', `Escrow for task: ${title}`);
+      debitTx = await this.rewards.debit(user.id, budget, 'task_escrow', `Escrow for task: ${title}`);
       
       const task = this.store.insert('marketplace_tasks', {
         id: uid('task'), title: String(title).slice(0, 120), description: String(description).slice(0, 1000), tags,
@@ -169,7 +169,7 @@ export class MarketplaceService {
       // Rollback: if task creation failed but debit succeeded, credit the funds back
       if (debitTx) {
         try {
-          this.rewards.credit(user.id, budget, 'task_escrow_refund', 'Task creation failed — funds returned');
+          this.rewards.credit(user.id, budget, 'task_escrow_refund', 'Task creation failed — funds returned').catch(() => {});
         } catch (refundErr) {
           // Log but don't throw - original error is more important
           console.error('Failed to refund escrowed funds after task creation failure:', refundErr);

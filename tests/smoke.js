@@ -1,9 +1,11 @@
 /**
- * E2E smoke test — boots nothing; assumes the server is running on :3000.
+ * E2E smoke test — boots nothing; assumes the server is running.
+ * Set SMOKE_BASE (default http://localhost:3001) to target another instance.
  * Walks the 90-second competition demo flow via the real HTTP API.
+ *   PORT=3001 node server/index.js &   # then:
  *   node tests/smoke.js
  */
-const BASE = 'http://localhost:3001';
+const BASE = process.env.SMOKE_BASE || 'http://localhost:3001';
 let cookie = '';
 
 async function call(method, path, body) {
@@ -81,6 +83,11 @@ ok('share card SVG', card.status === 200 && (card.headers.get('content-type') ||
 
 // 9. Marketplace qualification (idempotent: previous runs may have completed the flagship task)
 const { tasks } = await call('GET', '/api/market/tasks');
+// Graceful failure: a broken API must fail the check, not crash the harness.
+if (!Array.isArray(tasks)) {
+  ok('marketplace tasks API returns an array', false, `got ${typeof tasks} — route may be missing an await`);
+  process.exit(1);
+}
 let landing = tasks.find((t) => t.title.toLowerCase().includes('landing'));
 let priorGig = null;
 if (!landing) {

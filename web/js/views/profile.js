@@ -32,10 +32,10 @@ export async function screen(root) {
           <div class="tiny" style="color:rgba(255,255,255,.6)">Level ${u.level} · ${u.xp} XP · ⭐ reputation ${u.reputation}</div>
           <div class="bar mt8" style="background:rgba(255,255,255,.18);width:100%"><i style="width:${xpPercent(u.xp, u.level)}%;background:var(--nim-grad)"></i></div>
         </div>
-        <button class="btn btn-sm" id="editUser" style="background:rgba(255,255,255,.15);color:#fff">✏️</button>
+        <button class="btn btn-sm" id="editUser" style="background:rgba(255,255,255,.15);color:#fff" aria-label="Edit username" title="Edit username">${ico.profile}</button>
       </div>
       <div class="grid3 mt16">
-        <div class="stat" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.15)"><b style="color:#FFC98A" class="num">${fmtNim(u.balanceNim, 2)}</b><span style="color:rgba(255,255,255,.6)">NIM balance</span></div>
+        <div class="stat" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.15)"><b style="color:#F8DE7A" class="num">${fmtNim(u.balanceNim, 2)}</b><span style="color:rgba(255,255,255,.6)">NIM balance</span></div>
         <div class="stat" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.15)"><b style="color:#fff" class="num">${fmtNim(u.earnedNim, 1)}</b><span style="color:rgba(255,255,255,.6)">NIM earned</span></div>
         <div class="stat" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.15)"><b style="color:#fff">${u.proofsPassed}</b><span style="color:rgba(255,255,255,.6)">proofs passed</span></div>
       </div>
@@ -56,7 +56,7 @@ export async function screen(root) {
 
     <div class="section center bento-full">
       <button class="btn btn-ghost btn-sm" id="logout">Sign out</button>
-      <p class="tiny mt8">${WalletService.isDemo ? '🧪 Demo wallet — rewards settle to the in-app demo ledger.' : WalletService.mode === 'hub' ? '🔗 Nimiq Hub connected — on-chain rewards' : WalletService.mode === 'nimiqpay' ? '⚡ Nimiq Pay connected — on-chain rewards' : 'No wallet connected'}</p>
+      <p class="tiny mt8">${WalletService.isDemo ? 'Demo wallet — rewards settle to the in-app demo ledger.' : WalletService.mode === 'hub' ? 'Nimiq Hub connected — on-chain rewards' : WalletService.mode === 'nimiqpay' ? 'Nimiq Pay connected — on-chain rewards' : 'No wallet connected'}</p>
     </div>
   </div>`;
 
@@ -101,7 +101,7 @@ function streakCard(streak) {
   const statusColor = streak.atRisk ? 'var(--warn)' : 'var(--ok-deep)';
   const statusText = streak.atRisk ? 'Learn today to keep it alive!' : 'Active today';
   
-  return `<div class="card mt12" style="padding:16px;background:linear-gradient(135deg, #FFF9F0 0%, #FFF 100%);border:1px solid #FFE8CC">
+  return `<div class="card mt12" style="padding:16px;background:linear-gradient(135deg, rgba(233,178,19,.1) 0%, #FFF 100%);border:1px solid rgba(233,178,19,.35)">
     <div class="row" style="gap:12px;align-items:center">
       <div class="avatar av-48" style="background:var(--nim-grad);font-size:26px">${emoji}</div>
       <div style="flex:1">
@@ -182,7 +182,7 @@ function badgesCard(badgesRes) {
   if (badges.length === 0) {
     return `<div class="card mt12" style="padding:16px">
       <div class="row" style="gap:12px;align-items:center">
-        <div class="avatar av-40" style="background:linear-gradient(135deg, #8B5CF6, #A855F7);font-size:22px">🏅</div>
+        <div class="avatar av-40" style="background:linear-gradient(135deg, #5F4B8B, #7B68A6);font-size:22px">🏅</div>
         <div style="flex:1">
           <b style="font-size:15px;color:var(--ink)">Earn your first badge</b>
           <div class="tiny" style="color:var(--ink-2)">Complete lessons and hit milestones to unlock achievements</div>
@@ -191,10 +191,10 @@ function badgesCard(badgesRes) {
     </div>`;
   }
   
-  return `<div class="card mt12" style="padding:16px;background:linear-gradient(135deg, #FDFBFF 0%, #F9F6FF 100%);border:1px solid #E8E0FF">
+  return `<div class="card mt12" style="padding:16px;background:linear-gradient(135deg, rgba(95,75,139,.07) 0%, rgba(95,75,139,.02) 100%);border:1px solid rgba(95,75,139,.3)">
     <div class="row-between" style="margin-bottom:14px">
       <div class="row" style="gap:10px;align-items:center">
-        <div class="avatar av-40" style="background:linear-gradient(135deg, #8B5CF6, #A855F7);font-size:22px">🏅</div>
+        <div class="avatar av-40" style="background:linear-gradient(135deg, #5F4B8B, #7B68A6);font-size:22px">🏅</div>
         <div>
           <b style="font-size:15px;color:var(--ink)">Mastery badges</b>
           <div class="tiny" style="color:var(--ink-2)">${progress.earned} of ${progress.total} unlocked · ${progress.percentage}%</div>
@@ -232,7 +232,7 @@ function badgesCard(badgesRes) {
 
 function walletCard(w) {
   const modeLabel = w.mode === 'nimiqpay' ? 'Nimiq Pay' : w.mode === 'hub' ? 'Nimiq Hub' : w.mode === 'demo' ? 'Demo wallet' : 'No wallet';
-  const modeIcon = w.mode === 'nimiqpay' ? '⚡' : w.mode === 'hub' ? '🔗' : w.mode === 'demo' ? '🧪' : ico.wallet;
+  const modeIcon = w.mode === 'nimiqpay' ? ico.bolt : w.mode === 'hub' ? ico.link : w.mode === 'demo' ? ico.flask : ico.wallet;
   const modeColor = w.mode === 'hub' || w.mode === 'nimiqpay' ? 'var(--primary-deep)' : w.mode === 'demo' ? 'var(--nim-deep)' : 'var(--muted)';
   const isRealWallet = w.mode === 'nimiqpay' || w.mode === 'hub';
 
@@ -248,8 +248,8 @@ function walletCard(w) {
     ${isRealWallet && w.address ? `
       <div style="padding:10px 12px;background:var(--surface-2);border-radius:var(--r-sm);border:1px solid var(--line)">
         <div class="tiny" style="color:var(--muted);margin-bottom:4px;font-weight:700;letter-spacing:.05em">YOUR NIMIQ ADDRESS</div>
-        <div style="font-family:monospace;font-size:12px;color:var(--primary-deep);word-break:break-all;line-height:1.4">${esc(w.address)}</div>
-        <button class="btn btn-ghost btn-xs mt8" onclick="navigator.clipboard.writeText('${esc(w.address)}').then(() => toast('Address copied ✅', 'ok'))">Copy address</button>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--primary-deep);word-break:break-all;line-height:1.5">${esc(w.address)}</div>
+        <button class="btn btn-ghost btn-xs mt8" onclick="navigator.clipboard.writeText('${esc(w.address)}').then(() => toast('Address copied', 'ok'))">${ico.copy} Copy address</button>
       </div>
     ` : ''}
     ${w.txs.length ? `<div class="divider"></div><span class="eyebrow">RECENT ACTIVITY</span>
@@ -274,7 +274,7 @@ async function renderTree(root, u) {
       ${[['web-development', 'ui-design'], ['web-development', 'python'], ['python', 'data-analysis'], ['ui-design', 'writing'], ['writing', 'ai'], ['python', 'ai'], ['ui-design', 'marketing'], ['marketing', 'business'], ['business', 'social-media'], ['languages', 'ui-design'], ['data-analysis', 'ai'], ['business', 'nimiq-blockchain'], ['ai', 'nimiq-blockchain']]
         .map(([a, b]) => {
           const A = NODES.find((n) => n[0] === a), B = NODES.find((n) => n[0] === b);
-          return `<line x1="${A[2]}" y1="${A[3]}" x2="${B[2]}" y2="${B[3]}" stroke="#DCDAEE" stroke-width="0.7" stroke-dasharray="2 2"/>`;
+          return `<line x1="${A[2]}" y1="${A[3]}" x2="${B[2]}" y2="${B[3]}" stroke="rgba(31,35,72,.2)" stroke-width="0.7" stroke-dasharray="2 2"/>`;
         }).join('')}
     </svg>
     ${NODES.map(([slug, emoji, x, y]) => {
@@ -302,7 +302,7 @@ async function renderSkills(root, u) {
   zone.innerHTML = `<div class="section">
     <div class="section-head"><span class="eyebrow">✓ VERIFIED SKILLS (${verified.length})</span></div>
     ${verified.length ? `<div class="stack">${verified.map((s) => `
-      <div class="card" style="padding:16px 18px;background:linear-gradient(120deg,rgba(18,183,106,.05),rgba(18,183,106,.02));border-color:#BDEBD4">
+      <div class="card" style="padding:16px 18px;background:linear-gradient(120deg,rgba(33,188,165,.08),rgba(33,188,165,.03));border-color:rgba(33,188,165,.4)">
         <div class="row-between" style="margin-bottom:10px">
           <div style="flex:1;min-width:0">
             <div class="row" style="gap:8px;align-items:center;margin-bottom:4px">

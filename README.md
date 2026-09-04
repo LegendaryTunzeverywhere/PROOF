@@ -33,14 +33,14 @@ cd proof
 npm start          # → http://localhost:3000
 ```
 
-**Zero dependencies. Zero keys.** The bundled ProofEngine handles paths, tutoring, and rubric-based grading deterministically. Optional upgrades via `.env`:
+**Zero required dependencies. Zero keys.** `npm start` boots with the bundled in-memory store and the local ProofEngine (deterministic paths, tutoring, and rubric-based grading). Only `DB_MODE=supabase` needs `npm install` (pulls `@supabase/supabase-js`). Optional upgrades via `.env`:
 
 ```bash
 cp .env.example .env
 # AI_API_KEY=…      → Google Gemini tutoring & feedback (schema-validated)
 # NIMIQ_RPC_URL=…   → on-chain balances + Nimiq settlement references
-npm test           # 32 unit tests
-npm run smoke      # end-to-end demo flow over the real HTTP API
+npm test           # 43 unit tests
+npm run smoke      # end-to-end demo flow over the real HTTP API (needs the server running; see SMOKE_BASE)
 ```
 
 ---
@@ -64,6 +64,14 @@ npm run smoke      # end-to-end demo flow over the real HTTP API
 
 `Home` (goal input, continue learning, today's proof, trending, sponsored, tasks) · `Learn` (paths, lessons, practice, AI tutor) · `Prove` (challenge runner, analyzing animation, score moment) · `Work` (marketplace / teach / sponsored) · `Profile` (skill tree, verified skills, achievements, wallet, transactions) · public proof pages.
 
+## Design system — Nimiq UI Kit
+
+The whole UI is built on the official [Nimiq UI Kit](https://nimiqtoolbox.github.io/nimiq-ui-kit/) tokens (`@nimiq/style`): brand palette, gold signet, blue-gradient hero surfaces, text opacity ladder, Muli + Fira Mono, 8px grid radii, pill buttons, notices, cards and the Nimiq easing curve.
+
+- `web/nimiq.css` — the kit layer: official `--nimiq-*` tokens plus `.nq-button`, `.nq-input`, `.nq-card`, `.nq-notice`, `.nq-label`, … and a bridge that re-skins PROOF's existing classes (`.btn`, `.chip`, `.card`, `.modal`, `.sheet`, `.toast`) so every page adopts the kit without markup changes.
+- `web/ui-kit.html` — live component showcase (buttons, popups, toasts, icons, rings, spinner) rendered by the app's real stylesheets.
+- `web/js/ui.js` — shared kit components: Nimiq signet/hexagon SVGs, notice-style toasts, the hexagon loader, score ring, sheet popup (Esc-to-close, scroll lock, `role="dialog"`).
+
 ## Project layout
 
 ```
@@ -76,7 +84,9 @@ proof/
 │   ├── ai/            # kb.js · engine.js · evaluators.js · service.js · providers.js
 │   └── services/      # users · skills · challenges · evaluation · rewards · marketplace · teaching · notifications
 ├── web/               # hand-built SPA — no frameworks, no CDN, instant load
-│   ├── styles.css     # design system
+│   ├── styles.css     # base styles (tokens follow the Nimiq UI Kit palette)
+│   ├── nimiq.css      # Nimiq UI Kit layer — official tokens, nq-* components, PROOF bridge
+│   ├── ui-kit.html    # live component showcase
 │   └── js/            # api · ui · wallet · state · main · views/*
 ├── tests/             # node:test suites + smoke.js (the 90s demo over HTTP)
 ├── prisma/schema.prisma   # production data model
