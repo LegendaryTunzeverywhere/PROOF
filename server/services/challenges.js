@@ -261,7 +261,7 @@ export class ChallengeService {
     // For daily challenges, use current date in reward key to prevent cross-day duplicates
     const todayKey = new Date().toISOString().slice(0, 10);
     const rewardKey = ch.kind === 'daily' ? `${userId}:daily:${todayKey}` : `${userId}:${ch.id}`;
-    rewardResult = this.rewards.rewardForAttempt({
+    rewardResult = await this.rewards.rewardForAttempt({
       userId, challenge: ch, attempt, evaluation,
       sourceKind: ch.kind === 'daily' ? 'daily' : 'challenge',
       sourceKey: rewardKey,
@@ -289,7 +289,7 @@ export class ChallengeService {
     for (const a of newAchievements)
       this.notify.push(userId, { type: 'achievement', emoji: a.emoji, title: `Achievement: ${a.name}`, body: a.desc, href: '#/profile' });
 
-    const qualification = this.qualificationSnapshot(userId);
+    const qualification = await this.qualificationSnapshot(userId);
     return {
       attempt, evaluation, weaknesses, proof,
       reward: rewardResult, xpGained: xpGain, leveledUp: xp.leveledUp, newLevel: xp.newLevel || null,

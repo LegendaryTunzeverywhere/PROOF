@@ -4,17 +4,17 @@ import { testbed } from './helpers.js';
 
 test('rewards: insufficient balance blocks spending', async (t) => {
   const tb = await testbed();
-  const u = tb.users.createUser({});
-  assert.throws(() => tb.rewards.tip(u.id, u.id, 5), (e) => e.code === 'INSUFFICIENT_NIM' || e.code === 'SELF_TIP');
+  const u = await tb.users.createUser({});
+  await assert.rejects(() => tb.rewards.tip(u.id, u.id, 5), (e) => e.code === 'INSUFFICIENT_NIM' || e.code === 'SELF_TIP');
 });
 
 test('rewards: daily caps stop farming', async (t) => {
   const tb = await testbed();
-  const u = tb.users.createUser({});
+  const u = await tb.users.createUser({});
   // grant rewards manually up to the daily cap (config default 15 NIM, attempts cap 12)
   let granted = 0;
   for (let i = 0; i < 20; i++) {
-    const r = tb.rewards.rewardForAttempt({
+    const r = await tb.rewards.rewardForAttempt({
       userId: u.id,
       challenge: { id: 'ch' + i, title: 'C' + i, rewardNim: 5 },
       attempt: { duplicate: false },
@@ -29,24 +29,24 @@ test('rewards: daily caps stop farming', async (t) => {
 
 test('economy: tips and payments move through transaction states', async (t) => {
   const tb = await testbed();
-  const a = tb.users.createUser({});
-  const b = tb.users.createUser({});
-  tb.rewards.credit(a.id, 500000, 'reward', 'seed');
-  const tx = tb.rewards.tip(a.id, b.id, 2, 'great answer');
+  const a = await tb.users.createUser({});
+  const b = await tb.users.createUser({});
+  await tb.rewards.credit(a.id, 500000, 'reward', 'seed');
+  const tx = await tb.rewards.tip(a.id, b.id, 2, 'great answer');
   assert.equal(tx.status, 'confirmed');
   assert.equal(tb.users.get(a.id).balanceLuna, 300000);
   assert.equal(tb.users.get(b.id).balanceLuna, 200000);
-  const history = tb.rewards.txHistory(a.id);
+  const history = await tb.rewards.txHistory(a.id);
   assert.ok(history.every((t2) => ['pending', 'confirmed', 'failed', 'cancelled'].includes(t2.status)));
 });
 
 test('economy: task payment applies the platform fee', async (t) => {
   const tb = await testbed();
-  const client = tb.users.createUser({});
-  const pro = tb.users.createUser({});
-  tb.rewards.credit(client.id, 10000000, 'reward', 'seed');
-  tb.rewards.escrow(client.id, 50, 'task_payment', 'escrow landing page');
-  const { net, fee } = tb.rewards.releaseEscrow({ fromUserId: client.id, toUserId: pro.id, amountNim: 50, kind: 'task_payment', note: 'task' });
+  const client = await tb.users.createUser({});
+  const pro = await tb.users.createUser({});
+  await tb.rewards.credit(client.id, 10000000, 'reward', 'seed');
+  await tb.rewards.escrow(client.id, 50, 'task_payment', 'escrow landing page');
+  const { net, fee } = await tb.rewards.releaseEscrow({ fromUserId: client.id, toUserId: pro.id, amountNim: 50, kind: 'task_payment', note: 'task' });
   assert.equal(fee, 100000, '2% of 50 NIM');
   assert.equal(net, 4900000, '49 NIM net');
   assert.equal(tb.users.get(pro.id).balanceLuna, net);
@@ -54,10 +54,10 @@ test('economy: task payment applies the platform fee', async (t) => {
 
 test('economy: payout respects minimum and balance', async (t) => {
   const tb = await testbed();
-  const u = tb.users.createUser({});
-  tb.rewards.credit(u.id, 150000, 'reward', 'seed'); // 1.5 NIM
-  const tx = tb.rewards.requestPayout(u.id, 1);
+  const u = await tb.users.createUser({});
+  await tb.rewards.credit(u.id, 150000, 'reward', 'seed'); // 1.5 NIM
+  const tx = await tb.rewards.requestPayout(u.id, 1);
   assert.equal(tx.status, 'confirmed');
   assert.equal(tb.users.get(u.id).balanceLuna, 50000);
-  assert.throws(() => tb.rewards.requestPayout(u.id, 5), (e) => e.code === 'INSUFFICIENT_NIM');
+  await assert.rejects(() => tb.rewards.requestPayout(u.id, 5), (e) => e.code === 'INSUFFICIENT_NIM');
 });

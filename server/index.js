@@ -8,8 +8,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config, validateConfig } from './config.js';
-import { Store } from './store.js';
-import { SupabaseStore, createStore } from './supabase-store.js';
 import { seed } from './seed.js';
 import { AuthService, sessionCookie, CLEAR_COOKIE } from './auth.js';
 import { UserService } from './services/users.js';
@@ -26,9 +24,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = path.resolve(__dirname, '../web');
 
 /* ── boot ──────────────────────────────────────────────────────────── */
-// Use createStore() to automatically choose between Store and SupabaseStore
-// based on DB_MODE environment variable
-const store = await createStore();
+// Use the embedded JSON store by default (zero npm dependencies). Only when
+// DB_MODE=supabase do we dynamic-import the Supabase store — and with it the
+// @supabase/supabase-js dependency — so a fresh clone boots with `npm start`.
+const { Store } = await import('./store.js');
+const store = process.env.DB_MODE === 'supabase'
+  ? await (await import('./supabase-store.js')).createStore()
+  : await new Store().open();
 if (store instanceof Store) {
   // Only seed if using in-memory store (Supabase data managed separately)
   if (!fs.existsSync(path.join(config.dataDir, 'proof.json'))) {
@@ -82,6 +84,13 @@ const routes = [];
 const route = (method, pattern, handler) => routes.push({ method, pattern, handler });
 
 function json(res, status, data, headers = {}) {
+  // Dev guard: an un-awaited async service call serializes to {} — catch it loudly
+  // instead of letting the client silently receive empty objects.
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    for (const [k, v] of Object.entries(data)) {
+      if (v instanceof Promise) console.warn(`[proof] BUG: response field "${k}" is an un-awaited Promise (will serialize to {}). Await it in the route handler.`);
+    }
+  }
   const body = JSON.stringify(data);
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', ...headers });
   res.end(body);
@@ -470,11 +479,14 @@ async function pathView(p, userId) {
       attempt: i.challengeId ? (attemptsByChallenge.get(i.challengeId) || null) : null,
     })),
   }));
+  // Total NIM attachable across all proof items in the path (mirrors the
+  // generator's rewardPool) — the UI shows this as the path's reward pool.
+  const rewardNim = days.reduce((a, d) => a + (d.items || []).reduce((s, i) => s + (i.rewardNim || 0), 0), 0);
   return {
     id: p.id, title: p.title, description: p.description, goal: p.goal,
     skillSlug: p.skillSlug, skillName: p.skillName, skillEmoji: p.skillEmoji,
     level: p.level, minutesPerDay: p.minutesPerDay, engine: p.engine,
-    totalXp: p.totalXp,
+    totalXp: p.totalXp, rewardNim,
     days, percent: pathProgress(p), createdAt: p.createdAt,
   };
 }
@@ -604,19 +616,19 @@ route('GET', '/api/wallet', async (ctx) => {
   });
 });
 
-route('POST', '/api/wallet/payout', (ctx) => {
+route('POST', '/api/wallet/payout', async (ctx) => {
   const { user, body, res } = ctx;
   const amountNim = parseNumber(body?.amountNim, { min: 0, max: 1_000_000 });
-  const tx = rewards.requestPayout(user.id, amountNim);
+  const tx = await rewards.requestPayout(user.id, amountNim);
   json(res, 201, { tx: { ...tx, amountNim: toNim(tx.amountLuna) } });
 });
 
-route('POST', '/api/tips', (ctx) => {
+route('POST', '/api/tips', async (ctx) => {
   const { user, body, res } = ctx;
-  const to = users.get(String(body?.toUserId || ''));
+  const to = await users.get(String(body?.toUserId || ''));
   if (!to) throw httpError(404, 'NOT_FOUND', 'User not found.');
   const amountNim = parseNumber(body?.amountNim, { min: 0.01, max: 10_000 });
-  const tx = rewards.tip(user.id, to.id, amountNim, String(body?.note || '').slice(0, 140));
+  const tx = await rewards.tip(user.id, to.id, amountNim, String(body?.note || '').slice(0, 140));
   notifications.push(to.id, { type: 'tip', emoji: '💸', title: `${user.username} tipped you ${amountNim} NIM`, body: String(body?.note || ''), href: '#/profile' });
   json(res, 201, { ok: true, tx: { ...tx, amountNim: toNim(tx.amountLuna) } });
 });
@@ -635,13 +647,13 @@ route('GET', '/api/rewards', async (ctx) => {
 });
 
 /* ── MARKETPLACE ───────────────────────────────────────────────────── */
-route('GET', '/api/market/tasks', (ctx) => {
+route('GET', '/api/market/tasks', async (ctx) => {
   const { user, query, res } = ctx;
-  json(res, 200, { tasks: market.listTasks(user.id, { onlyQualified: query.get('qualified') === '1' }) });
+  json(res, 200, { tasks: await market.listTasks(user.id, { onlyQualified: query.get('qualified') === '1' }) });
 });
-route('GET', '/api/market/tasks/:id', (ctx) => {
+route('GET', '/api/market/tasks/:id', async (ctx) => {
   const { user, params, res } = ctx;
-  const t = market.get(params.id, user.id);
+  const t = await market.get(params.id, user.id);
   if (!t) throw httpError(404, 'NOT_FOUND', 'Task not found.');
   json(res, 200, { task: t });
 });
@@ -649,13 +661,13 @@ route('POST', '/api/market/tasks/:id/apply', (ctx) => {
   const { user, params, body, res } = ctx;
   json(res, 201, { application: market.apply(params.id, user, body?.pitch) });
 });
-route('POST', '/api/market/tasks/:id/complete', (ctx) => {
+route('POST', '/api/market/tasks/:id/complete', async (ctx) => {
   const { user, params, res } = ctx;
-  json(res, 200, market.completeTask(params.id, user));
+  json(res, 200, await market.completeTask(params.id, user));
 });
-route('POST', '/api/market/tasks', (ctx) => {
+route('POST', '/api/market/tasks', async (ctx) => {
   const { user, body, res } = ctx;
-  json(res, 201, { task: market.postTask(user, body || {}) });
+  json(res, 201, { task: await market.postTask(user, body || {}) });
 });
 route('GET', '/api/market/my', async (ctx) => {
   const { user, res } = ctx;
@@ -664,21 +676,21 @@ route('GET', '/api/market/my', async (ctx) => {
 });
 
 /* ── TEACHING ──────────────────────────────────────────────────────── */
-route('GET', '/api/teach/sessions', (ctx) => {
+route('GET', '/api/teach/sessions', async (ctx) => {
   const { user, query, res } = ctx;
-  json(res, 200, { sessions: teaching.list({ skillSlug: query.get('skill') || null }) });
+  json(res, 200, { sessions: await teaching.list({ skillSlug: query.get('skill') || null }) });
 });
 route('POST', '/api/teach/sessions', (ctx) => {
   const { user, body, res } = ctx;
   json(res, 201, { session: teaching.view(teaching.createSession(user, body || {})) });
 });
-route('GET', '/api/teach/mine', (ctx) => {
+route('GET', '/api/teach/mine', async (ctx) => {
   const { user, res } = ctx;
-  json(res, 200, { sessions: teaching.mine(user.id) });
+  json(res, 200, { sessions: await teaching.mine(user.id) });
 });
-route('POST', '/api/teach/sessions/:id/book', (ctx) => {
+route('POST', '/api/teach/sessions/:id/book', async (ctx) => {
   const { user, params, res } = ctx;
-  json(res, 201, { session: teaching.book(params.id, user) });
+  json(res, 201, { session: await teaching.book(params.id, user) });
 });
 route('POST', '/api/teach/sessions/:id/review', (ctx) => {
   const { user, params, body, res } = ctx;

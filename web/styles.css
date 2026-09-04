@@ -1768,3 +1768,76 @@ body { min-width: 320px; }
 .recall-card { background: var(--surface-2); border: 1px solid var(--line-2); border-radius: var(--r-md); padding: 14px; }
 .recall-card .btn.recall-ok { background: var(--ok-soft); color: var(--ok-deep); border: 1px solid var(--ok); }
 .recall-card .btn.recall-weak { background: var(--warn-soft); color: #7A4A10; border: 1px solid var(--warn); }
+
+/* ═══ UI/UX FIX LAYER — mobile + desktop (2026-09) ═══════════════════
+   - iOS never zooms the viewport on focus (all inputs ≥16px on touch)
+   - no 300ms tap delay / double-tap zoom on controls
+   - toasts clear notches in landscape; sheets fit short screens
+   - long wallet addresses / hashes / URLs wrap instead of overflowing
+   - nav + chips keep comfortable touch targets down to 320px          */
+
+/* Kill tap-highlight flash + double-tap zoom delay on controls */
+body { -webkit-tap-highlight-color: transparent; }
+.btn, .chip, .nav a, .card-click, button, a, select, summary { touch-action: manipulation; }
+
+/* iOS input zoom: any focused control under 16px triggers viewport zoom.
+   16px on coarse-pointer (touch) devices, desktop keeps the tighter type. */
+@media (pointer: coarse) {
+  .input, textarea.input, select.input, .input-mono { font-size: 16px !important; }
+}
+@media (pointer: coarse) and (max-width: 359px) {
+  .input-mono { font-size: 15px !important; } /* still ≥ ~15px: mono glyphs are wide */
+}
+
+/* Toasts must clear the notch / status bar in landscape */
+#toasts { top: max(14px, env(safe-area-inset-top)); }
+
+/* Long-string safety: wallet addresses, tx hashes, URLs, usernames */
+.truncate { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wrap-any { overflow-wrap: anywhere; word-break: break-word; }
+.mono-wrap { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; word-break: break-all; }
+
+/* Bottom sheet: always scrollable and reachable on short viewports */
+.sheet { max-height: min(88dvh, 760px); overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.sheet .btn { margin-top: 10px; }
+@media (max-height: 620px) {
+  .sheet { max-height: 92dvh; border-radius: 18px 18px 0 0; }
+  .sheet-grab { margin-bottom: 8px; }
+}
+
+/* Comfortable touch targets for chip buttons (tabs, category picker) */
+@media (pointer: coarse) {
+  .chip { min-height: 40px; }
+  .chip[disabled] { opacity: .55; pointer-events: none; }
+  .chip:focus-visible { outline: 3px solid rgba(91,87,217,.68); outline-offset: 2px; }
+}
+
+/* Bottom nav on very narrow screens: 5 items must not crowd */
+@media (max-width: 360px) {
+  .nav a { font-size: 9.5px; letter-spacing: 0; padding: 6px 0 4px; }
+  .nav a svg { width: 20px; height: 20px; }
+  .nav-ico { width: 34px; }
+}
+
+/* Desktop polish: sheet becomes a centered dialog-style panel */
+@media (min-width: 1024px) {
+  .sheet { max-width: 560px; bottom: 40px; border-radius: 22px;
+    padding: 18px 26px 24px; max-height: min(82dvh, 720px); }
+  .sheet-veil { background: rgba(20,20,44,.44); }
+}
+
+/* Landscape phones: reclaim vertical space */
+@media (max-height: 480px) and (orientation: landscape) {
+  .screen { padding-bottom: calc(var(--nav-h) + 90px); }
+  .nav { padding-bottom: 4px; }
+  .nav a { min-height: 40px; flex-direction: row; gap: 6px; }
+  .nav a svg { width: 18px; height: 18px; }
+  .nav-label { font-size: 10px; }
+}
+
+/* Print-friendly public proof pages */
+@media print {
+  .nav, #toasts, .sheet, .sheet-veil { display: none !important; }
+  .screen { padding-bottom: 0; }
+  .card { box-shadow: none; border: 1px solid #ddd; }
+}

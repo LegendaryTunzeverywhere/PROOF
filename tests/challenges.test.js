@@ -4,7 +4,7 @@ import { testbed, goodHtml, weakHtml, typedMeta } from './helpers.js';
 
 test('challenge: full pipeline — submit → score → skill → reward → xp', async (t) => {
   const tb = await testbed();
-  const user = tb.users.createUser({});
+  const user = await tb.users.createUser({});
   const ch = tb.challenges.createFromTemplate({
     skillSlug: 'web-development',
     template: {
@@ -29,7 +29,7 @@ test('challenge: full pipeline — submit → score → skill → reward → xp'
 
 test('anti-cheat: client cannot inject score/status into the pipeline', async (t) => {
   const tb = await testbed();
-  const user = tb.users.createUser({});
+  const user = await tb.users.createUser({});
   const ch = tb.challenges.createFromTemplate({
     skillSlug: 'web-development',
     template: { type: 'html', kind: 'proof', title: 'T', brief: 'B', passScore: 70, rewardNim: 2, xp: 100, evaluator: { type: 'html', config: { required: ['h1'] } } },
@@ -46,7 +46,7 @@ test('anti-cheat: client cannot inject score/status into the pipeline', async (t
 
 test('anti-cheat: rate limit blocks instant resubmission', async (t) => {
   const tb = await testbed();
-  const user = tb.users.createUser({});
+  const user = await tb.users.createUser({});
   const ch = tb.challenges.createFromTemplate({
     skillSlug: 'web-development',
     template: { type: 'html', kind: 'proof', title: 'T', brief: 'B', passScore: 70, rewardNim: 2, xp: 100, evaluator: { type: 'html', config: { required: ['h1'] } } },
@@ -58,7 +58,7 @@ test('anti-cheat: rate limit blocks instant resubmission', async (t) => {
 
 test('anti-cheat: same challenge cannot be rewarded twice', async (t) => {
   const tb = await testbed();
-  const user = tb.users.createUser({});
+  const user = await tb.users.createUser({});
   const ch = tb.challenges.createFromTemplate({
     skillSlug: 'web-development',
     template: {
@@ -81,7 +81,7 @@ test('anti-cheat: same challenge cannot be rewarded twice', async (t) => {
 
 test('anti-cheat: duplicate submission hash is flagged and unrewarded', async (t) => {
   const tb = await testbed();
-  const user = tb.users.createUser({});
+  const user = await tb.users.createUser({});
   const ch = tb.challenges.createFromTemplate({
     skillSlug: 'web-development',
     template: {
@@ -109,17 +109,17 @@ test('anti-cheat: duplicate submission hash is flagged and unrewarded', async (t
 
 test('daily challenge: one reward per day per user', async (t) => {
   const tb = await testbed();
-  const user = tb.users.createUser({});
-  const daily = tb.challenges.todayDaily();
+  const user = await tb.users.createUser({});
+  const daily = await tb.challenges.todayDaily();
   const a1 = tb.challenges.startAttempt(user.id, daily.id);
   const r1 = await tb.challenges.submitAttempt(user.id, a1.attempt.id, { text: 'Yesterday semantic HTML finally clicked for me. Tags are not about how things look, they describe what things mean: a nav element tells the browser and screen readers this is navigation, an article wraps a self-contained piece of content, and a footer closes the page. When I rebuilt my practice page using semantic elements instead of div soup, the structure became obvious at a glance and my heading order stopped skipping levels. Meaning first, styling second, that is the lesson I am keeping.', meta: typedMeta('Yesterday semantic HTML finally clicked for me. Tags are not about how things look, they describe what things mean: a nav element tells the browser and screen readers this is navigation, an article wraps a self-contained piece of content, and a footer closes the page. When I rebuilt my practice page using semantic elements instead of div soup, the structure became obvious at a glance and my heading order stopped skipping levels. Meaning first, styling second, that is the lesson I am keeping.') });
   assert.equal(r1.reward.granted, true);
   assert.equal(r1.reward.reward.sourceKind, 'daily');
 
   // second daily attempt same day (new challenge instance per day → same reward key)
-  const daily2 = tb.challenges.todayDaily();
+  const daily2 = await tb.challenges.todayDaily();
   assert.equal(daily2.id, daily.id, 'daily challenge is deterministic per day');
   const key = `${user.id}:daily:${daily.dailyKey}`;
-  assert.ok(tb.rewards.dailyRewardTotals(user.id).amountLuna > 0);
+  assert.ok((await tb.rewards.dailyRewardTotals(user.id)).amountLuna > 0);
   assert.throws(() => tb.store.insert('rewards', { id: 'x', key, userId: user.id, amountLuna: 1 }), /UNIQUE_VIOLATION/, 'reward key must be unique');
 });

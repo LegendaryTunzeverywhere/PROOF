@@ -33,14 +33,14 @@ cd proof
 npm start          # → http://localhost:3000
 ```
 
-**Zero dependencies. Zero keys.** The bundled ProofEngine handles paths, tutoring, and rubric-based grading deterministically. Optional upgrades via `.env`:
+**Zero required dependencies. Zero keys.** `npm start` boots with the bundled in-memory store and the local ProofEngine (deterministic paths, tutoring, and rubric-based grading). Only `DB_MODE=supabase` needs `npm install` (pulls `@supabase/supabase-js`). Optional upgrades via `.env`:
 
 ```bash
 cp .env.example .env
 # AI_API_KEY=…      → Google Gemini tutoring & feedback (schema-validated)
 # NIMIQ_RPC_URL=…   → on-chain balances + Nimiq settlement references
-npm test           # 32 unit tests
-npm run smoke      # end-to-end demo flow over the real HTTP API
+npm test           # 43 unit tests
+npm run smoke      # end-to-end demo flow over the real HTTP API (needs the server running; see SMOKE_BASE)
 ```
 
 ---

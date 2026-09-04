@@ -23,15 +23,15 @@ export class RewardService {
     store.declareUniques('wallet_txs', []);
   }
 
-  #user(userId) {
-    const u = this.store.get('users', userId);
+  async #user(userId) {
+    const u = await this.store.get('users', userId);
     if (!u) throw new EconomyError('USER_NOT_FOUND', 'User not found.');
     return u;
   }
 
   /* ── ledger primitives ─────────────────────────────────────────── */
-  #tx({ userId, kind, direction, amountLuna, note, ref = null, meta = {} }) {
-    const tx = this.store.insert('wallet_txs', {
+  async #tx({ userId, kind, direction, amountLuna, note, ref = null, meta = {} }) {
+    const tx = await this.store.insert('wallet_txs', {
       id: uid('tx'), userId, kind, direction, amountLuna,
       status: 'pending', ref, note, meta,
       network: this.config.nimiq.rpcUrl ? 'nimiq' : 'demo-ledger',
@@ -40,38 +40,38 @@ export class RewardService {
     return tx;
   }
 
-  credit(userId, amountLuna, kind, note, meta = {}) {
-    const user = this.#user(userId);
+  async credit(userId, amountLuna, kind, note, meta = {}) {
+    const user = await this.#user(userId);
     if (!(amountLuna > 0)) throw new EconomyError('BAD_AMOUNT', 'Amount must be positive.');
-    const tx = this.#tx({ userId, kind, direction: 'credit', amountLuna, note, meta });
+    const tx = await this.#tx({ userId, kind, direction: 'credit', amountLuna, note, meta });
     user.balanceLuna += amountLuna;
     user.earnedLuna += kind === 'payout' ? 0 : amountLuna; // payouts are not "earning"
     user.updatedAt = now();
-    this.#settle(tx);
-    this.store.save();
+    await this.#settle(tx);
+    await this.store.save();
     return tx;
   }
 
-  debit(userId, amountLuna, kind, note, meta = {}) {
-    const user = this.#user(userId);
+  async debit(userId, amountLuna, kind, note, meta = {}) {
+    const user = await this.#user(userId);
     if (!(amountLuna > 0)) throw new EconomyError('BAD_AMOUNT', 'Amount must be positive.');
     if (user.balanceLuna < amountLuna)
       throw new EconomyError('INSUFFICIENT_NIM', `Not enough NIM — you need ${toNim(amountLuna)} NIM.`);
-    const tx = this.#tx({ userId, kind, direction: 'debit', amountLuna, note, meta });
+    const tx = await this.#tx({ userId, kind, direction: 'debit', amountLuna, note, meta });
     user.balanceLuna -= amountLuna;
     user.updatedAt = now();
-    this.#settle(tx);
-    this.store.save();
+    await this.#settle(tx);
+    await this.store.save();
     return tx;
   }
 
   /** Transaction state machine: pending → confirmed | failed | cancelled. */
-  #settle(tx) {
+  async #settle(tx) {
     // Demo ledger settles instantly. On-chain mode would record the tx hash
     // in `ref` at send time and flip to confirmed after RPC receipt checks.
     tx.status = 'confirmed';
     tx.confirmedAt = now();
-    this.store.update('wallet_txs', tx.id, { status: tx.status, confirmedAt: tx.confirmedAt });
+    await this.store.update('wallet_txs', tx.id, { status: tx.status, confirmedAt: tx.confirmedAt });
   }
 
   async txHistory(userId, limit = 30) {
@@ -92,25 +92,27 @@ export class RewardService {
    * Try to grant a reward for a passing attempt. Returns reward | null.
    * All caps/limits are config-driven and enforced server-side.
    */
-  rewardForAttempt({ userId, challenge, attempt, evaluation, sourceKind = 'challenge', sourceKey = null }) {
+  async rewardForAttempt({ userId, challenge, attempt, evaluation, sourceKind = 'challenge', sourceKey = null }) {
     const eco = this.config.economy;
     const rewardNim = challenge.rewardNim || 0;
     if (!(rewardNim > 0)) return { granted: false, reason: 'NO_REWARD' };
     if (!evaluation.pass) return { granted: false, reason: 'NOT_PASSED' };
     if (attempt.duplicate) return { granted: false, reason: 'DUPLICATE_SUBMISSION' };
-    if (this.store.find('rewards', (r) => r.userId === userId && r.key === sourceKey))
+    if (await this.store.find('rewards', (r) => r.userId === userId && r.key === sourceKey))
       return { granted: false, reason: 'ALREADY_REWARDED' };
 
-    const today = this.dailyRewardTotals(userId);
+    // Daily caps are the anti-farming core — dailyRewardTotals is async on
+    // both backends, so this MUST be awaited or the caps silently vanish.
+    const today = await this.dailyRewardTotals(userId);
     if (today.count >= eco.dailyRewardedAttemptsCap)
       return { granted: false, reason: 'DAILY_ATTEMPT_CAP' };
     if (today.amountLuna + luna(rewardNim) > luna(eco.dailyRewardCapNim))
       return { granted: false, reason: 'DAILY_REWARD_CAP' };
 
-    const reward = this.store.insert('rewards', {
-      id: uid('rw'),
+    const reward = await this.store.insert('rewards', {
+      id: uid('rw'), 
       key: sourceKey,                       // unique → impossible to claim twice
-      userId,
+      userId, 
       challengeId: challenge.id,
       sourceKind,
       amountLuna: luna(rewardNim),
@@ -119,10 +121,10 @@ export class RewardService {
       transactionId: null,
       createdAt: now(),
     });
-    const tx = this.credit(userId, reward.amountLuna, 'reward',
+    const tx = await this.credit(userId, reward.amountLuna, 'reward',
       `Reward: ${challenge.title}`, { rewardId: reward.id, challengeId: challenge.id });
-    this.store.update('rewards', reward.id, { transactionId: tx.id });
-    this.store.save();
+    await this.store.update('rewards', reward.id, { transactionId: tx.id });
+    await this.store.save();
     return { granted: true, reward: { ...reward, transactionId: tx.id }, amountNim: rewardNim };
   }
 
@@ -130,42 +132,42 @@ export class RewardService {
    * Request an on-chain payout of the in-app balance (demo ledger → wallet).
    * Demo mode: records a pending → confirmed payout tx, clearly labeled.
    */
-  requestPayout(userId, amountNim) {
+  async requestPayout(userId, amountNim) {
     const amount = luna(amountNim);
-    const user = this.#user(userId);
+    const user = await this.#user(userId);
     if (amount < luna(1)) throw new EconomyError('MIN_PAYOUT', 'Minimum payout is 1 NIM.');
     if (user.balanceLuna < amount) throw new EconomyError('INSUFFICIENT_NIM', 'Not enough NIM for that payout.');
-    const tx = this.#tx({ userId, kind: 'payout', direction: 'debit', amountLuna: amount,
+    const tx = await this.#tx({ userId, kind: 'payout', direction: 'debit', amountLuna: amount,
       note: this.config.nimiq.rpcUrl ? 'On-chain payout' : 'Payout (demo ledger — connect Nimiq Pay in production)' });
     user.balanceLuna -= amount;
-    this.#settle(tx);
-    this.store.save();
+    await this.#settle(tx);
+    await this.store.save();
     return tx;
   }
 
   /* ── tips & payments ───────────────────────────────────────────── */
-  tip(fromUserId, toUserId, amountNim, note = '') {
+  async tip(fromUserId, toUserId, amountNim, note = '') {
     const amount = luna(amountNim);
     if (fromUserId === toUserId) throw new EconomyError('SELF_TIP', 'You cannot tip yourself.');
-    const tx = this.debit(fromUserId, amount, 'tip', note || 'Tip');
-    this.credit(toUserId, amount, 'tip', 'Tip received' + (note ? `: ${note}` : ''), { fromUserId });
+    const tx = await this.debit(fromUserId, amount, 'tip', note || 'Tip');
+    await this.credit(toUserId, amount, 'tip', 'Tip received' + (note ? `: ${note}` : ''), { fromUserId });
     return tx;
   }
 
   /** Escrow a payment; returns the escrow tx. fee is charged on release. */
-  escrow(userId, amountNim, kind, note, meta = {}) {
+  async escrow(userId, amountNim, kind, note, meta = {}) {
     return this.debit(userId, luna(amountNim), kind + '_escrow', note, { ...meta, escrowed: true });
   }
 
-  releaseEscrow({ fromUserId, toUserId, amountNim, kind, note, meta = {} }) {
+  async releaseEscrow({ fromUserId, toUserId, amountNim, kind, note, meta = {} }) {
     const gross = luna(amountNim);
     const fee = Math.round(gross * (this.config.economy.feeBps / 10000));
-    this.credit(toUserId, gross - fee, kind, note + ' (net of platform fee)', { ...meta });
+    await this.credit(toUserId, gross - fee, kind, note + ' (net of platform fee)', { ...meta });
     if (fee > 0) {
-      const ftx = this.#tx({ userId: toUserId, kind: 'platform_fee', direction: 'debit', amountLuna: fee, note: 'Platform fee (2%)' });
-      this.#settle(ftx);
+      const ftx = await this.#tx({ userId: toUserId, kind: 'platform_fee', direction: 'debit', amountLuna: fee, note: 'Platform fee (2%)' });
+      await this.#settle(ftx);
     }
-    this.store.save();
+    await this.store.save();
     return { gross, fee, net: gross - fee };
   }
 }
