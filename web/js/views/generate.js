@@ -33,7 +33,7 @@ export function showGenerating(anchor, goal) {
         if (row) {
           row.style.opacity = '1';
           const tick = row.querySelector('.gen-tick');
-          tick.style.background = '#12B76A'; tick.style.borderColor = '#12B76A'; tick.textContent = '✓'; tick.style.color = '#04150c';
+          tick.style.background = 'var(--ok)'; tick.style.borderColor = 'var(--ok)'; tick.textContent = '✓'; tick.style.color = '#fff';
         }
       }
       const wait = Math.max(0, minMs - (Date.now() - t0));

@@ -1,0 +1,496 @@
+/* ══════════════════════════════════════════════════════════════════════
+   PROOF × Nimiq UI Kit
+   Design tokens & components ported 1:1 from the official Nimiq UI Kit
+   (https://nimiqtoolbox.github.io/nimiq-ui-kit/ · @nimiq/style 0.8.5).
+
+   This layer loads LAST and (a) exposes the official .nq-* component
+   classes for future views, and (b) re-skins PROOF's existing class
+   language (.btn, .chip, .card, .modal, .sheet, .toast…) onto the
+   official system — so every page, popup and button adopts the kit
+   without touching each view's markup.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── 1 · Official tokens ───────────────────────────────────────────── */
+:root {
+  /* brand palette (hex-exact from the kit) */
+  --nimiq-blue: #1F2348;
+  --nimiq-light-blue: #0582CA;
+  --nimiq-gold: #E9B213;
+  --nimiq-green: #21BCA5;
+  --nimiq-orange: #FC8702;
+  --nimiq-red: #D94432;
+  --nimiq-purple: #5F4B8B;
+  --nimiq-pink: #FA7268;
+  --nimiq-light-green: #88B04B;
+  --nimiq-brown: #795548;
+
+  /* neutrals */
+  --nimiq-gray: #F4F4F4;
+  --nimiq-light-gray: #FAFAFA;
+  --nimiq-white: #FFFFFF;
+  --nimiq-card-bg: #FFFFFF;
+  --nimiq-highlight-bg: rgba(31, 35, 72, 0.06);
+
+  /* on-dark + darkened (hover) variants */
+  --nimiq-light-blue-on-dark: #0CA6FE;
+  --nimiq-red-on-dark: #FF5C48;
+  --nimiq-blue-darkened: #151833;
+  --nimiq-light-blue-darkened: #0071C3;
+  --nimiq-gold-darkened: #E5A212;
+  --nimiq-green-darkened: #20B29E;
+  --nimiq-orange-darkened: #FC7500;
+  --nimiq-red-darkened: #D13030;
+
+  /* signature gradients — radial accent glowing from bottom-right */
+  --nimiq-blue-bg: radial-gradient(100% 100% at bottom right, #260133, var(--nimiq-blue));
+  --nimiq-light-blue-bg: radial-gradient(100% 100% at bottom right, #265DD7, var(--nimiq-light-blue));
+  --nimiq-gold-bg: radial-gradient(100% 100% at bottom right, #EC991C, var(--nimiq-gold));
+  --nimiq-green-bg: radial-gradient(100% 100% at bottom right, #41A38E, var(--nimiq-green));
+  --nimiq-orange-bg: radial-gradient(100% 100% at bottom right, #FD6216, var(--nimiq-orange));
+  --nimiq-red-bg: radial-gradient(100% 100% at bottom right, #CC3047, var(--nimiq-red));
+  --nimiq-purple-bg: radial-gradient(100% 100% at bottom right, #4D4C96, var(--nimiq-purple));
+  --nimiq-pink-bg: radial-gradient(100% 100% at bottom right, #E0516B, var(--nimiq-pink));
+
+  /* text opacity ladder — Nimiq Blue at descending alpha */
+  --text-100: rgba(31, 35, 72, 1);
+  --text-80: rgba(31, 35, 72, .8);
+  --text-70: rgba(31, 35, 72, .7);
+  --text-60: rgba(31, 35, 72, .6);
+  --text-50: rgba(31, 35, 72, .5);
+  --text-40: rgba(31, 35, 72, .4);
+  --text-30: rgba(31, 35, 72, .3);
+  --text-20: rgba(31, 35, 72, .2);
+  --text-12: rgba(31, 35, 72, .12);
+  --text-10: rgba(31, 35, 72, .10);
+  --text-6: rgba(31, 35, 72, .06);
+
+  /* motion */
+  --nimiq-ease: cubic-bezier(0.25, 0, 0, 1);
+  --nimiq-spring: cubic-bezier(0.41, 0.34, 0.26, 1.55);
+  --attr-duration: 0.2s;
+  --movement-duration: 0.4s;
+
+  /* radius scale */
+  --nimiq-radius-input: 4px;
+  --nimiq-radius-card: 10px;
+  --nimiq-radius-button-s: 13.5px;
+  --nimiq-radius-button: 500px;
+
+  /* elevation */
+  --nimiq-shadow: 0 4px 12px rgba(0, 0, 0, .15);
+  --nimiq-shadow-l: 0 4px 20px rgba(0, 0, 0, .15);
+  --nimiq-shadow-card: 0 4px 28px rgba(0, 0, 0, .11);
+
+  /* fonts */
+  --nimiq-font: 'Muli', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --nimiq-font-mono: 'Fira Mono', ui-monospace, Menlo, Consolas, monospace;
+
+  /* ── kit-authentic tints of the brand colors (soft surfaces) ── */
+  --tint-blue: rgba(31, 35, 72, .05);
+  --tint-light-blue: rgba(5, 130, 202, .09);
+  --tint-gold: rgba(233, 178, 19, .13);
+  --tint-green: rgba(33, 188, 165, .12);
+  --tint-orange: rgba(252, 135, 2, .11);
+  --tint-red: rgba(217, 68, 50, .10);
+  --tint-purple: rgba(95, 75, 139, .10);
+}
+
+/* ── 2 · Base ──────────────────────────────────────────────────────── */
+::selection { background: var(--tint-light-blue); color: var(--nimiq-blue); }
+:root { color-scheme: light; }
+
+/* ── 3 · Typography helpers (kit scale) ────────────────────────────── */
+.nq-h1, .nq-h2, .nq-h3 { margin: 0; font-family: var(--nimiq-font); color: var(--nimiq-blue); }
+.nq-h1 { font-size: 24px; line-height: 1.2; font-weight: 700; }
+.nq-h2 { font-size: 20px; line-height: 1.2; font-weight: 700; }
+.nq-h3 { font-size: 16px; line-height: 1.2; font-weight: 700; }
+.nq-text { font-size: 16px; line-height: 1.6; color: var(--text-70); }
+.nq-text-s { font-size: 14px; font-weight: 600; color: var(--text-70); }
+.nq-label { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: .107em; color: var(--text-60); }
+.nq-link { color: var(--nimiq-light-blue); font-weight: 600; text-decoration: none; }
+.nq-link:hover { color: var(--nimiq-light-blue-darkened); }
+
+/* ── 4 · Icons ─────────────────────────────────────────────────────── */
+.nq-icon { width: 16px; height: 16px; display: inline-block; vertical-align: middle; }
+.nq-icon use { pointer-events: none; }
+
+/* ── 5 · Buttons — three official families ─────────────────────────── */
+.nq-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border: 0; cursor: pointer; user-select: none; text-decoration: none;
+  font-family: var(--nimiq-font); font-weight: 700; font-size: 16px; line-height: 1.2;
+  min-height: 48px; padding: 13px 28px; border-radius: var(--nimiq-radius-button);
+  color: #fff; background: var(--nimiq-blue-bg); background-color: var(--nimiq-blue);
+  box-shadow: 0 2px 10px rgba(31, 35, 72, .24);
+  transition: filter var(--attr-duration) var(--nimiq-ease), box-shadow var(--attr-duration) var(--nimiq-ease), transform .12s var(--nimiq-ease);
+}
+.nq-button:hover { filter: brightness(1.18); box-shadow: 0 4px 16px rgba(31, 35, 72, .3); }
+.nq-button:active { transform: scale(.97); filter: brightness(.95); }
+.nq-button:disabled, .nq-button[disabled] { opacity: .5; pointer-events: none; }
+.nq-button.light-blue { background: var(--nimiq-light-blue-bg); background-color: var(--nimiq-light-blue); }
+.nq-button.green { background: var(--nimiq-green-bg); background-color: var(--nimiq-green); }
+.nq-button.gold { background: var(--nimiq-gold-bg); background-color: var(--nimiq-gold); }
+.nq-button.orange { background: var(--nimiq-orange-bg); background-color: var(--nimiq-orange); }
+.nq-button.red { background: var(--nimiq-red-bg); background-color: var(--nimiq-red); }
+.nq-button.inverse { background: #fff; color: var(--nimiq-blue); box-shadow: 0 2px 10px rgba(0, 0, 0, .2); }
+
+.nq-button-s {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 0; cursor: pointer; user-select: none; text-decoration: none;
+  font-family: var(--nimiq-font); font-weight: 600; font-size: 14px; line-height: 1.2;
+  min-height: 36px; padding: 8px 18px; border-radius: var(--nimiq-radius-button-s);
+  color: #fff; background: var(--nimiq-blue-bg); background-color: var(--nimiq-blue);
+  transition: filter var(--attr-duration) var(--nimiq-ease), transform .12s var(--nimiq-ease);
+}
+.nq-button-s:hover { filter: brightness(1.18); }
+.nq-button-s:active { transform: scale(.96); }
+.nq-button-s:disabled { opacity: .5; pointer-events: none; }
+.nq-button-s.light-blue { background: var(--nimiq-light-blue-bg); background-color: var(--nimiq-light-blue); }
+.nq-button-s.green { background: var(--nimiq-green-bg); background-color: var(--nimiq-green); }
+.nq-button-s.orange { background: var(--nimiq-orange-bg); background-color: var(--nimiq-orange); }
+.nq-button-s.red { background: var(--nimiq-red-bg); background-color: var(--nimiq-red); }
+
+.nq-button-pill {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 0; cursor: pointer; user-select: none; text-decoration: none;
+  font-family: var(--nimiq-font); font-weight: 600; font-size: 14px; line-height: 1.2;
+  min-height: 36px; padding: 8px 20px; border-radius: var(--nimiq-radius-button);
+  color: #fff; background: var(--nimiq-blue-bg); background-color: var(--nimiq-blue);
+  transition: filter var(--attr-duration) var(--nimiq-ease), transform .12s var(--nimiq-ease);
+}
+.nq-button-pill:hover { filter: brightness(1.18); }
+.nq-button-pill.light-blue { background: var(--nimiq-light-blue-bg); background-color: var(--nimiq-light-blue); }
+.nq-button-pill.green { background: var(--nimiq-green-bg); background-color: var(--nimiq-green); }
+.nq-button-pill.orange { background: var(--nimiq-orange-bg); background-color: var(--nimiq-orange); }
+.nq-button-pill.red { background: var(--nimiq-red-bg); background-color: var(--nimiq-red); }
+
+/* ── 6 · Inputs ────────────────────────────────────────────────────── */
+.nq-input, .nq-input-s {
+  width: 100%; border: 1.5px solid var(--text-20); background: var(--nimiq-white);
+  font-family: var(--nimiq-font); color: var(--nimiq-blue); outline: none;
+  border-radius: var(--nimiq-radius-input); transition: border var(--attr-duration), box-shadow var(--attr-duration);
+}
+.nq-input { min-height: 48px; padding: 12px 14px; font-size: 16px; }
+.nq-input-s { min-height: 36px; padding: 7px 10px; font-size: 14px; font-weight: 600; }
+.nq-input:focus, .nq-input-s:focus { border-color: var(--nimiq-light-blue); box-shadow: 0 0 0 3px var(--tint-light-blue); }
+.nq-input::placeholder, .nq-input-s::placeholder { color: var(--text-40); }
+
+/* ── 7 · Cards — the primary Nimiq container ───────────────────────── */
+.nq-card {
+  background: var(--nimiq-card-bg); border-radius: var(--nimiq-radius-card);
+  box-shadow: var(--nimiq-shadow-card); overflow: hidden; max-width: 100%;
+}
+.nq-card-header { padding: 24px 24px 0; text-align: center; }
+.nq-card-header h1, .nq-card-header h2 { margin: 0 0 4px; font-family: var(--nimiq-font); font-size: 24px; line-height: 1.2; font-weight: 700; color: var(--nimiq-blue); }
+.nq-card-body { padding: 24px; }
+.nq-card-footer { padding: 0 24px 24px; }
+
+/* ── 8 · Notices ───────────────────────────────────────────────────── */
+.nq-notice {
+  display: flex; gap: 10px; align-items: flex-start;
+  border-radius: var(--nimiq-radius-card); padding: 12px 14px; font-size: 14px; font-weight: 600; line-height: 1.5;
+}
+.nq-notice.info { background: var(--tint-light-blue); color: var(--nimiq-light-blue-darkened); }
+.nq-notice.success { background: var(--tint-green); color: var(--nimiq-green-darkened); }
+.nq-notice.warning { background: var(--tint-orange); color: var(--nimiq-orange-darkened); }
+.nq-notice.error { background: var(--tint-red); color: var(--nimiq-red); }
+.nq-notice svg { flex: 0 0 16px; width: 16px; height: 16px; margin-top: 2px; }
+
+/* ── 9 · Elevation utilities ───────────────────────────────────────── */
+.nq-shadow { box-shadow: var(--nimiq-shadow); }
+.nq-shadow-l { box-shadow: var(--nimiq-shadow-l); }
+
+/* ══════════════════════════════════════════════════════════════════════
+   BRIDGE — re-skin PROOF's existing classes onto the kit
+   (same DOM, official look: pill buttons, 10px cards, Muli, ladder text)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── type & text: Muli everywhere, kit letterforms ── */
+body { font-family: var(--nimiq-font); }
+h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .display, .eyebrow { font-family: var(--nimiq-font); }
+button, .btn, .chip { font-family: var(--nimiq-font); }
+input, textarea, select { font-family: var(--nimiq-font); }
+a { color: var(--nimiq-light-blue); }
+b, strong { font-weight: 700; }
+.code-block, .input-mono, .num { font-family: var(--nimiq-font-mono); }
+
+/* text colors follow the official opacity ladder */
+.display, .h1, .h2, .h3, .h4 { color: var(--text-100); }
+.sub { color: var(--text-60); }
+.tiny { color: var(--text-40); }
+.eyebrow { color: var(--text-40); letter-spacing: .14em; }
+a:hover { color: var(--nimiq-light-blue-darkened); }
+.section-head .link { color: var(--nimiq-light-blue-darkened); }
+
+/* ── buttons: official pill geometry & gradients ── */
+.btn {
+  border-radius: var(--nimiq-radius-button);
+  font-weight: 700; letter-spacing: 0;
+  min-height: 48px; padding: 13px 26px;
+  transition: filter var(--attr-duration) var(--nimiq-ease), box-shadow var(--attr-duration) var(--nimiq-ease),
+    background-color var(--attr-duration) var(--nimiq-ease), transform .12s var(--nimiq-spring), gap .12s var(--nimiq-ease);
+}
+.btn-sm { border-radius: var(--nimiq-radius-button-s); min-height: 38px; padding: 9px 18px; font-size: 14px; font-weight: 600; }
+.btn-xs { border-radius: var(--nimiq-radius-button-s); min-height: 32px; padding: 6px 14px; font-size: 12.5px; }
+.btn.btn-icon { min-height: auto; padding: 10px; border-radius: var(--nimiq-radius-button-s); }
+@media (hover: none) and (pointer: coarse) { .btn { padding: 14px 26px; } }
+
+/* primary → official blue gradient (the default nq-button) */
+.btn-primary {
+  background: var(--nimiq-blue-bg); background-color: var(--nimiq-blue);
+  color: #fff; box-shadow: 0 2px 10px rgba(31, 35, 72, .26);
+}
+.btn-primary:hover { filter: brightness(1.2); }
+.btn-primary:active { filter: brightness(.92); box-shadow: 0 1px 6px rgba(31, 35, 72, .3); }
+
+/* soft → light-blue tinted pill (the kit's interactive accent) */
+.btn-soft { background: var(--tint-light-blue); color: var(--nimiq-light-blue-darkened); box-shadow: none; }
+.btn-soft:hover { background: rgba(5, 130, 202, .16); filter: none; }
+.btn-soft.btn-pulse { animation: gentlePulse 3s ease-in-out infinite; }
+
+/* ghost / secondary → quiet outline on the ladder */
+.btn-ghost, .btn-secondary { background: transparent; color: var(--text-70); box-shadow: inset 0 0 0 1.5px var(--text-20); }
+.btn-ghost:hover, .btn-secondary:hover { background: var(--nimiq-highlight-bg); box-shadow: inset 0 0 0 1.5px var(--text-30); filter: none; }
+
+/* NIM / economy → official gold gradient */
+.btn-nim {
+  background: var(--nimiq-gold-bg); background-color: var(--nimiq-gold);
+  color: var(--nimiq-blue); font-weight: 700; box-shadow: 0 2px 10px rgba(233, 178, 19, .38);
+}
+.btn-nim:hover { filter: brightness(1.06); }
+.btn-nim:active { filter: brightness(.96); }
+
+/* ok → official green gradient */
+.btn-ok { background: var(--nimiq-green-bg); background-color: var(--nimiq-green); color: #fff; font-weight: 700; }
+.btn-ok:hover { filter: brightness(1.06); }
+
+/* danger → official red */
+.btn-danger { background: var(--tint-red); color: var(--nimiq-red); box-shadow: none; }
+.btn-danger:hover { background: rgba(217, 68, 50, .16); filter: none; }
+
+/* legacy un-prefixed buttons (glossary modal etc.) adopt the same language */
+button.btn-primary, a.btn-primary,
+button.btn-secondary, a.btn-secondary,
+button.btn-ghost, a.btn-ghost,
+button.btn-soft, a.btn-soft,
+button.btn-nim, a.btn-nim,
+button.btn-ok, a.btn-ok {
+  border-radius: var(--nimiq-radius-button);
+  font-family: var(--nimiq-font); font-weight: 700; font-size: 15px;
+}
+button.btn-primary:focus-visible, button.btn-secondary:focus-visible,
+button.btn-ghost:focus-visible, button.btn-soft:focus-visible,
+button.btn-nim:focus-visible, button.btn-ok:focus-visible,
+a.btn-primary:focus-visible, a.btn-secondary:focus-visible,
+a.btn-ghost:focus-visible, a.btn-soft:focus-visible,
+a.btn-nim:focus-visible, a.btn-ok:focus-visible {
+  outline: 3px solid rgba(5, 130, 202, .5); outline-offset: 3px;
+}
+
+/* gamified specials → official gradients */
+.btn-level-up { background: var(--nimiq-purple-bg); background-color: var(--nimiq-purple); color: #fff; box-shadow: 0 2px 10px rgba(95, 75, 139, .35); }
+.btn-reward { background: var(--nimiq-gold-bg); background-color: var(--nimiq-gold); color: var(--nimiq-blue); box-shadow: 0 2px 10px rgba(233, 178, 19, .35); }
+
+/* focus ring follows the kit accent */
+:focus-visible { outline: 3px solid rgba(5, 130, 202, .5); }
+.card-click:focus-visible { border-color: var(--nimiq-light-blue); box-shadow: 0 0 0 4px var(--tint-light-blue); }
+
+/* ── chips: official pills ── */
+.chip { border-radius: var(--nimiq-radius-button); font-weight: 600; border: 1.5px solid var(--text-12); color: var(--text-70); }
+.chip:hover { box-shadow: var(--nimiq-shadow); }
+.chip-nim { background: var(--tint-gold); border-color: rgba(233, 178, 19, .35); color: var(--nim-gold-deep); box-shadow: none; }
+.chip-ok { background: var(--tint-green); border-color: rgba(33, 188, 165, .35); color: var(--nimiq-green-darkened); box-shadow: none; }
+.chip-primary { background: var(--tint-light-blue); border-color: rgba(5, 130, 202, .3); color: var(--nimiq-light-blue-darkened); box-shadow: none; }
+.chip-bad { background: var(--tint-red); border-color: rgba(217, 68, 50, .3); color: var(--nimiq-red); }
+.chip-warn { background: var(--tint-orange); color: var(--nimiq-orange-darkened); }
+.chip-nim-dark { background: rgba(233, 178, 19, .18); border-color: rgba(233, 178, 19, .35); color: #F8DE7A; }
+
+/* chips on dark (blue-gradient) surfaces keep their translucent white language */
+.chip-dark { background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .22); color: #fff; }
+.chip-dark:hover { box-shadow: 0 2px 10px rgba(0, 0, 0, .25); }
+
+/* muted text inside dark hero cards must stay light */
+.card-hero .sub, .card-hero .tiny, .quest-hero .sub, .quest-hero .tiny,
+.story-card .sub, .story-card .tiny { color: rgba(255, 255, 255, .66); }
+.card-hero .eyebrow, .quest-hero .eyebrow { color: rgba(255, 255, 255, .5); }
+
+/* wallet badges keep their identity, now on official gradients */
+.wallet-badge.nimiqpay { background: var(--nimiq-purple-bg); background-color: var(--nimiq-purple); }
+.wallet-badge.hub { background: var(--nimiq-light-blue-bg); background-color: var(--nimiq-light-blue); }
+.wallet-badge.demo { background: var(--nimiq-gold-bg); background-color: var(--nimiq-gold); color: var(--nimiq-blue); }
+
+/* ── cards: 10px radius, kit elevation ── */
+.card { border-radius: var(--nimiq-radius-card); border: 1px solid var(--text-10); box-shadow: 0 2px 12px rgba(31, 35, 72, .06); }
+.card + .card { margin-top: 14px; }
+@media (hover: hover) { .card-click:hover { box-shadow: var(--nimiq-shadow); border-color: rgba(5, 130, 202, .25); } }
+
+.card-nim { border-color: rgba(233, 178, 19, .3); background: linear-gradient(135deg, var(--surface) 0%, var(--tint-gold) 100%); }
+.card-ok { border-color: rgba(33, 188, 165, .3); background: linear-gradient(135deg, var(--surface) 0%, var(--tint-green) 100%); }
+.card-primary { border-color: rgba(5, 130, 202, .25); background: linear-gradient(135deg, var(--surface) 0%, var(--tint-light-blue) 100%); }
+
+/* hero surfaces: official blue gradient + gold & purple glows */
+.card-hero { box-shadow: 0 6px 24px rgba(31, 35, 72, .28); }
+.card-hero::after {
+  background: radial-gradient(420px 200px at 85% -20%, rgba(233, 178, 19, .28), transparent 60%),
+              radial-gradient(300px 220px at -10% 110%, rgba(95, 75, 139, .55), transparent 60%);
+}
+.quest-hero {
+  background:
+    radial-gradient(260px 180px at 100% 0%, rgba(233, 178, 19, .26), transparent 70%),
+    radial-gradient(320px 220px at 0% 100%, rgba(77, 76, 150, .5), transparent 70%),
+    var(--nimiq-blue-bg);
+}
+.story-card { background: var(--nimiq-blue-bg); }
+.story-card::after { background: radial-gradient(420px 160px at 90% 0%, rgba(233, 178, 19, .32), transparent 60%); }
+.msg.me { background: var(--nimiq-blue-bg); color: #fff; }
+
+/* ── progress bars ── */
+.bar { background: var(--text-6); }
+.bar > i { background: var(--nimiq-light-blue-bg); background-color: var(--nimiq-light-blue); }
+.bar-nim > i { background: var(--nimiq-gold-bg); background-color: var(--nimiq-gold); }
+.bar-ok > i { background: var(--nimiq-green-bg); background-color: var(--nimiq-green); }
+.qmeter i { background: var(--nimiq-light-blue-bg); background-color: var(--nimiq-light-blue); }
+
+/* ── inputs: kit radius + focus ── */
+.input { border-radius: 6px; border: 1.5px solid var(--text-20); }
+.input:focus { border-color: var(--nimiq-light-blue); box-shadow: 0 0 0 3px var(--tint-light-blue); }
+.input::placeholder { color: var(--text-40); }
+select.input { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--text-40) 50%), linear-gradient(135deg, var(--text-40) 50%, transparent 50%); background-position: calc(100% - 20px) 55%, calc(100% - 14px) 55%; background-size: 6px 6px; background-repeat: no-repeat; padding-right: 40px; }
+.label { color: var(--text-80); }
+.code-block { background: var(--nimiq-blue); color: #E4E8FF; border-radius: var(--nimiq-radius-card); }
+.input-mono { background: var(--nimiq-blue); color: #E4E8FF; border-color: var(--nimiq-blue); }
+.input-mono:focus { box-shadow: 0 0 0 3px rgba(5, 130, 202, .45); }
+
+/* ── nav: light-blue active state ── */
+.nav a.active { color: var(--nimiq-light-blue-darkened); }
+.nav a.active .nav-ico { background: var(--tint-light-blue); }
+.nav-badge { background: var(--nimiq-red); }
+.nav a svg { opacity: .9; }
+
+/* ── toasts: floating kit notices (pill, elevation-l) ── */
+.toast {
+  border-radius: var(--nimiq-radius-button);
+  background: var(--nimiq-blue-bg); background-color: var(--nimiq-blue);
+  box-shadow: var(--nimiq-shadow-l); font-weight: 600;
+  animation: toastIn .3s var(--nimiq-spring);
+}
+.toast .toast-ico { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: rgba(255, 255, 255, .16); flex: 0 0 24px; }
+.toast .toast-ico svg { width: 14px; height: 14px; }
+.toast.ok { background: var(--nimiq-green-bg); background-color: var(--nimiq-green); color: #fff; }
+.toast.bad { background: var(--nimiq-red-bg); background-color: var(--nimiq-red); color: #fff; }
+.toast.nim { background: var(--nimiq-gold-bg); background-color: var(--nimiq-gold); color: var(--nimiq-blue); }
+.toast.nim .toast-ico { background: rgba(31, 35, 72, .14); }
+
+/* ── sheet (bottom modal): kit card geometry ── */
+.sheet-veil { background: rgba(31, 35, 72, .55); backdrop-filter: blur(3px); }
+.sheet {
+  border-radius: 16px 16px 0 0; box-shadow: 0 -8px 40px rgba(31, 35, 72, .25);
+  animation: sheetUp .34s var(--nimiq-spring);
+}
+.sheet-grab { background: var(--text-20); }
+
+/* ── modal (centered popup): the Nimiq SmallPage look ── */
+.modal-overlay { background: rgba(31, 35, 72, .6); }
+.modal-card {
+  border-radius: 16px; box-shadow: 0 24px 80px rgba(31, 35, 72, .45);
+  animation: modalSlideUp .32s var(--nimiq-spring);
+}
+.modal-title { font-family: var(--nimiq-font); color: var(--nimiq-blue); font-size: 22px; font-weight: 700; }
+.modal-header { border-bottom: 1px solid var(--text-10); }
+.modal-footer { border-top: 1px solid var(--text-10); }
+.modal-close {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--nimiq-highlight-bg); color: var(--text-60);
+  transition: background var(--attr-duration) var(--nimiq-ease), color var(--attr-duration) var(--nimiq-ease), transform .12s var(--nimiq-spring);
+}
+.modal-close:hover { background: var(--tint-red); color: var(--nimiq-red); transform: rotate(90deg); }
+.modal-close svg { width: 16px; height: 16px; margin: auto; }
+
+/* ── misc components on ladder colors ── */
+.divider { background: var(--text-10); }
+.skeleton { background: linear-gradient(90deg, var(--text-6) 25%, var(--text-12) 50%, var(--text-6) 75%); background-size: 200% 100%; }
+.stat { background: var(--nimiq-light-gray); border: 1px solid var(--text-10); border-radius: var(--nimiq-radius-card); }
+.stat b { color: var(--text-100); }
+.stat span { color: var(--text-40); }
+.stat-nim { border-color: rgba(233, 178, 19, .35); background: var(--tint-gold); }
+.stat-ok { border-color: rgba(33, 188, 165, .35); background: var(--tint-green); }
+.stat-primary { border-color: rgba(5, 130, 202, .3); background: var(--tint-light-blue); }
+.empty { color: var(--text-60); }
+.empty .sub { color: var(--text-40); }
+.avatar { background: var(--tint-light-blue); }
+.ring circle { transition: stroke-dashoffset 1.1s var(--nimiq-ease); }
+
+/* practice options & quiz */
+.opt { border-radius: 8px; color: var(--text-80); }
+.opt:hover { border-color: var(--nimiq-light-blue); }
+.opt.correct { border-color: var(--nimiq-green); background: var(--tint-green); color: var(--nimiq-green-darkened); }
+.opt.wrong { border-color: var(--nimiq-red); background: var(--tint-red); color: var(--nimiq-red); }
+
+/* day list / tree / steps */
+.day { border-radius: var(--nimiq-radius-card); }
+.day-num { background: var(--tint-light-blue); color: var(--nimiq-light-blue-darkened); border-radius: 8px; }
+.day.proof-day .day-num { background: var(--tint-gold); color: var(--nim-gold-deep); }
+.day.done .day-num { background: var(--tint-green); color: var(--nimiq-green-darkened); }
+.day.open { border-color: rgba(5, 130, 202, .3); }
+.tree-dot { border-color: var(--text-20); }
+.tree-node.active .tree-dot { border-color: var(--nimiq-light-blue); box-shadow: 0 0 0 6px var(--tint-light-blue); }
+.tree-node.verified .tree-dot { border-color: var(--nimiq-green); background: var(--tint-green); box-shadow: 0 0 0 6px var(--tint-green); }
+.step.active { border-color: var(--nimiq-light-blue); color: var(--nimiq-light-blue-darkened); background: var(--tint-light-blue); }
+.step.active .step-dot { background: var(--nimiq-blue-bg); color: #fff; border-color: transparent; }
+.step.done { border-color: var(--nimiq-green); color: var(--nimiq-green-darkened); background: var(--tint-green); }
+.step.done .step-dot { background: var(--nimiq-green-bg); color: #fff; border-color: transparent; }
+.keypoints li::before { color: var(--nimiq-gold); }
+.objectives li::before { background: var(--tint-green); color: var(--nimiq-green-darkened); }
+
+/* lesson callouts */
+.callout-ask { background: var(--tint-light-blue); color: var(--nimiq-light-blue-darkened); }
+.callout-warn { background: var(--tint-orange); color: var(--nimiq-orange-darkened); }
+.memory-hook { background: var(--tint-gold); border-color: rgba(233, 178, 19, .35); color: #6B5410; }
+.memory-hook b { color: #4D3B0C; }
+.reqs li { border-left-color: var(--nimiq-green); background: var(--nimiq-light-gray); }
+.reqs li .tick { color: var(--nimiq-green); }
+.checkpoint-callout { background: var(--tint-orange); border-color: rgba(252, 135, 2, .4); }
+.reflection-prompt { background: var(--tint-green); border-color: rgba(33, 188, 165, .4); }
+.question-card { background: var(--tint-light-blue); border-color: rgba(5, 130, 202, .45); }
+.followup-card { background: var(--tint-orange); border-color: rgba(252, 135, 2, .45); }
+.insight-card { background: var(--tint-light-blue); border-color: rgba(5, 130, 202, .35); }
+.review-card { background: linear-gradient(135deg, var(--tint-light-blue) 0%, #fff 100%); border-color: rgba(5, 130, 202, .25); }
+.level-option.active { border-color: var(--nimiq-light-blue); background: linear-gradient(135deg, var(--tint-light-blue) 0%, #fff 100%); }
+.filter-btn.active { border-color: var(--nimiq-light-blue); background: var(--nimiq-light-blue-bg); background-color: var(--nimiq-light-blue); }
+.session-card:hover { border-color: var(--nimiq-light-blue); }
+.progress-fill { background: linear-gradient(90deg, var(--nimiq-light-blue), var(--nimiq-light-blue-darkened)); }
+.scan-ring { border-color: var(--text-12); border-top-color: var(--nimiq-light-blue); }
+
+/* Nimiq hexagon loader (used by the AI-analyzing state) */
+.hex-spinner { width: 100%; height: 100%; display: block; }
+.hex-spinner .hex-track { fill: none; stroke: var(--text-10); stroke-width: 4; }
+.hex-spinner .hex-dash {
+  fill: none; stroke: var(--nimiq-light-blue); stroke-width: 4; stroke-linecap: round;
+  stroke-dasharray: 46 150; animation: hexSpin 1.4s linear infinite;
+}
+@keyframes hexSpin { to { stroke-dashoffset: -196; } }
+@media (prefers-reduced-motion: reduce) { .hex-spinner .hex-dash { animation-duration: 4s; } }
+
+/* boot logo: kit blue + gold */
+.boot .logo { color: var(--nimiq-blue); }
+.boot .logo span { color: var(--nimiq-gold); }
+
+/* rubric table on ladder */
+table.rubric th { color: var(--text-40); }
+table.rubric td { color: var(--text-70); }
+table.rubric td:first-child { color: var(--text-100); }
+table.rubric th, table.rubric td { border-bottom: 1px solid var(--text-10); }
+
+/* ── Nimiq signet lockup (logo helper) ── */
+.nq-logo { display: inline-flex; align-items: center; gap: 7px; }
+.nq-logo svg { width: 20px; height: 22px; display: block; }
+
+/* ── desktop hover polish follows kit elevation ── */
+@media (min-width: 1024px) {
+  .card:hover { box-shadow: 0 6px 20px rgba(31, 35, 72, .09); }
+}
+
+/* small screens keep comfortable pills */
+@media (max-width: 359px) {
+  .btn-primary { font-size: 15px; padding: 13px 20px !important; }
+}

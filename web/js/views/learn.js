@@ -115,12 +115,12 @@ function streakWidget(streak) {
   if (streak.currentStreak === 0) return ''; // Don't show if no streak yet
   
   const emoji = streak.emoji;
-  const barColor = streak.atRisk ? '#F79009' : '#12B76A';
+  const barColor = streak.atRisk ? 'var(--warn)' : 'var(--ok)';
   const message = streak.atRisk 
     ? 'Complete a lesson today to keep your streak alive!'
     : `${streak.currentStreak} days strong! Keep learning to maintain your streak.`;
   
-  return `<div class="card" style="padding:14px 16px;background:linear-gradient(135deg, #F0FDF4 0%, #FFF 100%);border:1px solid #D1FAE5;margin-bottom:12px">
+  return `<div class="card" style="padding:14px 16px;background:linear-gradient(135deg, rgba(33,188,165,.1) 0%, #FFF 100%);border:1px solid rgba(33,188,165,.35);margin-bottom:12px">
     <div class="row" style="gap:10px;align-items:center">
       <span style="font-size:24px">${emoji}</span>
       <div style="flex:1">

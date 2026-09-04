@@ -17,12 +17,13 @@ export function el(html) {
 
 export function toast(msg, kind = '', ms = 2600) {
   const box = $('#toasts');
-  const t = el(`<div class="toast ${kind}">${msg}</div>`);
+  const icon = kind === 'ok' ? ico.checkCircle : kind === 'bad' ? ico.xCircle : kind === 'nim' ? ico.hexagon : ico.info;
+  const t = el(`<div class="toast ${kind}"><span class="toast-ico">${icon}</span><div>${msg}</div></div>`);
   box.append(t);
   setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300); }, ms);
 }
 
-export function confettiBurst(colors = ['#F5A623', '#5B57D9', '#12B76A', '#FF7AB2', '#FFD28A']) {
+export function confettiBurst(colors = ['#E9B213', '#EC991C', '#0582CA', '#21BCA5', '#5F4B8B', '#FA7268']) {
   const box = el('<div class="confetti"></div>');
   for (let i = 0; i < 26; i++) {
     const p = el(`<i style="left:${Math.random() * 100}%;background:${colors[i % colors.length]};
@@ -50,7 +51,22 @@ export function countUp(node, to, { ms = 900, from = 0, suffix = '', decimals = 
 const I = (paths, extra = '') =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" ${extra}>${paths}</svg>`;
 
+/* The official Nimiq hexagon (identicon frame geometry), viewBox 0 -4 64 64 */
+const NQ_HEX = 'M62.3 25.4L49.2 2.6A5.3 5.3 0 0 0 44.6 0H18.4c-1.9 0-3.6 1-4.6 2.6L.7 25.4c-1 1.6-1 3.6 0 5.2l13.1 22.8c1 1.6 2.7 2.6 4.6 2.6h26.2c1.9 0 3.6-1 4.6-2.6l13-22.8c1-1.6 1-3.6.1-5.2z';
+
+/* Nimiq signet — the gold hexagon (official gold gradient) */
+const SIGNET = `<svg viewBox="0 -4 64 64" aria-hidden="true"><defs><linearGradient id="nq-signet-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#EC991C"/><stop offset="1" stop-color="#E9B213"/></linearGradient></defs><path d="${NQ_HEX}" fill="url(#nq-signet-gold)"/></svg>`;
+
 export const ico = {
+  /* Nimiq UI Kit icons */
+  signet: SIGNET,
+  hexagon: I('<path d="M12 2.6 4.2 7v8L12 19.4 19.8 15V7L12 2.6Z"/>'),
+  info: I('<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5m0-8.2v.4"/>'),
+  checkCircle: I('<circle cx="12" cy="12" r="8.5"/><path d="m8.2 12.3 2.6 2.6 5-5.6"/>'),
+  xCircle: I('<circle cx="12" cy="12" r="8.5"/><path d="m9 9 6 6m0-6-6 6"/>'),
+  copy: I('<rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M5.5 14.5A2 2 0 0 1 4 12.7V6a2 2 0 0 1 2-2h6.7a2 2 0 0 1 1.8 1.5"/>'),
+  flask: I('<path d="M9.5 3h5M10.5 3v5.2L4.9 18a2 2 0 0 0 1.8 3h10.6a2 2 0 0 0 1.8-3l-5.6-9.8V3"/><path d="M7.5 14.5h9"/>'),
+  link: I('<path d="M10 14a4.2 4.2 0 0 0 6 0l3-3a4.24 4.24 0 0 0-6-6l-1.2 1.2"/><path d="M14 10a4.2 4.2 0 0 0-6 0l-3 3a4.24 4.24 0 0 0 6 6l1.2-1.2"/>'),
   home: I('<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/>'),
   learn: I('<path d="M12 3 2 8l10 5 10-5-10-5Z"/><path d="M6 10.5V16c0 1.6 2.7 3 6 3s6-1.4 6-3v-5.5"/><path d="M22 8v6"/>'),
   prove: I('<circle cx="12" cy="9" r="6"/><path d="m8.5 14 -1.5 7 5-3 5 3-1.5-7"/>'),
@@ -82,16 +98,18 @@ export function scoreRing(score, { size = 128, stroke = 10, pass = true, label =
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const id = 'g' + Math.random().toString(36).slice(2, 7);
-  const color = pass ? '#12B76A' : '#F79009';
+  /* Nimiq UI Kit colors: green for a pass, gold for a near-miss */
+  const color = pass ? 'var(--nimiq-green, #21BCA5)' : 'var(--nimiq-gold, #E9B213)';
+  const accent = pass ? '#41A38E' : '#EC991C';
   return `<div class="ring" style="width:${size}px;height:${size}px">
     <svg width="${size}" height="${size}">
       <defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="${pass ? '#34D399' : '#FFC069'}"/><stop offset="1" stop-color="${color}"/></linearGradient></defs>
-      <circle cx="${size / 2}" cy="${size / 2}" r="${r}" stroke="#ECEBF6" stroke-width="${stroke}" fill="none"/>
+        <stop offset="0" stop-color="${accent}"/><stop offset="1" stop-color="${color}"/></linearGradient></defs>
+      <circle cx="${size / 2}" cy="${size / 2}" r="${r}" stroke="rgba(31,35,72,.08)" stroke-width="${stroke}" fill="none"/>
       <circle class="ring-fill" cx="${size / 2}" cy="${size / 2}" r="${r}" stroke="url(#${id})" stroke-width="${stroke}"
         fill="none" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c}" data-target="${c * (1 - score / 100)}"/>
     </svg>
-    <div class="val"><b class="num" data-count="${score}">0</b><span class="tiny" style="font-weight:800;letter-spacing:.12em;color:${pass ? 'var(--ok-deep)' : 'var(--warn)'}">${esc(label)}</span></div>
+    <div class="val"><b class="num" data-count="${score}">0</b><span class="tiny" style="font-weight:800;letter-spacing:.12em;color:${pass ? 'var(--ok-deep)' : 'var(--nim-gold-deep, #8A6D00)'}">${esc(label)}</span></div>
   </div>`;
 }
 
@@ -104,9 +122,20 @@ export function animateRings(root) {
 
 export function sheet(html, { onClose } = {}) {
   const veil = el('<div class="sheet-veil"></div>');
-  const s = el(`<div class="sheet"><div class="sheet-grab"></div>${html}</div>`);
-  const close = () => { veil.remove(); s.remove(); onClose && onClose(); };
+  const s = el(`<div class="sheet" role="dialog" aria-modal="true"><div class="sheet-grab"></div>${html}</div>`);
+  let closed = false;
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  const prevOverflow = document.body.style.overflow;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    document.removeEventListener('keydown', onKey);
+    document.body.style.overflow = prevOverflow;
+    veil.remove(); s.remove(); onClose && onClose();
+  };
   veil.addEventListener('click', close);
+  document.addEventListener('keydown', onKey);
+  document.body.style.overflow = 'hidden';
   document.body.append(veil, s);
   return { el: s, close };
 }
@@ -124,7 +153,13 @@ export function fmtNim(n, decimals = 0) {
 }
 
 export function spinner(label = 'Loading…') {
-  return `<div class="analyze"><div class="scan-wrap"><div class="scan-ring"></div></div><div class="scan-step">${esc(label)}</div></div>`;
+  /* Nimiq hexagon loader (keyguard-style spinning hex) */
+  return `<div class="analyze"><div class="scan-wrap">
+    <svg class="hex-spinner" viewBox="0 -4 64 64" aria-hidden="true">
+      <path class="hex-track" d="${NQ_HEX}"/>
+      <path class="hex-dash" d="${NQ_HEX}"/>
+    </svg>
+  </div><div class="scan-step">${esc(label)}</div></div>`;
 }
 
 /**
@@ -132,9 +167,9 @@ export function spinner(label = 'Loading…') {
  */
 export function getWalletStatusLabel(mode, isDemo = false) {
   if (!mode) return { label: 'No wallet', icon: ico.wallet, color: 'var(--muted)' };
-  if (isDemo) return { label: 'Demo wallet', icon: '🧪', color: 'var(--nim-deep)' };
-  if (mode === 'hub') return { label: 'Nimiq Hub', icon: '🔗', color: 'var(--primary-deep)' };
-  if (mode === 'nimiqpay') return { label: 'Nimiq Pay', icon: '⚡', color: 'var(--nim-deep)' };
+  if (isDemo) return { label: 'Demo wallet', icon: ico.flask, color: 'var(--nim-gold-deep, #8A6D00)' };
+  if (mode === 'hub') return { label: 'Nimiq Hub', icon: ico.link, color: 'var(--primary-deep)' };
+  if (mode === 'nimiqpay') return { label: 'Nimiq Pay', icon: ico.bolt, color: 'var(--nim-deep)' };
   return { label: mode, icon: ico.wallet, color: 'var(--muted)' };
 }
 

@@ -1118,19 +1118,19 @@ route('GET', '/p/:publicId', (ctx) => {
 <meta property="og:title" content="${escapeHtml(d.username)} — verified ${escapeHtml(d.skillName)}">
 <meta property="og:description" content="Score ${proof_score(d)}/100 · verified on PROOF. Don't just say you can build. Prove it.">
 <style>
-  body{margin:0;min-height:100vh;display:grid;place-items:center;background:linear-gradient(160deg,#141639,#3d2f8f 55%,#8f5bd6);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#fff;padding:24px}
-  .card{width:100%;max-width:420px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:28px;padding:34px 30px;backdrop-filter:blur(12px);box-shadow:0 30px 80px rgba(0,0,0,.45);text-align:center}
-  .badge{display:inline-flex;align-items:center;gap:8px;background:#12b76a;color:#04150c;font-weight:800;font-size:12px;letter-spacing:.14em;padding:7px 14px;border-radius:999px}
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(120% 120% at 100% 0%, rgba(233,178,19,.16), transparent 42%),linear-gradient(160deg,#1F2348,#2A2E66 55%,#5F4B8B);font-family:'Muli',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#fff;padding:24px}
+  .card{width:100%;max-width:420px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:34px 30px;backdrop-filter:blur(12px);box-shadow:0 30px 80px rgba(0,0,0,.45);text-align:center}
+  .badge{display:inline-flex;align-items:center;gap:8px;background:radial-gradient(100% 100% at bottom right,#41A38E,#21BCA5);color:#fff;font-weight:800;font-size:12px;letter-spacing:.14em;padding:7px 14px;border-radius:999px}
   h1{font-size:30px;margin:18px 0 2px;letter-spacing:-.02em}
-  .skill{color:#c9c4ff;font-weight:700;font-size:17px}
-  .score{font-size:64px;font-weight:900;margin:16px 0 2px;background:linear-gradient(90deg,#ffd28a,#ff9d43);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .skill{color:rgba(255,255,255,.75);font-weight:700;font-size:17px}
+  .score{font-size:64px;font-weight:900;margin:16px 0 2px;background:linear-gradient(90deg,#F8DE7A,#EC991C);-webkit-background-clip:text;background-clip:text;color:transparent}
   .of{color:rgba(255,255,255,.55);font-size:13px;letter-spacing:.2em;font-weight:700}
   .meta{display:flex;justify-content:center;gap:22px;margin-top:22px;color:rgba(255,255,255,.75);font-size:13px}
   .meta b{display:block;color:#fff;font-size:16px}
   .chal{margin-top:18px;padding:14px 16px;background:rgba(255,255,255,.06);border-radius:14px;font-size:13px;color:rgba(255,255,255,.8)}
   .foot{margin-top:26px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.5)}
   .logo{font-weight:900;letter-spacing:.22em;font-size:13px}
-  .logo span{color:#ffb15e}
+  .logo span{color:#E9B213}
 </style></head><body>
 <div class="card">
   <div class="badge">✓ PROOF VERIFIED</div>
@@ -1161,18 +1161,18 @@ route('GET', '/share/:file', (ctx) => {
 <svg xmlns="http://www.w3.org/2000/svg" width="600" height="336" viewBox="0 0 600 336">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#15173b"/><stop offset=".55" stop-color="#3d2f8f"/><stop offset="1" stop-color="#8f5bd6"/>
+      <stop offset="0" stop-color="#1F2348"/><stop offset=".55" stop-color="#2A2E66"/><stop offset="1" stop-color="#5F4B8B"/>
     </linearGradient>
     <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#ffd28a"/><stop offset="1" stop-color="#ff9d43"/>
+      <stop offset="0" stop-color="#F8DE7A"/><stop offset="1" stop-color="#EC991C"/>
     </linearGradient>
   </defs>
   <rect width="600" height="336" rx="28" fill="url(#bg)"/>
   <rect x="1" y="1" width="598" height="334" rx="27" fill="none" stroke="rgba(255,255,255,.18)"/>
-  <text x="40" y="58" fill="#ffffff" font-family="Arial,Helvetica,sans-serif" font-size="15" font-weight="bold" letter-spacing="6">PRO<span fill="#ffb15e">O</span>F</text>
-  <text x="560" y="58" text-anchor="end" fill="#7ef0b0" font-family="Arial" font-size="13" font-weight="bold">✓ VERIFIED SKILL</text>
+  <text x="40" y="58" fill="#ffffff" font-family="Arial,Helvetica,sans-serif" font-size="15" font-weight="bold" letter-spacing="6">PRO<span fill="#E9B213">O</span>F</text>
+  <text x="560" y="58" text-anchor="end" fill="#63D8C6" font-family="Arial" font-size="13" font-weight="bold">✓ VERIFIED SKILL</text>
   <text x="40" y="120" fill="#ffffff" font-family="Arial" font-size="30" font-weight="bold">${escapeHtml(d.avatar + ' ' + d.username)}</text>
-  <text x="40" y="156" fill="#c9c4ff" font-family="Arial" font-size="20" font-weight="bold">${escapeHtml(d.skillName.toUpperCase())}${d.tier ? ' · ' + escapeHtml(d.tier.toUpperCase()) : ''}</text>
+  <text x="40" y="156" fill="#C0BBE3" font-family="Arial" font-size="20" font-weight="bold">${escapeHtml(d.skillName.toUpperCase())}${d.tier ? ' · ' + escapeHtml(d.tier.toUpperCase()) : ''}</text>
   <text x="40" y="238" fill="url(#gold)" font-family="Arial" font-size="64" font-weight="900">${proof_score(d)}%</text>
   <text x="40" y="266" fill="rgba(255,255,255,.6)" font-family="Arial" font-size="13">${d.proofsPassed} PROOFS PASSED · ⭐ REPUTATION ${d.user ? d.user.reputation : '—'}</text>
   <text x="40" y="308" fill="rgba(255,255,255,.55)" font-family="Arial" font-size="13" font-style="italic">“Don’t just say you can build. Prove it.”</text>
