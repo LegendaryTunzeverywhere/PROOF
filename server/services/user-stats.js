@@ -16,7 +16,7 @@ const store = () => {
  * Get user stats (creates if doesn't exist)
  */
 export async function getUserStats(userId) {
-  let stats = store().get('user_stats', userId);
+  let stats = await store().get('user_stats', userId);
   
   if (!stats) {
     stats = {
@@ -31,8 +31,11 @@ export async function getUserStats(userId) {
       updatedAt: now()
     };
     
-    store().insert('user_stats', stats);
-    store().save();
+    const inserted = await store().insert('user_stats', stats);
+    await store().save();
+    
+    // Return the inserted object directly instead of refetching
+    return inserted || stats;
   }
   
   return stats;

@@ -61,7 +61,7 @@ export async function getUserBadges(userId) {
   
   return badges.map(b => ({
     ...b,
-    definition: BADGE_DEFINITIONS[b.badgeId] || { name: b.badgeId, emoji: '🏅', description: '', category: 'other' }
+    definition: BADGE_DEFINITIONS[b.badgeType] || { name: b.badgeType, emoji: '🏅', description: '', category: 'other' }
   }));
 }
 
@@ -93,18 +93,23 @@ export async function getBadgeProgress(userId) {
 /**
  * Award a badge to a user
  */
-export async function awardBadge(userId, badgeId) {
+export async function awardBadge(userId, badgeType) {
   // Check if already earned
-  const existing = await store().find('mastery_badges', (b) => b.userId === userId && b.badgeId === badgeId);
+  const existing = await store().find('mastery_badges', (b) => b.userId === userId && b.badgeType === badgeType);
   if (existing) return null;
   
-  const definition = BADGE_DEFINITIONS[badgeId];
+  const definition = BADGE_DEFINITIONS[badgeType];
   if (!definition) return null;
   
   const badge = {
     id: uid('badge'),
     userId,
-    badgeId,
+    skillSlug: '', // Required by schema
+    topicSlug: null, // Optional
+    badgeType,
+    level: 'bronze', // Default level
+    masteryScore: 0, // Default score
+    criteria: definition.description || '',
     earnedAt: now()
   };
   
@@ -282,15 +287,15 @@ export async function getNextBadges(userId, limit = 5) {
   const stats = await store().get('user_stats', userId);
   if (!stats) return [];
   
-  const earned = (await getUserBadges(userId)).map((b) => b.badgeId);
+  const earned = (await getUserBadges(userId)).map((b) => b.badgeType);
   const next = [];
   
   // Calculate progress towards unearned badges
-  const addIfNotEarned = (badgeId, progress, target) => {
-    if (!earned.includes(badgeId)) {
+  const addIfNotEarned = (badgeType, progress, target) => {
+    if (!earned.includes(badgeType)) {
       next.push({
-        ...BADGE_DEFINITIONS[badgeId],
-        badgeId,
+        ...BADGE_DEFINITIONS[badgeType],
+        badgeType,
         progress,
         target,
         percentage: Math.min(100, Math.round((progress / target) * 100))

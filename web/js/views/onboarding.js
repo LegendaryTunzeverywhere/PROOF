@@ -168,17 +168,12 @@ export async function walletEntry(root) {
     const btn = e.currentTarget;
     btn.disabled = true; btn.textContent = 'Creating demo wallet…';
     try {
-      console.log('[onboarding] Starting demo wallet connection...');
       await WalletService.connectDemo();
-      console.log('[onboarding] Demo wallet connected, calling refreshMe...');
       await refreshMe();
-      console.log('[onboarding] refreshMe done, app.me:', app.me);
       s.close(); toast('Demo wallet ready! 🧪 Full experience with simulated rewards.', 'ok', 3500);
-      console.log('[onboarding] Navigating to #/');
       location.hash = '#/';
     } catch (err) {
       btn.disabled = false; btn.innerHTML = `🧪 Explore with demo wallet`;
-      console.error('[onboarding] Demo wallet error:', err);
       const errorMsg = err?.message?.includes('BAD_NONCE')
         ? 'Sign-in request expired. Please try again.'
         : err?.message || 'Could not create demo wallet. Please check your connection and try again.';

@@ -4,7 +4,7 @@
  */
 
 import { api } from '../api.js';
-import { esc } from '../ui.js';
+import { esc, toast } from '../ui.js';
 
 // Active session state
 let activeSession = null;
@@ -290,7 +290,7 @@ export async function startSocraticSession(type, topicSlug, topicTitle, context 
     
   } catch (err) {
     console.error('Failed to start session:', err);
-    alert('Failed to start grilling session. Please try again.');
+    toast('Failed to start grilling session. Please try again.', 'bad');
   }
 }
 
@@ -330,7 +330,7 @@ window.socraticSubmitResponse = async function() {
     
   } catch (err) {
     console.error('Failed to submit response:', err);
-    alert('Failed to submit response. Please try again.');
+    toast('Failed to submit response. Please try again.', 'bad');
   }
 };
 
@@ -440,7 +440,7 @@ window.showSessionInsights = async function(sessionId) {
     
   } catch (err) {
     console.error('Failed to load insights:', err);
-    alert('Failed to load session insights.');
+    toast('Failed to load session insights.', 'bad');
   }
 };
 
