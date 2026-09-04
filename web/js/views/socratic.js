@@ -20,7 +20,13 @@ export async function socratic(screen) {
   }
   
   // Show recent sessions list
-  const { sessions } = await api.get('/api/socratic/sessions?limit=10');
+  let sessions = [];
+  try {
+    const res = await api.get('/api/socratic/sessions?limit=10');
+    sessions = Array.isArray(res?.sessions) ? res.sessions : [];
+  } catch (err) {
+    console.warn('Failed to load socratic sessions:', err);
+  }
   
   screen.innerHTML = `
     <div class="container socratic-hub">
@@ -110,8 +116,12 @@ function renderSessionCard(session) {
  * Active session UI - shows current question and response input
  */
 function renderActiveSession() {
+  if (!activeSession?.currentQuestion) {
+    return `<div class="container socratic-session"><p class="sub">No active question. Start a lesson to begin a grilling session.</p></div>`;
+  }
   const { currentQuestion, currentQuestionIndex, questions } = activeSession;
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+  const total = Math.max(questions?.length || activeSession.questionCount || 1, 1);
+  const progress = ((currentQuestionIndex + 1) / total) * 100;
   
   return `
     <div class="container socratic-session">
@@ -120,7 +130,7 @@ function renderActiveSession() {
           <div class="progress-fill" style="width: ${progress}%"></div>
         </div>
         <span class="progress-text">
-          Question ${currentQuestionIndex + 1} of ${questions.length}
+          Question ${currentQuestionIndex + 1} of ${total}
         </span>
       </div>
       
@@ -267,7 +277,8 @@ export async function startSocraticSession(type, topicSlug, topicTitle, context 
       sessionId: session.sessionId,
       currentQuestion: session.firstQuestion,
       currentQuestionIndex: 0,
-      questions: [session.firstQuestion], // Will be populated as we go
+      questions: session.firstQuestion ? [session.firstQuestion] : [],
+      questionCount: session.questionCount || 1,
       type,
       topicTitle
     };
@@ -343,7 +354,8 @@ window.socraticSkipQuestion = async function() {
   if (!activeSession) return;
   
   // Submit empty response to move forward
-  currentResponse = '[Skipped]';
+  // Must be ≥ 10 chars so the submit handler (and API min-length) accept it.
+  currentResponse = 'Skipped this question.';
   await window.socraticSubmitResponse();
 };
 
