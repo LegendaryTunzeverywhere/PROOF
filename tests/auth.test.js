@@ -6,7 +6,7 @@ import { generateKeyPair, nimiqMessageDigest, signBytes, verifyNimiqSignature } 
 test('wallet auth: real Ed25519 signature verifies; tampering fails', async (t) => {
   const tb = await testbed();
   const kp = generateKeyPair();
-  const { nonce, message } = tb.auth.issueNonce('NQTEST ADDRESS');
+  const { nonce, message } = await tb.auth.issueNonce('NQTEST ADDRESS');
   const sig = signBytes(kp.privateKey, nimiqMessageDigest(message));
   assert.equal(tb.auth.verifySignature({ mode: 'nimiq', publicKey: kp.publicKey, signature: sig, message }), true);
 
@@ -21,18 +21,18 @@ test('wallet auth: real Ed25519 signature verifies; tampering fails', async (t) 
 
 test('wallet auth: nonce is single-use and expires', async (t) => {
   const tb = await testbed();
-  const { nonce } = tb.auth.issueNonce('demo');
+  const { nonce } = await tb.auth.issueNonce('demo');
   assert.ok(await tb.auth.consumeNonce(nonce));
   assert.equal(await tb.auth.consumeNonce(nonce), null, 'nonce must be single-use');
 });
 
 test('wallet auth: sessions authenticate the right user only', async (t) => {
   const tb = await testbed();
-  const u = tb.users.createUser({});
-  const token = tb.auth.createSession(u.id);
-  const got = tb.auth.userFromToken(token);
+  const u = await tb.users.createUser({});
+  const token = await tb.auth.createSession(u.id);
+  const got = await tb.auth.userFromToken(token);
   assert.equal(got.id, u.id);
-  assert.equal(tb.auth.userFromToken('nonsense.token'), null);
+  assert.equal(await tb.auth.userFromToken('nonsense.token'), null);
 });
 
 test('nimiq message digest matches the documented prefix scheme', () => {

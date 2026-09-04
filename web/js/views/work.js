@@ -43,13 +43,15 @@ async function renderMarket(body) {
   const [tasksRes, myRes, walletRes] = await Promise.all([
     api.get('/api/market/tasks'), api.get('/api/market/my'), api.get('/api/wallet'),
   ]);
-  const tasks = tasksRes.tasks;
+  // Defensive: a malformed response must degrade to an empty state, never a crash.
+  const tasks = Array.isArray(tasksRes?.tasks) ? tasksRes.tasks : [];
+  const applied = Array.isArray(myRes?.applied) ? myRes.applied : [];
   body.innerHTML = `
     <div class="card" style="padding:14px 16px;background:linear-gradient(120deg,#211F52,#4A3AA8);color:#fff;border:0">
       <div class="row-between">
         <div><span class="eyebrow" style="color:rgba(255,255,255,.55)">YOUR BALANCE</span>
-          <div style="font-size:22px;font-weight:850;margin-top:2px">${fmtNim(walletRes.balanceNim, 2)} NIM</div></div>
-        <span class="chip chip-dark">${tasks.filter((t) => t.qualification.qualified).length} tasks open to you</span>
+          <div style="font-size:22px;font-weight:850;margin-top:2px">${fmtNim(walletRes?.balanceNim ?? 0, 2)} NIM</div></div>
+        <span class="chip chip-dark">${tasks.filter((t) => t.qualification?.qualified).length} tasks open to you</span>
       </div>
     </div>
 
@@ -58,8 +60,8 @@ async function renderMarket(body) {
         ${tasks.length ? tasks.map((t) => taskCard(t)).join('') : `<div class="card"><div class="empty"><span class="big">💼</span><b style="font-size:14px;display:block;margin-top:8px">No open tasks right now</b><span class="sub">New paid work appears here when clients post tasks. Your verified skills unlock opportunities.</span></div></div>`}
       </div></div>
 
-    ${myRes.applied.length ? `<div class="section"><div class="section-head"><span class="eyebrow">MY GIGS</span></div>
-      <div class="stack">${myRes.applied.map((a) => `
+    ${applied.length ? `<div class="section"><div class="section-head"><span class="eyebrow">MY GIGS</span></div>
+      <div class="stack">${applied.map((a) => `
         <div class="card" style="padding:14px 16px">
           <div class="row-between"><b style="font-size:14px">${esc(a.task?.title || 'Task')}</b>
             <span class="chip ${a.status === 'accepted' || a.status === 'completed' ? 'chip-ok' : a.status === 'pending' ? 'chip-primary' : 'chip-bad'}" style="padding:4px 10px">${esc(a.status)}</span></div>
@@ -133,6 +135,9 @@ async function renderTeach(body) {
   const [sessionsRes, mineRes] = await Promise.all([api.get('/api/teach/sessions'), api.get('/api/teach/mine')]);
   const verified = app.skills?.filter((s) => s.verified) || [];
   const canTeach = verified.some((s) => s.score >= 70);
+  // Defensive: malformed responses degrade to empty states, never crashes.
+  const allSessions = Array.isArray(sessionsRes?.sessions) ? sessionsRes.sessions : [];
+  const mySessions = Array.isArray(mineRes?.sessions) ? mineRes.sessions : [];
 
   body.innerHTML = `
     <div class="card" style="padding:16px">
@@ -146,11 +151,11 @@ async function renderTeach(body) {
         : `<div class="callout callout-warn mt12">🔒 Teaching unlocks when one of your skills is <b>verified at 70+</b>. ${verified.length ? `Closest: <b>${esc(verified[0].skillSlug.replace(/-/g, ' '))} ${verified[0].score}%</b>.` : 'Pass a proof checkpoint to get there.'} <a href="#/prove" style="font-weight:800">Prove a skill →</a></div>`}
     </div>
 
-    ${mineRes.sessions.length ? `<div class="section"><div class="section-head"><span class="eyebrow">YOUR SESSIONS</span></div>
-      <div class="stack">${mineRes.sessions.map((t) => sessionCard(t, true)).join('')}</div></div>` : ''}
+    ${mySessions.length ? `<div class="section"><div class="section-head"><span class="eyebrow">YOUR SESSIONS</span></div>
+      <div class="stack">${mySessions.map((t) => sessionCard(t, true)).join('')}</div></div>` : ''}
 
     <div class="section"><div class="section-head"><span class="eyebrow">BOOK A PROVEN TEACHER</span></div>
-      ${sessionsRes.sessions.length ? `<div class="stack">${sessionsRes.sessions.map((t) => sessionCard(t)).join('')}</div>` : `<div class="card"><div class="empty"><span class="big">🎓</span><b style="font-size:14px;display:block;margin-top:8px">No sessions available yet</b><span class="sub">Teachers with verified skills can create paid 1-on-1 sessions. Check back soon.</span></div></div>`}</div>`;
+      ${allSessions.length ? `<div class="stack">${allSessions.map((t) => sessionCard(t)).join('')}</div>` : `<div class="card"><div class="empty"><span class="big">🎓</span><b style="font-size:14px;display:block;margin-top:8px">No sessions available yet</b><span class="sub">Teachers with verified skills can create paid 1-on-1 sessions. Check back soon.</span></div></div>`}</div>`;
 
   body.querySelector('#createSession')?.addEventListener('click', () => createSessionSheet(body, verified));
   $$('[data-book]', body).forEach((b) => b.addEventListener('click', async () => {

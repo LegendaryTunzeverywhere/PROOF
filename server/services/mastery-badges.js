@@ -61,6 +61,7 @@ export async function getUserBadges(userId) {
   
   return badges.map(b => ({
     ...b,
+    badgeId: b.badgeType, // stable alias — API consumers/tests use badgeId
     definition: BADGE_DEFINITIONS[b.badgeType] || { name: b.badgeType, emoji: '🏅', description: '', category: 'other' }
   }));
 }
@@ -115,11 +116,11 @@ export async function awardBadge(userId, badgeType) {
   
   await store().insert('mastery_badges', badge);
   await store().save();
-  
+
   return {
     ...badge,
-    definition
-  };
+    badgeId: badgeType, // stable alias — API consumers/tests use badgeId
+    definition  };
 }
 
 /**
@@ -296,6 +297,7 @@ export async function getNextBadges(userId, limit = 5) {
       next.push({
         ...BADGE_DEFINITIONS[badgeType],
         badgeType,
+        badgeId: badgeType, // stable alias — API consumers/tests use badgeId
         progress,
         target,
         percentage: Math.min(100, Math.round((progress / target) * 100))

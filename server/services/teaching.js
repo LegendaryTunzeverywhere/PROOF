@@ -76,7 +76,7 @@ export class TeachingService {
     return filtered.map((s) => this.view(s));
   }
 
-  book(sessionId, user) {
+  async book(sessionId, user) {
     const s = this.store.get('teaching_sessions', sessionId);
     if (!s) throw Object.assign(new Error('Session not found.'), { code: 'NOT_FOUND', status: 404 });
     if (s.teacherId === user.id) throw Object.assign(new Error('This is your own session.'), { code: 'OWN_SESSION', status: 400 });
@@ -84,8 +84,8 @@ export class TeachingService {
     if (this.store.find('bookings', (b) => b.sessionId === sessionId && b.userId === user.id))
       throw Object.assign(new Error('You already booked this session.'), { code: 'ALREADY_BOOKED', status: 409 });
 
-    this.rewards.debit(user.id, s.priceLuna, 'session_payment', `Booked: ${s.title}`, { sessionId });
-    this.rewards.releaseEscrow({
+    await this.rewards.debit(user.id, s.priceLuna, 'session_payment', `Booked: ${s.title}`, { sessionId });
+    await this.rewards.releaseEscrow({
       fromUserId: user.id, toUserId: s.teacherId,
       amountNim: s.priceLuna / 100000, kind: 'session_payment',
       note: `Teaching: ${s.title}`, meta: { sessionId },

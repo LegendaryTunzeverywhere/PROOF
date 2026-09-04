@@ -143,6 +143,12 @@ export async function walletEntry(root) {
       toast('Nimiq Pay is mobile-only. On desktop, use Nimiq Hub for on-chain rewards.', '', 4200);
       return;
     }
+    // Not inside the Nimiq Pay webview → fail instantly with guidance
+    // instead of stalling through CDN imports that can never connect.
+    if (!env.inNimiqPay) {
+      toast('Open this app inside Nimiq Pay to connect your wallet (browser users: choose Nimiq Hub or the demo wallet).', '', 5000);
+      return;
+    }
     btn.disabled = true; btn.innerHTML = `⚡ Connecting to Nimiq Pay…`;
     try {
       await WalletService.connectNimiqPay();
@@ -153,12 +159,16 @@ export async function walletEntry(root) {
       btn.disabled = false; btn.innerHTML = `⚡ Connect Nimiq Pay`;
       const msg = String(err.message || err);
       let hint = '';
-      if (msg.includes('NIMIQ_') || msg.includes('timeout')) {
-        hint = 'Connection timed out. Make sure you\'re using the Nimiq Pay app.';
+      if (msg.includes('NIMIQ_SDK_UNAVAILABLE')) {
+        hint = 'The wallet SDK could not load. Check your connection and reopen PROOF from Nimiq Pay.';
+      } else if (msg.includes('NIMIQ_PAY_UNAVAILABLE')) {
+        hint = 'Nimiq Pay host not detected. Open PROOF inside the Nimiq Pay app.';
       } else if (msg.includes('NO_ACCOUNTS')) {
-        hint = 'No accounts found. Please create an account in Nimiq Pay first.';
-      } else if (msg.includes('UNAVAILABLE') || msg.includes('SCRIPT_LOAD')) {
-        hint = 'Nimiq Pay not available. Open PROOF inside the Nimiq Pay mobile app.';
+        hint = 'No accounts found. Create an account in Nimiq Pay first, then retry.';
+      } else if (msg.includes('TIMEOUT') || msg.includes('timeout')) {
+        hint = 'The wallet did not respond. Reopen PROOF inside Nimiq Pay and try again.';
+      } else if (msg.includes('BAD_SIGNATURE') || msg.includes('MALFORMED')) {
+        hint = 'The wallet returned an unexpected response. Please try again.';
       }
       toast('Nimiq Pay connection failed. ' + hint, 'bad', 4500);
     }
