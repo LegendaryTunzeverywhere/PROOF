@@ -7,8 +7,8 @@ const challenge = () => ({
   evaluator: { type: 'html', config: { required: ['nav', 'article', 'footer', 'h1', 'img'], needViewport: true, needLang: true, needAlt: true, minNavLinks: 3, minMediaQueries: 1, wantFluidUnits: true, minCards: 3, minCssProps: 12 } },
 });
 
-function setup(tb) {
-  const user = tb.users.createUser({});
+async function setup(tb) {
+  const user = await tb.users.createUser({});
   const ch = tb.challenges.createFromTemplate({ skillSlug: 'web-development', template: challenge() });
   const { attempt } = tb.challenges.startAttempt(user.id, ch.id);
   return { user, ch, attempt };
@@ -16,7 +16,7 @@ function setup(tb) {
 
 test('typing verification: submissions without telemetry are rejected', async (t) => {
   const tb = await testbed();
-  const { user, attempt } = setup(tb);
+  const { user, attempt } = await setup(tb);
   await assert.rejects(
     () => tb.challenges.submitAttempt(user.id, attempt.id, { code: goodHtml }),
     (e) => e.code === 'TYPING_REQUIRED',
@@ -27,7 +27,7 @@ test('typing verification: submissions without telemetry are rejected', async (t
 
 test('typing verification: pasted submissions are rejected outright', async (t) => {
   const tb = await testbed();
-  const { user, attempt } = setup(tb);
+  const { user, attempt } = await setup(tb);
   await assert.rejects(
     () => tb.challenges.submitAttempt(user.id, attempt.id, { code: goodHtml, meta: { effort: 999, pastes: 2, ms: 300000 } }),
     (e) => e.code === 'PASTE_DETECTED',
@@ -37,7 +37,7 @@ test('typing verification: pasted submissions are rejected outright', async (t) 
 
 test('typing verification: implausible typing (too fast, too few edits) cannot pass or earn', async (t) => {
   const tb = await testbed();
-  const { user, attempt } = setup(tb);
+  const { user, attempt } = await setup(tb);
   // high-quality content, but "typed" instantly with 2 keystrokes → machine-written
   // Now throws immediately instead of allowing evaluation
   try {
@@ -56,7 +56,7 @@ test('typing verification: implausible typing (too fast, too few edits) cannot p
 
 test('typing verification: genuine hand-typed work is unaffected', async (t) => {
   const tb = await testbed();
-  const { user, attempt } = setup(tb);
+  const { user, attempt } = await setup(tb);
   const r = await tb.challenges.submitAttempt(user.id, attempt.id, { code: goodHtml, meta: typedMeta(goodHtml) });
   assert.equal(r.evaluation.pass, true);
   assert.equal(r.attempt.typed, true);
@@ -65,7 +65,7 @@ test('typing verification: genuine hand-typed work is unaffected', async (t) => 
 
 test('typing verification: fabricated telemetry is still bounded by plausibility floors', async (t) => {
   const tb = await testbed();
-  const { user, attempt } = setup(tb);
+  const { user, attempt } = await setup(tb);
   // a cheating client claims big effort/ms but the ratio vs content still must hold —
   // here it does, so it passes (documented limitation: fully custom clients can fake telemetry)
   const r = await tb.challenges.submitAttempt(user.id, attempt.id, { code: goodHtml, meta: { effort: 10 ** 6, pastes: 0, ms: 10 ** 9 } });
@@ -74,7 +74,7 @@ test('typing verification: fabricated telemetry is still bounded by plausibility
 
 test('typing verification: malformed telemetry is treated as missing', async (t) => {
   const tb = await testbed();
-  const { user, attempt } = setup(tb);
+  const { user, attempt } = await setup(tb);
   await assert.rejects(
     () => tb.challenges.submitAttempt(user.id, attempt.id, { code: goodHtml, meta: { effort: 'lots', pastes: -3, ms: {} } }),
     (e) => e.code === 'TYPING_REQUIRED',
@@ -86,7 +86,7 @@ test('typing verification: can be disabled via config (load testing)', async (t)
   const prev = tb.config.economy.typingVerification;
   tb.config.economy.typingVerification = false;
   try {
-    const { user, attempt } = setup(tb);
+    const { user, attempt } = await setup(tb);
     const r = await tb.challenges.submitAttempt(user.id, attempt.id, { code: goodHtml });
     assert.equal(r.evaluation.pass, true);
     assert.equal(r.reward.granted, true, 'rewards flow again when verification is off');

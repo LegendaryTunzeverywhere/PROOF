@@ -120,16 +120,32 @@ export function bytesToHex(value) {
   throw new Error('UNSUPPORTED_BYTE_FORMAT');
 }
 
-/** Full environment detection — drives the connect sheet's option order. */
+/**
+ * Full environment detection — drives the connect sheet's option order.
+ *
+ * Ground truth from @nimiq/mini-app-sdk (v0.1.0): inside Nimiq Pay the host
+ * injects `window.nimiq` (the provider) and/or `window.nimiqPay` (a read-only
+ * host context: `{ language?, requestDeviceIdentifier }`). There is NO
+ * `nimiqPay.active` flag and no `NimiqMiniApp` global — checking those was why
+ * detection always failed inside the real app.
+ */
 const browserWindow = typeof window === 'undefined' ? globalThis : window;
 const windowWithMiniApp = /** @type {Window & typeof globalThis & {
-  nimiqPay?: { active?: boolean },
-  NimiqMiniApp?: unknown,
+  nimiq?: any,
+  nimiqPay?: { language?: string } & Record<string, any>,
   HubApi?: any,
 }} */ (browserWindow);
 
+function nimiqPayHostDetected() {
+  // Provider already injected → definitely inside Nimiq Pay.
+  if (windowWithMiniApp.nimiq) return true;
+  // Host context object present (has language / requestDeviceIdentifier, no .active flag).
+  const ctx = windowWithMiniApp.nimiqPay;
+  return !!ctx && typeof ctx === 'object';
+}
+
 export function environment() {
-  const inNimiqPay = !!(windowWithMiniApp.nimiqPay?.active || windowWithMiniApp.NimiqMiniApp);
+  const inNimiqPay = nimiqPayHostDetected();
   let desktop = false;
   try { desktop = window.matchMedia('(min-width: 1024px)').matches; } catch { /* no matchMedia */ }
   return {
@@ -170,27 +186,36 @@ async function getHubApi() {
 /** Detect the Nimiq Pay injected environment / load the official SDK. */
 async function loadNimiqSdk() {
   if (state.nimiq) return state.nimiq;
-  // The Nimiq Pay host may expose the provider directly:
-  if (windowWithMiniApp.nimiqPay?.active || windowWithMiniApp.NimiqMiniApp) {
+  // Fast path — the host injects the provider directly (this is what the
+  // SDK's init() resolves to anyway). Zero network, works even if the CDN
+  // is unreachable inside the webview. This was the connect-killer before.
+  if (windowWithMiniApp.nimiq) {
+    state.nimiq = windowWithMiniApp.nimiq;
+    return state.nimiq;
+  }
+  // Inside Nimiq Pay but the provider isn't injected yet → load the official
+  // SDK, whose init() polls for window.nimiq (default timeout 10s).
+  const inHost = nimiqPayHostDetected();
+  if (inHost) {
     for (const url of SDK_CANDIDATES) {
       try {
         console.debug('wallet: attempting to import Nimiq SDK from', url);
-        const mod = await withTimeout(import(/* @vite-ignore */ url), 6000, 'NIMIQ_SDK_IMPORT_TIMEOUT');
-        if (mod?.init) { state.nimiq = await withTimeout(mod.init(), 8000, 'NIMIQ_SDK_INIT_TIMEOUT'); return state.nimiq; }
+        const mod = await withTimeout(import(url), 8000, 'NIMIQ_SDK_IMPORT_TIMEOUT');
+        if (mod?.init) { state.nimiq = await withTimeout(mod.init({ timeout: 10000 }), 12000, 'NIMIQ_SDK_INIT_TIMEOUT'); return state.nimiq; }
       } catch (e) { console.warn('wallet: Nimiq SDK candidate failed:', e); }
     }
+    throw new Error('NIMIQ_SDK_UNAVAILABLE');
   }
-  // Outside Nimiq Pay, trying the CDN still lets embedded hosts work;
-    // It is intentionally not a fallback to demo; callers choose demo explicitly.
-  for (const url of SDK_CANDIDATES) {
-    try {
-      console.debug('wallet: importing Nimiq SDK (fallback) from', url);
-      const mod = await withTimeout(import(/* @vite-ignore */ url), 5000, 'NIMIQ_SDK_IMPORT_TIMEOUT');
-      if (mod?.init) { state.nimiq = await withTimeout(mod.init(), 6000, 'NIMIQ_SDK_INIT_TIMEOUT'); return state.nimiq; }
-    } catch (e) { console.warn('wallet: Nimiq SDK fallback candidate failed:', e); }
-  }
-  console.error('wallet: Nimiq Pay unavailable after attempts');
+  // Outside Nimiq Pay (regular browser): fail fast with clear guidance
+  // instead of stalling ~15s through CDN imports that can never connect.
   throw new Error('NIMIQ_PAY_UNAVAILABLE');
+}
+
+/** The provider can also be an ErrorResponse object — normalize to strings or fail loudly. */
+function assertNotErrorResponse(result, what) {
+  if (result && typeof result === 'object' && !Array.isArray(result) && result.error != null)
+    throw Object.assign(new Error(String(result.error?.message || result.error || 'WALLET_ERROR')), { code: 'WALLET_ERROR', source: what });
+  return result;
 }
 
 export class WalletServiceClass {
@@ -223,23 +248,27 @@ export class WalletServiceClass {
   /** Connect via the real Nimiq Pay provider (official SDK). */
   async connectNimiqPay() {
     const nimiq = await loadNimiqSdk();
-    const accounts = await withTimeout(
-      nimiq.listAccounts(),
-      10000,
-      'NIMIQ_ACCOUNTS_TIMEOUT'
+    const accounts = assertNotErrorResponse(
+      await withTimeout(nimiq.listAccounts(), 15000, 'NIMIQ_ACCOUNTS_TIMEOUT'),
+      'listAccounts'
     );
-    if (!accounts?.length) throw new Error('NO_ACCOUNTS');
-    const address = accounts[0];
+    // Provider contract: string[] of user-friendly addresses — reject anything else.
+    const address = Array.isArray(accounts)
+      ? accounts.find((a) => typeof a === 'string' && a.trim())
+      : null;
+    if (!address) throw new Error('NO_ACCOUNTS');
     await this.#authenticate('nimiqpay', {
       address,
       /** @param {string} m */
       signMessage: async (m) => {
-        const result = await withTimeout(
-          nimiq.sign(m),
-          10000,
-          'NIMIQ_SIGN_TIMEOUT'
+        const result = assertNotErrorResponse(
+          await withTimeout(nimiq.sign(m), 15000, 'NIMIQ_SIGN_TIMEOUT'),
+          'sign'
         );
-        return result;
+        if (!result?.publicKey || !result?.signature) throw new Error('MALFORMED_SIGNATURE_RESULT');
+        // SignatureResult is hex strings per the SDK — bytesToHex passes strings
+        // through unchanged and safely hex-encodes byte arrays from other hosts.
+        return { publicKey: bytesToHex(result.publicKey), signature: bytesToHex(result.signature) };
       },
     });
     state.mode = 'nimiqpay';
@@ -359,10 +388,10 @@ export class WalletServiceClass {
       return result.hash;
     }
     if (state.mode !== 'nimiqpay' || !state.nimiq) throw new Error('WALLET_NOT_CONNECTED');
-    const hash = note
+    const tx = note
       ? await state.nimiq.sendBasicTransactionWithData({ recipient, value, data: note })
       : await state.nimiq.sendBasicTransaction({ recipient, value });
-    return hash;
+    return assertNotErrorResponse(tx, 'sendBasicTransaction');
   }
 
   /**
@@ -385,7 +414,7 @@ export class WalletServiceClass {
 
   diagnostics() {
     const env = environment();
-    return { environment: env.kind, hubAvailable: !!(windowWithMiniApp.HubApi || hubApiInstance), nimiqPayDetected: env.inNimiqPay, sdkLoaded: !!state.nimiq, provider: state.mode, address: state.address, authenticated: !!state.sessionUser };
+    return { environment: env.kind, hubAvailable: !!(windowWithMiniApp.HubApi || hubApiInstance), nimiqPayDetected: env.inNimiqPay, providerInjected: !!windowWithMiniApp.nimiq, sdkLoaded: !!state.nimiq, provider: state.mode, address: state.address, authenticated: !!state.sessionUser };
   }
 }
 

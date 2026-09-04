@@ -4,9 +4,34 @@
 **Environment:** Node v22.22.3 · npm 10.9.8 · default config (no `.env` — local ProofEngine, demo ledger)
 **Scope:** server boot → unit tests (`npm test`) → end-to-end smoke (`npm run smoke`) → live probe of every major API route → `npm run typecheck`
 
+> ## ✅ UPDATE — ALL FIXES APPLIED (same day)
+>
+> Every finding below was fixed, verified, and re-tested. Current state:
+>
+> | Gate | Before | After |
+> |---|---|---|
+> | Server boots (`npm start`, no `npm install`) | ❌ ERR_MODULE_NOT_FOUND | ✅ boots clean (lazy Supabase import) |
+> | Unit tests | ❌ 19/43 (24 fail) | ✅ **43/43 pass** |
+> | Smoke test | ❌ crash at step 9 | ✅ **19/19 checks pass** |
+> | `/api/market/tasks`, `/api/market/tasks/:id`, `/api/teach/sessions`, `/api/teach/mine` | ❌ `{}` | ✅ real data |
+> | `qualification.opportunities` in submit response | ❌ `{}` | ✅ `2 tasks` |
+> | `path.rewardNim` in `/api/paths` | ❌ missing | ✅ `14 NIM pool` |
+> | Daily anti-farming caps (NIM + attempts) | ❌ **silently bypassed** (reward exploit) | ✅ enforced, unit-tested |
+> | Nimiq Pay connect | ❌ wrong host detection + CDN-dependent | ✅ detects `window.nimiq`/`window.nimiqPay` per real SDK v0.1.0, zero-network fast path, fail-fast outside app |
+> | `npm run typecheck` | ✅ clean | ✅ clean |
+>
+> Additional fixes shipped in the same pass:
+> - **`POST /api/market/tasks` / `:id/complete`, `POST /api/teach/sessions/:id/book`, `POST /api/tips`, `POST /api/wallet/payout`** — all money routes now await their async service calls (escrow/release/tip/payout previously serialized to `{}` or skipped ledger writes).
+> - **Dev guard in `json()`** — an un-awaited Promise in a response field now logs a loud BUG warning server-side instead of silently serializing to `{}`.
+> - **Badge API contract** — `awardBadge`/`getUserBadges`/`getNextBadges` now expose `badgeId` (alias of `badgeType`) as the regression test specified.
+> - **UI/UX layer (mobile + desktop)**: iOS input-zoom eliminated (≥16px on touch devices incl. the proof-typing editor), tap-delay/tap-highlight removed, toasts clear notches in landscape, sheets scroll & fit short screens + become centered dialogs ≥1024px, `.truncate`/`.wrap-any` utilities for addresses/hashes, nav de-crowding ≤360px, landscape-phone nav row layout, print styles for public proof pages, defensive rendering in Work/Teach views (malformed API → empty state, never a white screen), cache-busted assets (`?v=9`).
+> - **Connect-sheet UX**: outside Nimiq Pay the button now responds instantly with guidance (was a ~15 s CDN stall); inside the app it connects via the injected provider with no network dependency; error hints cover every new error code.
+> - **`tests/smoke.js`**: configurable `SMOKE_BASE`, corrected port docs, graceful failure instead of a TypeError crash.
+> - **README**: zero-dependency claim now accurate; test count corrected (43).
+
 ---
 
-## Verdict
+## Verdict (original run, pre-fix)
 
 | Gate | Result |
 |---|---|
@@ -56,6 +81,8 @@ The Supabase migration made service methods `async`; several route handlers in `
 
 ### 🔴 B4 — Unit test suite: 24 / 43 failing (stale tests, not engine bugs)
 
+> **Post-fix note:** B4's sweep also uncovered a **production reward exploit** (see B5 below) — the failing "daily caps stop farming" test was pointing at a real server bug, not test drift.
+
 Every failing suite calls the now-`async` service methods **without `await`**, so e.g. `tb.users.createUser({})` returns a Promise; `user.id` → `undefined`; downstream lookups return `null` → `TypeError: Cannot read properties of null (reading 'proofsAttempted')`.
 
 | Suite | Fail | Examples of missing await |
@@ -102,17 +129,20 @@ Every failing suite calls the now-`async` service methods **without `await`**, s
 
 ## Prioritized fix list
 
-| # | Fix | File(s) | Effort |
-|---|---|---|---|
-| 1 | `await` the four broken route handlers (B2) | `server/index.js:638,642,667,675` | ~15 min |
-| 2 | `await this.qualificationSnapshot(userId)` (B3) | `server/services/challenges.js:292` | 2 min |
-| 3 | Sweep `await` through failing tests (B4) | `tests/*.test.js` | ~1 h |
-| 4 | Lazy-import Supabase store so `npm start` works with zero deps (B1) | `server/index.js:12`, `server/supabase-store.js` | ~30 min |
-| 5 | Harden smoke.js (graceful failure, fix port comment, `BASE` from `env.PORT` or 3000) | `tests/smoke.js:4,84` | ~15 min |
-| 6 | Restore `path.rewardNim` in API response (M2) | `server/services/learning-goals.js` / route | ~15 min |
-| 7 | README test-count + zero-deps claims; sweep stale `data/test-*` | `README.md`, `tests/helpers.js` | ~15 min |
+| # | Fix | File(s) | Effort | Status |
+|---|---|---|---|---|
+| 1 | `await` the four broken route handlers (B2) | `server/index.js` | ~15 min | ✅ done |
+| 2 | `await this.qualificationSnapshot(userId)` (B3) | `server/services/challenges.js` | 2 min | ✅ done |
+| 3 | Sweep `await` through failing tests (B4) | `tests/*.test.js` | ~1 h | ✅ done (43/43) |
+| 4 | Lazy-import Supabase store so `npm start` works with zero deps (B1) | `server/index.js` | ~30 min | ✅ done |
+| 5 | Harden smoke.js (graceful failure, SMOKE_BASE, port docs) | `tests/smoke.js` | ~15 min | ✅ done |
+| 6 | Restore `path.rewardNim` in API response (M2) | `server/index.js pathView()` | ~15 min | ✅ done |
+| 7 | README test-count + zero-deps claims | `README.md` | ~15 min | ✅ done |
+| 8 | **B5 (found during fixes): daily reward caps bypassed** — `rewardForAttempt` called async `dailyRewardTotals` without await → `undefined >= cap` → unlimited farming. All of `rewards.js` made await-safe; every caller (challenges/marketplace/teaching/routes) awaits. | `server/services/rewards.js` + callers | ~1 h | ✅ done |
+| 9 | **Wallet (found during fixes): Nimiq Pay connect** — detection checked `nimiqPay.active`/`NimiqMiniApp` (neither exists in the real host per SDK v0.1.0 — it injects `window.nimiq` + a `nimiqPay` context with no `.active`), and required a CDN SDK import before touching the injected provider. Now: provider fast-path, correct host detection, ErrorResponse validation, hex normalization, fail-fast outside the app, better connect-sheet UX. | `web/js/wallet.js`, `web/js/views/onboarding.js` | ~1 h | ✅ done |
+| 10 | **UI/UX layer** — iOS input zoom, tap delay, notch/landscape safe areas, sheet behavior on short/desktop screens, truncation utilities, nav ≤360px, defensive Work/Teach rendering, print styles, asset cache-bust. | `web/styles.css`, `web/js/views/work.js`, `web/js/views/learn.js`, `web/index.html` | ~1.5 h | ✅ done |
 
-**Repro:**
+**Repro (pre-fix):**
 
 ```bash
 npm install                 # required today (see B1)

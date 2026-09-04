@@ -228,7 +228,7 @@ function pathCard(p) {
   return `<div class="card card-click" data-path="${p.id}" style="padding:18px">
     <div class="row-between" style="margin-bottom:10px">
       <span class="chip chip-primary">${p.skillEmoji} ${esc(p.skillName)}</span>
-      <span class="tiny" style="white-space:nowrap;opacity:.7">${p.days.length} days · ${fmtNim(p.rewardNim)} NIM</span>
+      <span class="tiny" style="white-space:nowrap;opacity:.7">${p.days.length} days · ${fmtNim(p.rewardNim ?? 0)} NIM</span>
     </div>
     <b style="display:block;font-size:16px;font-weight:700;line-height:1.3">${esc(p.title)}</b>
     <div class="row mt12" style="gap:10px;align-items:center">
@@ -246,7 +246,7 @@ export async function pathScreen(root, { id }) {
     </div>
     <div class="row-between mt8">
       <div></div>
-      <span class="chip chip-nim">${ico.coin} ${fmtNim(p.rewardNim)} NIM in this path</span>
+      <span class="chip chip-nim">${ico.coin} ${fmtNim(p.rewardNim ?? 0)} NIM in this path</span>
     </div>
 
     <div class="card card-hero mt16" style="padding:20px">
