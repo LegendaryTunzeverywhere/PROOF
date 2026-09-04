@@ -13,13 +13,48 @@ export const llmEnabled = () =>
   (config.ai.provider === 'gemini' || config.ai.provider === 'auto') &&
   !!config.ai.apiKey;
 
+const FALLBACK_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-001',
+  'gemini-flash-latest',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-latest',
+];
+
+function modelCandidates() {
+  const primary = config.ai.model;
+  const rest = FALLBACK_MODELS.filter((m) => m !== primary);
+  return primary ? [primary, ...rest] : rest;
+}
+
 export async function llmJson({ system, prompt, maxTokens = 900 }) {
   if (!llmEnabled()) throw new Error('LLM_NOT_CONFIGURED');
+  const models = modelCandidates();
+  let lastErr;
+  for (const model of models) {
+    try {
+      return await callGemini({ system, prompt, maxTokens, model });
+    } catch (e) {
+      lastErr = e;
+      const msg = String(e?.message || e);
+      // 404 = retired/unknown model id — try the next candidate.
+      if (/GEMINI_HTTP_404|not found|NOT_FOUND/i.test(msg)) {
+        console.warn(`[gemini] model ${model} 404 — trying fallback`);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastErr || new Error('GEMINI_NO_MODEL');
+}
+
+async function callGemini({ system, prompt, maxTokens, model }) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
     const base = config.ai.baseUrl.replace(/\/$/, '');
-    const url = `${base}/models/${encodeURIComponent(config.ai.model)}:generateContent?key=${encodeURIComponent(config.ai.apiKey)}`;
+    const url = `${base}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(config.ai.apiKey)}`;
     const res = await fetch(url, {
       method: 'POST',
       signal: ctrl.signal,
