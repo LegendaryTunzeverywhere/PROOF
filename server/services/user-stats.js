@@ -77,14 +77,14 @@ export async function updateStreak(userId) {
   stats.lastActivityDate = today;
   stats.updatedAt = now();
   
-  store().update('user_stats', userId, {
+  await store().update('user_stats', userId, {
     currentStreak: stats.currentStreak,
     longestStreak: stats.longestStreak,
     lastActivityDate: stats.lastActivityDate,
     updatedAt: stats.updatedAt
   });
   
-  store().save();
+  await store().save();
   
   // Check for streak achievements
   await checkStreakAchievements(userId, stats.currentStreak);
@@ -98,12 +98,12 @@ export async function updateStreak(userId) {
 export async function addLearningTime(userId, minutes) {
   const stats = await getUserStats(userId);
   
-  store().update('user_stats', userId, {
+  await store().update('user_stats', userId, {
     totalLearningMinutes: stats.totalLearningMinutes + minutes,
     updatedAt: now()
   });
   
-  store().save();
+  await store().save();
   
   return { ...stats, totalLearningMinutes: stats.totalLearningMinutes + minutes };
 }
@@ -115,12 +115,12 @@ export async function incrementLessons(userId) {
   await updateStreak(userId); // Update streak on any learning activity
   
   const stats = await getUserStats(userId);
-  store().update('user_stats', userId, {
+  await store().update('user_stats', userId, {
     totalLessonsCompleted: stats.totalLessonsCompleted + 1,
     updatedAt: now()
   });
   
-  store().save();
+  await store().save();
 }
 
 /**
@@ -130,12 +130,12 @@ export async function incrementPractices(userId) {
   await updateStreak(userId);
   
   const stats = await getUserStats(userId);
-  store().update('user_stats', userId, {
+  await store().update('user_stats', userId, {
     totalPracticesCompleted: stats.totalPracticesCompleted + 1,
     updatedAt: now()
   });
   
-  store().save();
+  await store().save();
 }
 
 /**
@@ -145,12 +145,12 @@ export async function incrementReviews(userId) {
   await updateStreak(userId);
   
   const stats = await getUserStats(userId);
-  store().update('user_stats', userId, {
+  await store().update('user_stats', userId, {
     totalReviewsDone: stats.totalReviewsDone + 1,
     updatedAt: now()
   });
   
-  store().save();
+  await store().save();
 }
 
 /**
@@ -160,7 +160,7 @@ export async function recordSession(userId, { topicSlug, skillSlug, sessionType,
   const sessionId = uid('sess');
   const nowTs = now();
   
-  store().insert('learning_sessions', {
+  await store().insert('learning_sessions', {
     id: sessionId,
     userId,
     topicSlug,
@@ -173,7 +173,7 @@ export async function recordSession(userId, { topicSlug, skillSlug, sessionType,
     createdAt: nowTs
   });
   
-  store().save();
+  await store().save();
   
   // Update streak
   await updateStreak(userId);
@@ -190,7 +190,8 @@ export async function recordSession(userId, { topicSlug, skillSlug, sessionType,
  * Get recent learning sessions
  */
 export async function getRecentSessions(userId, limit = 10) {
-  const sessions = store().filter('learning_sessions', (s) => s.userId === userId)
+  const all = await store().filter('learning_sessions', (s) => s.userId === userId);
+  const sessions = all
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, limit);
   
@@ -203,7 +204,7 @@ export async function getRecentSessions(userId, limit = 10) {
 export async function getActivityCalendar(userId, days = 365) {
   const cutoff = now() - (days * 86400000);
   
-  const sessions = store().filter('learning_sessions', (s) => s.userId === userId && s.createdAt >= cutoff);
+  const sessions = await store().filter('learning_sessions', (s) => s.userId === userId && s.createdAt >= cutoff);
   
   // Group by date
   const byDate = {};
@@ -235,7 +236,7 @@ async function checkStreakAchievements(userId, currentStreak) {
     if (currentStreak === milestone.streak) {
       // Award achievement via notification
       const notifId = uid('notif');
-      store().insert('notifications', {
+      await store().insert('notifications', {
         id: notifId,
         userId,
         type: 'achievement',
@@ -246,7 +247,7 @@ async function checkStreakAchievements(userId, currentStreak) {
         read: false,
         createdAt: now()
       });
-      store().save();
+      await store().save();
     }
   }
 }
