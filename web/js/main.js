@@ -5,6 +5,7 @@ import { api } from './api.js';
 import { app, refreshMe } from './state.js';
 import { WalletService } from './wallet.js';
 import { esc, $, ico } from './ui.js';
+import './runtime-fixes.js';
 import * as onboarding from './views/onboarding.js';
 import * as home from './views/home.js';
 import * as learn from './views/learn.js';
@@ -39,47 +40,37 @@ const ROUTES = [
 ];
 
 const NAV = [
-  { href: '#/', ico: 'home', label: 'Home', match: ['', 'onboarding'] },
-  { href: '#/learn', ico: 'learn', label: 'Learn', match: ['learn'] },
-  { href: '#/reviews', ico: 'clock', label: 'Review', match: ['reviews'] },
-  { href: '#/prove', ico: 'prove', label: 'Prove', match: ['prove', 'daily'] },
-  { href: '#/profile', ico: 'profile', label: 'You', match: ['profile'] },
+  { href: '#/', ico: 'home', label: 'Home', match: ['', 'onboarding'], mobile: true },
+  { href: '#/learn', ico: 'learn', label: 'Learn', match: ['learn'], mobile: true },
+  { href: '#/reviews', ico: 'clock', label: 'Review', match: ['reviews'], mobile: true },
+  { href: '#/prove', ico: 'prove', label: 'Prove', match: ['prove', 'daily'], mobile: true },
+  { href: '#/work', ico: 'work', label: 'Work', match: ['work'], mobile: false },
+  { href: '#/profile', ico: 'profile', label: 'You', match: ['profile'], mobile: true },
 ];
 
 const appEl = () => document.getElementById('app');
 let navRendered = false;
 let reviewsDueCount = 0;
 
-// Fetch reviews due count periodically
 async function updateReviewsCount() {
   if (!app.me) return;
   try {
     const res = await api.get('/api/reviews/stats');
     reviewsDueCount = res.stats.dueToday || 0;
     updateNavBadge();
-  } catch (e) {
-    // Silently fail - not critical
-  }
+  } catch (e) { /* non-critical */ }
 }
 
 function updateNavBadge() {
   const nav = document.getElementById('bottomNav');
   if (!nav) return;
-  
   const reviewLink = nav.querySelector('a[href="#/reviews"]');
   if (!reviewLink) return;
-  
   let badge = reviewLink.querySelector('.nav-badge');
   if (reviewsDueCount > 0) {
-    if (!badge) {
-      badge = document.createElement('span');
-      badge.className = 'nav-badge';
-      reviewLink.appendChild(badge);
-    }
+    if (!badge) { badge = document.createElement('span'); badge.className = 'nav-badge'; reviewLink.appendChild(badge); }
     badge.textContent = reviewsDueCount > 9 ? '9+' : reviewsDueCount;
-  } else if (badge) {
-    badge.remove();
-  }
+  } else if (badge) badge.remove();
 }
 
 function renderNav(activeKey) {
@@ -87,14 +78,13 @@ function renderNav(activeKey) {
     const nav = document.createElement('nav');
     nav.className = 'nav';
     nav.id = 'bottomNav';
+    nav.setAttribute('aria-label', 'Primary navigation');
     nav.innerHTML = NAV.map((n) =>
-      `<a href="${n.href}" data-key="${n.match[0]}"><span class="nav-ico" data-ico="${n.ico}"></span>${n.label}</a>`).join('');
+      `<a href="${n.href}" data-key="${n.match[0]}" data-mobile="${n.mobile}" aria-label="${n.label}"><span class="nav-ico" data-ico="${n.ico}"></span><span class="nav-label">${n.label}</span></a>`
+    ).join('');
     appEl().after(nav);
     navRendered = true;
-    
-    // Initial reviews count
     updateReviewsCount();
-    // Update every 5 minutes
     setInterval(updateReviewsCount, 300000);
   }
   const nav = document.getElementById('bottomNav');
@@ -105,7 +95,6 @@ function renderNav(activeKey) {
     const span = a.querySelector('.nav-ico');
     if (span && !span.dataset.done) { span.innerHTML = ico[item.ico]; span.dataset.done = '1'; }
   });
-  
   updateNavBadge();
 }
 
@@ -127,25 +116,16 @@ async function router() {
       else if (pp[i] !== segs[i]) { ok = false; break; }
     }
     if (!ok) continue;
-
     if (!opts.public && !app.me) { location.hash = '#/onboarding'; return; }
     const activeKey = pp[0] || '';
     if (!opts.public) renderNav(activeKey); else document.getElementById('bottomNav')?.remove(), navRendered = false;
     const screen = document.createElement('div');
     screen.className = 'screen';
-    screen.innerHTML = `<div class="pad" style="padding-top:max(16px, env(safe-area-inset-top))">
-      <div class="skeleton" style="height:120px;border-radius:20px"></div>
-      <div class="skeleton mt12" style="height:84px;border-radius:16px"></div>
-      <div class="skeleton mt12" style="height:84px;border-radius:16px"></div>
-    </div>`;
+    screen.innerHTML = `<div class="pad" style="padding-top:max(16px, env(safe-area-inset-top))"><div class="skeleton" style="height:120px;border-radius:20px"></div><div class="skeleton mt12" style="height:84px;border-radius:16px"></div><div class="skeleton mt12" style="height:84px;border-radius:16px"></div></div>`;
     appEl().replaceChildren(screen);
-    try {
-      await view(screen, params);
-    } catch (e) {
-      screen.innerHTML = `<div class="pad" style="padding-top:60px;text-align:center">
-        <div style="font-size:40px">🌧️</div><h2 class="h1 mt8">Something hiccuped</h2>
-        <p class="sub mt8">${esc(e.message || 'Please try again.')}</p>
-        <button class="btn btn-soft mt16" onclick="location.reload()">Reload</button></div>`;
+    try { await view(screen, params); }
+    catch (e) {
+      screen.innerHTML = `<div class="pad" style="padding-top:60px;text-align:center"><div style="font-size:40px">🌧️</div><h2 class="h1 mt8">Something hiccuped</h2><p class="sub mt8">${esc(e.message || 'Please try again.')}</p><button class="btn btn-soft mt16" onclick="location.reload()">Reload</button></div>`;
     }
     window.scrollTo({ top: 0 });
     return;
@@ -156,19 +136,9 @@ async function router() {
 window.addEventListener('hashchange', router);
 
 (async function boot() {
-  console.log('[boot] Starting...');
   WalletService.restore();
-  console.log('[boot] Wallet restored:', WalletService.mode, WalletService.address);
   const me = await refreshMe();
-  console.log('[boot] refreshMe result:', me ? `User ${me.user?.username}` : 'null');
-  console.log('[boot] app.me:', app.me);
-  if (!me) {
-    // no session → onboarding (public)
-    console.log('[boot] No user, redirecting to onboarding');
-    location.hash = location.hash.startsWith('#/u/') ? location.hash : '#/onboarding';
-  } else {
-    console.log('[boot] User found, staying on current page');
-  }
+  if (!me) location.hash = location.hash.startsWith('#/u/') ? location.hash : '#/onboarding';
   app.booted = true;
   router();
 })();

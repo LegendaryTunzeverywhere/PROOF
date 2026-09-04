@@ -121,7 +121,7 @@ export async function walletEntry(root) {
       s.close(); toast('Nimiq Hub connected ✅ On-chain rewards enabled!', 'ok');
       location.hash = '#/';
     } catch (err) {
-      btn.disabled = false; btn.innerHTML = hubBtn;
+      btn.disabled = false; btn.innerHTML = `🔗 Connect Nimiq Hub`;
       const msg = String(err.message || err);
       let hint = '';
       if (msg.includes('HUB_TIMEOUT') || msg.includes('Connection was closed')) {
@@ -150,7 +150,7 @@ export async function walletEntry(root) {
       s.close(); toast('Nimiq Pay connected ✅ On-chain rewards enabled!', 'ok');
       location.hash = '#/';
     } catch (err) {
-      btn.disabled = false; btn.innerHTML = payBtn;
+      btn.disabled = false; btn.innerHTML = `⚡ Connect Nimiq Pay`;
       const msg = String(err.message || err);
       let hint = '';
       if (msg.includes('NIMIQ_') || msg.includes('timeout')) {
@@ -177,9 +177,9 @@ export async function walletEntry(root) {
       console.log('[onboarding] Navigating to #/');
       location.hash = '#/';
     } catch (err) {
-      btn.disabled = false; btn.innerHTML = demoBtn;
+      btn.disabled = false; btn.innerHTML = `🧪 Explore with demo wallet`;
       console.error('[onboarding] Demo wallet error:', err);
-      const errorMsg = err?.message?.includes('BAD_NONCE') 
+      const errorMsg = err?.message?.includes('BAD_NONCE')
         ? 'Sign-in request expired. Please try again.'
         : err?.message || 'Could not create demo wallet. Please check your connection and try again.';
       toast(errorMsg, 'bad', 4000);
