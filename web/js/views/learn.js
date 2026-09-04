@@ -473,7 +473,7 @@ function renderLessonContent(root, pathId, topic, dayIndex, p, day, item, lesson
 
   root.querySelector('#back').addEventListener('click', () => { location.hash = `#/learn/path/${pathId}`; });
   root.querySelector('#waitWhatBtn').addEventListener('click', () => {
-    startSocraticSession('wait_what', topic, lesson.title, { skillSlug: p.skillSlug, lessonContent: lesson.lesson.tldr });
+    startSocraticSession('wait_what', topic, lesson.title, { skillSlug: p.skillSlug, lessonContent: lesson.lesson?.tldr || '' });
   });
   root.querySelector('#tutorBtn').addEventListener('click', () => tutorChat(p.skillSlug, topic, lesson));
 

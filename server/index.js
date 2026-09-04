@@ -996,8 +996,14 @@ route('POST', '/api/socratic/start', async (ctx) => {
   });
   if (errs.length) throw httpError(400, 'BAD_INPUT', errs[0]);
   
-  const session = await socraticTutor.startGrillingSession(user.id, body);
-  json(res, 201, { session });
+  try {
+    const session = await socraticTutor.startGrillingSession(user.id, body);
+    json(res, 201, { session });
+  } catch (e) {
+    if (/column.*schema cache|Insert failed/i.test(String(e.message || '')))
+      throw httpError(500, 'DB_SCHEMA_MISMATCH', 'Database is missing socratic_sessions columns — run database/fix-socratic-columns.sql against Supabase, then retry.');
+    throw e;
+  }
 });
 
 route('POST', '/api/socratic/:id/respond', async (ctx) => {

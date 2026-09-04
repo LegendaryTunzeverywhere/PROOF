@@ -53,12 +53,13 @@ export async function startGrillingSession(userId, {
     completedAt: null
   };
   
-  store().insert('socratic_sessions', session);
-  store().save();
+  await store().insert('socratic_sessions', session);
+  await store().save();
   
   return {
     sessionId: session.id,
-    firstQuestion: session.questions[0]
+    firstQuestion: session.questions[0],
+    questionCount: session.questions.length,
   };
 }
 
@@ -180,10 +181,16 @@ function generateQuestions(type, topicSlug, context) {
  * Record response to a question
  */
 export async function recordResponse(sessionId, response) {
-  const session = store().get('socratic_sessions', sessionId);
+  const session = await store().get('socratic_sessions', sessionId);
   if (!session) throw new Error('Session not found');
+  session.questions = session.questions || [];
+  session.responses = session.responses || [];
+  session.insights = session.insights || [];
   
   const currentQuestion = session.questions[session.currentQuestionIndex];
+  if (!currentQuestion) {
+    return { complete: true, insights: session.insights, summary: generateSessionSummary(session) };
+  }
   
   // Analyze response quality
   const analysis = analyzeResponse(response, currentQuestion);
@@ -213,7 +220,7 @@ export async function recordResponse(sessionId, response) {
     session.completedAt = now();
   }
   
-  store().update('socratic_sessions', sessionId, {
+  await store().update('socratic_sessions', sessionId, {
     responses: session.responses,
     insights: session.insights,
     currentQuestionIndex: session.currentQuestionIndex,
@@ -221,7 +228,7 @@ export async function recordResponse(sessionId, response) {
     completedAt: session.completedAt
   });
   
-  store().save();
+  await store().save();
   
   // Return next question or completion summary
   if (session.status === 'completed') {
@@ -325,9 +332,11 @@ function generateSessionSummary(session) {
  * Calculate how ready the learner is based on session
  */
 function calculateReadinessScore(session) {
-  const deepCount = session.responses.filter(r => r.analysis.quality === 'deep').length;
-  const totalResponses = session.responses.length;
-  const insightCount = session.insights.length;
+  const responses = session.responses || [];
+  const deepCount = responses.filter(r => r.analysis?.quality === 'deep').length;
+  const totalResponses = responses.length;
+  const insightCount = (session.insights || []).length;
+  if (!totalResponses) return 0;
   
   // Score out of 100
   const deepnessScore = (deepCount / totalResponses) * 60;
@@ -340,8 +349,9 @@ function calculateReadinessScore(session) {
  * Get all sessions for a user
  */
 export async function getUserSessions(userId, limit = 10) {
-  return store().filter('socratic_sessions', (s) => s.userId === userId)
-    .sort((a, b) => b.startedAt - a.startedAt)
+  const rows = await store().filter('socratic_sessions', (s) => s.userId === userId);
+  return rows
+    .sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0))
     .slice(0, limit);
 }
 
@@ -349,8 +359,10 @@ export async function getUserSessions(userId, limit = 10) {
  * Get session insights (for showing learner their "aha" moments)
  */
 export async function getSessionInsights(sessionId) {
-  const session = store().get('socratic_sessions', sessionId);
+  const session = await store().get('socratic_sessions', sessionId);
   if (!session) throw new Error('Session not found');
+  session.responses = session.responses || [];
+  session.insights = session.insights || [];
   
   return {
     insights: session.insights,
@@ -431,8 +443,8 @@ export async function addToGlossary(userId, { term, definition, level, source })
     createdAt: now()
   };
   
-  store().insert('user_glossary', entry);
-  store().save();
+  await store().insert('user_glossary', entry);
+  await store().save();
   
   return entry;
 }
@@ -443,7 +455,7 @@ export async function addToGlossary(userId, { term, definition, level, source })
 export async function getGlossary(userId, options = {}) {
   const { level, limit = 50 } = options;
   
-  let entries = store().filter('user_glossary', (g) => g.userId === userId);
+  let entries = await store().filter('user_glossary', (g) => g.userId === userId);
   
   if (level) {
     entries = entries.filter(g => g.level === level);
@@ -458,7 +470,7 @@ export async function getGlossary(userId, options = {}) {
  * Delete a glossary term
  */
 export async function deleteGlossaryTerm(userId, termId) {
-  const term = store().get('user_glossary', termId);
+  const term = await store().get('user_glossary', termId);
   
   if (!term) {
     throw new Error('Glossary term not found');
@@ -468,8 +480,9 @@ export async function deleteGlossaryTerm(userId, termId) {
     throw new Error('Not authorized to delete this term');
   }
   
-  store().delete('user_glossary', termId);
-  store().save();
+  if (typeof store().remove === 'function') await store().remove('user_glossary', termId);
+  else if (typeof store().delete === 'function') await store().delete('user_glossary', termId);
+  await store().save();
   
   return { deleted: true };
 }
