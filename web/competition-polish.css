@@ -6,6 +6,57 @@ img, svg, video, canvas { max-width: 100%; }
 .row, .row-between, .chip-row { min-width: 0; }
 .row > *, .row-between > * { min-width: 0; }
 
+/* Legacy/secondary views use the same button language as the main app.
+   Some views predate the .btn base class and use .btn-primary directly. */
+button.btn-primary, a.btn-primary,
+button.btn-secondary, a.btn-secondary,
+button.btn-ghost, a.btn-ghost,
+button.btn-soft, a.btn-soft,
+button.btn-nim, a.btn-nim,
+button.btn-ok, a.btn-ok {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 0;
+  cursor: pointer;
+  font-family: var(--font-gamified);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.2;
+  text-decoration: none;
+  border-radius: var(--r-md);
+  padding: 12px 20px;
+  transition: transform .12s ease, box-shadow .2s ease, filter .2s ease, background .2s ease;
+  user-select: none;
+  box-sizing: border-box;
+}
+button.btn-primary:hover, a.btn-primary:hover,
+button.btn-secondary:hover, a.btn-secondary:hover,
+button.btn-ghost:hover, a.btn-ghost:hover,
+button.btn-soft:hover, a.btn-soft:hover,
+button.btn-nim:hover, a.btn-nim:hover,
+button.btn-ok:hover, a.btn-ok:hover { transform: translateY(-1px); }
+button.btn-primary:active, a.btn-primary:active,
+button.btn-secondary:active, a.btn-secondary:active,
+button.btn-ghost:active, a.btn-ghost:active,
+button.btn-soft:active, a.btn-soft:active,
+button.btn-nim:active, a.btn-nim:active,
+button.btn-ok:active, a.btn-ok:active { transform: translateY(0) scale(.98); }
+button.btn-primary:disabled, button.btn-secondary:disabled,
+button.btn-ghost:disabled, button.btn-soft:disabled,
+button.btn-nim:disabled, button.btn-ok:disabled { opacity: .55; cursor: not-allowed; pointer-events: none; }
+button.btn-primary:focus-visible, button.btn-secondary:focus-visible,
+button.btn-ghost:focus-visible, button.btn-soft:focus-visible,
+button.btn-nim:focus-visible, button.btn-ok:focus-visible,
+a.btn-primary:focus-visible, a.btn-secondary:focus-visible,
+a.btn-ghost:focus-visible, a.btn-soft:focus-visible,
+a.btn-nim:focus-visible, a.btn-ok:focus-visible { outline: 3px solid rgba(91,87,217,.68); outline-offset: 3px; }
+
+/* Small visual buttons still expose a comfortable hit area. */
+.btn-icon-sm { width: 40px; height: 40px; min-width: 40px; min-height: 40px; padding: 8px; border-radius: 10px; }
+
 @media (max-width: 1023.98px) {
   .nav a[data-mobile="false"] { display: none; }
 }
@@ -19,6 +70,7 @@ img, svg, video, canvas { max-width: 100%; }
   .card { border-radius: 16px; padding: 15px; }
   .btn { min-height: 44px; padding: 11px 15px; }
   .btn-sm { min-height: 40px; padding: 8px 12px; }
+  button.btn-primary, button.btn-secondary, button.btn-ghost, button.btn-soft, button.btn-nim, button.btn-ok { min-height: 44px; padding: 11px 15px; }
 }
 
 .nav { z-index: 50; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
@@ -33,7 +85,17 @@ img, svg, video, canvas { max-width: 100%; }
   .nav-badge { top:6px; right:12px; }
   .nav-label { display:block; }
 
-  .screen > .pad:not(.bento-read) { max-width:1100px; margin:0 auto; padding:32px 34px 44px 130px; display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:20px; }
+  /* Dashboard routes: the content is offset from the dock and uses a real
+     12-column composition. Legacy container-based screens must span the grid. */
+  .screen > .pad:not(.bento-read) {
+    max-width:1180px;
+    margin:0 auto;
+    padding:32px 40px 56px 150px;
+    display:grid;
+    grid-template-columns:repeat(12,minmax(0,1fr));
+    gap:20px;
+    align-items:start;
+  }
   .screen > .pad:not(.bento-read) > .row-between,
   .screen > .pad:not(.bento-read) > .card-hero,
   .screen > .pad:not(.bento-read) > .bento-full { grid-column:1/-1; }
@@ -44,12 +106,56 @@ img, svg, video, canvas { max-width: 100%; }
   .screen > .pad:not(.bento-read) > #skillsZone,
   .screen > .pad:not(.bento-read) > #achievementsZone,
   .screen > .pad:not(.bento-read) > #txZone { grid-column:1/-1; }
-  .screen > .pad:not(.bento-read) > #tabBody > .section { margin-top:20px; }
-  .screen > .pad.bento-read { width:min(100%,860px); max-width:860px; padding:32px 28px 44px; }
-  .screen > .pad.bento-read .pre-lesson-card { max-width:680px; margin:32px auto 0; }
+
+  /* Work is itself a mini-dashboard: don't leave the marketplace trapped in
+     one narrow column on large screens. */
+  #tabBody {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:20px;
+    align-items:start;
+  }
+  #tabBody > .card:first-child { grid-column:1/-1; }
+  #tabBody > .section { min-width:0; margin:0; }
+  #tabBody > .section:last-child { grid-column:1/-1; }
+
+  /* Legacy container screens (Glossary/Socratic) are full-width children of
+     the shell; their own max-width then controls the readable content. */
+  .screen > .pad.bento-read > .container { grid-column:1/-1; width:100%; max-width:100%; margin:0; padding:0; }
+  .screen > .pad.bento-read > .glossary-view { max-width:1000px; margin:0 auto; }
+  .screen > .pad.bento-read > .socratic-hub { max-width:980px; margin:0 auto; }
+
+  /* Reviews: centered study surface, then a wider rating stack. */
+  .screen > .pad:not(.bento-read) > .review-card,
+  .screen > .pad:not(.bento-read) > #qualityButtons { grid-column:1/-1; }
+  .screen > .pad:not(.bento-read) > .review-card { width:min(100%,820px); margin:0 auto; }
+  .screen > .pad:not(.bento-read) > #qualityButtons { width:min(100%,820px); margin:0 auto; }
+  #qualityButtons .section { margin-top:0; }
+  #qualityButtons .stack { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+
+  /* Socratic active session / completion screens remain reading-first. */
+  .socratic-session, .session-complete { max-width:820px; }
+  .question-card { padding:42px 48px; }
+  .session-stats { grid-template-columns:repeat(3,minmax(0,1fr)); }
+
+  /* Glossary has a useful desktop two-column vocabulary wall. */
+  .glossary-header { margin-bottom:24px; }
+  .terms-list { grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
+  .level-filters { margin-bottom:24px; }
+
+  /* Profile sections that are deliberately full-width keep their own inner
+     grids instead of collapsing into a single skinny card. */
+  .tree-wrap { min-height:340px; }
+  .screen > .pad:not(.bento-read) > .section:has(.tree-wrap) { grid-column:1/-1; }
+
+  .screen > .pad.bento-read { width:min(100%,980px); max-width:980px; padding:32px 36px 56px; margin:0 auto; }
+  .screen > .pad.bento-read .pre-lesson-card { max-width:700px; margin:32px auto 0; }
   .card { padding:22px; }
   .card-hero { padding:28px; }
   .section { min-width:0; }
+  button.btn-primary, a.btn-primary, button.btn-secondary, a.btn-secondary,
+  button.btn-ghost, a.btn-ghost, button.btn-soft, a.btn-soft,
+  button.btn-nim, a.btn-nim, button.btn-ok, a.btn-ok { min-height:44px; }
 }
 
 .card { overflow:hidden; }
@@ -118,3 +224,15 @@ button,a,select,input,textarea { touch-action:manipulation; }
 button,.btn,.chip { -webkit-user-select:none; user-select:none; }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto !important; animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; } }
 #next { white-space:nowrap; overflow:hidden; }
+
+/* Secondary views: consistent spacing and readable desktop composition. */
+.filter-btn, .level-option { min-height:44px; }
+.socratic-hub .sessions-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.socratic-hub .sessions-list > h2 { grid-column:1/-1; margin:0; }
+
+@media (max-width:640px) {
+  .socratic-hub .sessions-list { grid-template-columns:1fr; }
+  .level-selector { grid-template-columns:1fr; }
+  .terms-list { grid-template-columns:1fr; }
+  #qualityButtons .stack { grid-template-columns:1fr; }
+}

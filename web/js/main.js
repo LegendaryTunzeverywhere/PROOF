@@ -5,6 +5,7 @@ import { api } from './api.js';
 import { app, refreshMe } from './state.js';
 import { WalletService } from './wallet.js';
 import { esc, $, ico } from './ui.js';
+import './runtime-fixes.js';
 import * as onboarding from './views/onboarding.js';
 import * as home from './views/home.js';
 import * as learn from './views/learn.js';
