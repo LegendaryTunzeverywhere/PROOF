@@ -5,7 +5,7 @@ import { api } from './api.js';
 import { app, refreshMe } from './state.js';
 import { WalletService } from './wallet.js';
 import { esc, $, ico } from './ui.js';
-import './runtime-fixes.js';
+import './release-hardening.js';
 import * as onboarding from './views/onboarding.js';
 import * as home from './views/home.js';
 import * as learn from './views/learn.js';
@@ -27,7 +27,7 @@ const ROUTES = [
   ['socratic', socratic.socratic],
   ['glossary', glossary.glossary],
   ['', home.screen],
-  ['prove', prove.hub],
+  ['prove', prove.challengeScreen],
   ['prove/challenge/:id', prove.challengeScreen],
   ['prove/attempt/:id', prove.attemptScreen],
   ['daily', (screen) => prove.challengeScreen(screen, { id: 'daily' })],
