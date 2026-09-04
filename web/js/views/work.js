@@ -45,7 +45,7 @@ async function renderMarket(body) {
   ]);
   const tasks = tasksRes.tasks;
   body.innerHTML = `
-    <div class="card" style="padding:14px 16px;background:linear-gradient(120deg,#211F52,#4A3AA8);color:#fff;border:0">
+    <div class="card" style="padding:14px 16px;background:var(--nimiq-blue-bg, linear-gradient(120deg,#1F2348,#5F4B8B));color:#fff;border:0">
       <div class="row-between">
         <div><span class="eyebrow" style="color:rgba(255,255,255,.55)">YOUR BALANCE</span>
           <div style="font-size:22px;font-weight:850;margin-top:2px">${fmtNim(walletRes.balanceNim, 2)} NIM</div></div>
@@ -239,9 +239,9 @@ function reviewSheet(body, sessionId) {
 async function renderSponsored(body) {
   const { sponsored } = await api.get('/api/sponsored');
   body.innerHTML = `<div class="stack">
-    <div class="card" style="padding:14px 16px;background:var(--nim-soft);border-color:#FFDFBF">
-      <b style="font-size:14px;color:#7A4A10">How sponsorship works</b>
-      <p class="tiny mt8" style="color:#8A5A20">A sponsor funds a pool (e.g. 500 NIM). Top performers take the top slice; everyone who passes the final proof shares the rest. Communities fund education, learners get paid to prove it.</p>
+    <div class="card" style="padding:14px 16px;background:var(--tint-gold, rgba(233,178,19,.13));border-color:rgba(233,178,19,.4)">
+      <b style="font-size:14px;color:#6B5410">How sponsorship works</b>
+      <p class="tiny mt8" style="color:#8A6D00">A sponsor funds a pool (e.g. 500 NIM). Top performers take the top slice; everyone who passes the final proof shares the rest. Communities fund education, learners get paid to prove it.</p>
     </div>
     ${sponsored.map((s) => `
       <div class="card" style="padding:16px">
