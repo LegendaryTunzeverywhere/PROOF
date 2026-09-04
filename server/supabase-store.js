@@ -207,8 +207,8 @@ export class SupabaseStore {
   async insert(table, doc) {
     const supabaseTable = this.tableMap[table] || table;
     
-    // Generate ID if not provided
-    if (!doc.id) {
+    // Generate ID if not provided (skip for user_stats which uses userId as PK)
+    if (!doc.id && table !== 'user_stats') {
       const prefix = table.substring(0, 3);
       doc.id = `${prefix}_${Math.random().toString(36).substr(2, 12)}`;
     }

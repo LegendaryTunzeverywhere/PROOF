@@ -3,7 +3,7 @@
  * Walks the 90-second competition demo flow via the real HTTP API.
  *   node tests/smoke.js
  */
-const BASE = 'http://localhost:3000';
+const BASE = 'http://localhost:3001';
 let cookie = '';
 
 async function call(method, path, body) {
