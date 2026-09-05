@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 112" role="img" aria-labelledby="title desc">
+  <title id="title">PROOF</title><desc id="desc">PROOF — Learn, Practice, Prove, Earn.</desc>
+  <defs><linearGradient id="g" x1="22" y1="88" x2="90" y2="20" gradientUnits="userSpaceOnUse"><stop stop-color="#FFB11B"/><stop offset=".48" stop-color="#6D4AFF"/><stop offset="1" stop-color="#4B38D8"/></linearGradient></defs>
+  <path d="M20 84 42 28c2-6 7-10 14-10h17c14 0 23 8 23 20 0 14-10 23-24 23H53l-7 23H20Zm36-36h11c4 0 6-2 6-6 0-3-3-6-7-6h-5l-5 12Z" fill="url(#g)"/>
+  <path d="M21 84 52 59h18c8 0 15-4 19-11-3 10-11 16-22 16H53l-8 20H21Z" fill="#FFB11B"/>
+  <text x="119" y="67" fill="#171A3A" font-family="Arial,Helvetica,sans-serif" font-size="54" font-weight="800" letter-spacing="11">PROOF</text>
+  <text x="123" y="92" fill="#777B98" font-family="Arial,Helvetica,sans-serif" font-size="11" font-weight="700" letter-spacing="5">LEARN · PRACTICE · PROVE · EARN</text>
+</svg>
