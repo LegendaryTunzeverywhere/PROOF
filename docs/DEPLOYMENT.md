@@ -19,7 +19,8 @@ Production checklist:
 | `AI_API_KEY`, `AI_MODEL`, `AI_BASE_URL` | LLM-enhanced tutor/feedback (optional; engine otherwise) |
 | `NIMIQ_RPC_URL`, `NIMIQ_NETWORK` | on-chain balance reads + settlement refs |
 | `NIMIQ_SEED_NODES` | comma-separated Nimiq peer seed URLs used for treasury payouts |
-| `TREASURY_ADDRESS`, `TREASURY_KEY` | on-chain reward payouts (production; treat as hot-wallet material) |
+| `TREASURY_ADDRESS`, `TREASURY_MNEMONIC`, `TREASURY_MNEMONIC_PASSWORD` | on-chain reward payouts (production; treat mnemonic as hot-wallet material) |
+| `TREASURY_KEY` | legacy 64-character hex-key alternative to the mnemonic |
 | `PASS_THRESHOLD`, caps | economy tuning |
 
 ## Hosting shapes

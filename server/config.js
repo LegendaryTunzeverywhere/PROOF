@@ -55,7 +55,9 @@ export const config = {
     rpcUrl: process.env.NIMIQ_RPC_URL || '',
     network: process.env.NIMIQ_NETWORK || 'mainnet',
     treasuryAddress: process.env.TREASURY_ADDRESS || '',
-    treasuryKey: process.env.TREASURY_KEY || '',
+    treasuryKey: /^[0-9a-fA-F]{64}$/.test(process.env.TREASURY_KEY || '') ? process.env.TREASURY_KEY : '',
+    treasuryMnemonic: process.env.TREASURY_MNEMONIC || (/\s/.test(process.env.TREASURY_KEY || '') ? process.env.TREASURY_KEY : ''),
+    treasuryMnemonicPassword: process.env.TREASURY_MNEMONIC_PASSWORD || '',
     seedNodes: (process.env.NIMIQ_SEED_NODES || '').split(',').map((value) => value.trim()).filter(Boolean),
   },
 
@@ -90,10 +92,14 @@ export const aiEnabled = () =>
   config.ai.provider !== 'engine' && !!config.ai.apiKey;
 /** True when automatic treasury payouts have all required settings. */
 export const chainEnabled = () => Boolean(
-  config.nimiq.treasuryAddress && config.nimiq.treasuryKey && config.nimiq.seedNodes.length,
+  config.nimiq.treasuryAddress && treasuryKeyValid() && config.nimiq.seedNodes.length,
 );
 export const treasuryCredentialsEnabled = () => Boolean(
-  config.nimiq.treasuryAddress && config.nimiq.treasuryKey,
+  config.nimiq.treasuryAddress && (config.nimiq.treasuryKey || config.nimiq.treasuryMnemonic),
+);
+export const treasuryKeyValid = () => Boolean(
+  /^[0-9a-fA-F]{64}$/.test(config.nimiq.treasuryKey)
+  || config.nimiq.treasuryMnemonic,
 );
 
 export function validateConfig(logger = console) {
@@ -110,7 +116,9 @@ export function validateConfig(logger = console) {
     logger.warn('[config] AI_API_KEY not set — using the local ProofEngine (deterministic evaluation).');
   }
   if (!chainEnabled()) {
-    if (treasuryCredentialsEnabled() && !config.nimiq.seedNodes.length) {
+    if (treasuryCredentialsEnabled() && !treasuryKeyValid()) {
+      logger.error('[config] Treasury credentials are invalid — set TREASURY_MNEMONIC or a 64-character hexadecimal TREASURY_KEY; on-chain payouts are disabled.');
+    } else if (treasuryCredentialsEnabled() && !config.nimiq.seedNodes.length) {
       logger.warn('[config] TREASURY_ADDRESS and TREASURY_KEY loaded, but NIMIQ_SEED_NODES is missing — on-chain payouts are disabled.');
     } else {
       logger.warn('[config] NIMIQ_SEED_NODES, TREASURY_ADDRESS, or TREASURY_KEY not set — rewards settle to the in-app demo ledger (no on-chain txs).');
