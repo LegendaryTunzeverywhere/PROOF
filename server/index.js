@@ -147,6 +147,16 @@ route('POST', '/api/onboard', async (ctx) => {
   if (errs.length) throw httpError(400, 'BAD_INPUT', errs[0]);
   const user = await users.createUser({ isDemo: true });
   await users.update(user, { prefs: { goal: body.goal || '', level: body.level || '', minutesPerDay: body.minutesPerDay || 30, style: 'practical', interests: Array.isArray(body.interests) ? body.interests.slice(0, 6) : [] } });
+  const hasWelcomeNotification = store.find('notifications', (n) => n.userId === user.id && n.type === 'welcome');
+  if (!hasWelcomeNotification) {
+    notifications.push(user.id, {
+      type: 'welcome',
+      emoji: '🎉',
+      title: 'Welcome to PROOF',
+      body: 'Your learning dashboard is ready. Start your first path and unlock your first proof.',
+      href: '/home',
+    });
+  }
   const token = await auth.createSession(user.id);
   json(res, 201, { user: await publicMe(user), recommended: recommendNextSkill([]) }, { 'set-cookie': sessionCookie(token, undefined, ctx.req) });
 });
@@ -251,6 +261,17 @@ route('POST', '/api/auth/verify', async (ctx) => {
   } else {
     if (!user) user = await users.createUser({ walletMode: 'demo', username: customUsername });
     await users.update(user, { publicKey: body.publicKey, walletMode: 'demo' });
+  }
+
+  const hasWelcomeNotification = store.find('notifications', (n) => n.userId === user.id && n.type === 'welcome');
+  if (!hasWelcomeNotification) {
+    notifications.push(user.id, {
+      type: 'welcome',
+      emoji: '🎉',
+      title: 'Welcome to PROOF',
+      body: 'Your dashboard is ready. Start a path and keep your first proof moving.',
+      href: '/home',
+    });
   }
 
   const token = await auth.createSession(user.id);

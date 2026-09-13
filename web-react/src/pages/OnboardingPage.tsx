@@ -208,18 +208,24 @@ export function OnboardingPage() {
 
   const toggleTheme = useCallback(() => setIsDark((value) => !value), []);
 
+  const getSafeRedirectTarget = () => {
+    const from = (location.state as any)?.from?.pathname;
+    if (typeof from === 'string' && from.startsWith('/') && from !== '/' && from !== '/settings') {
+      return from;
+    }
+    return '/home';
+  };
+
   if (showWelcome) {
     if (user && !authLoading) {
-      const from = (location.state as any)?.from?.pathname || '/home';
-      navigate(from, { replace: true });
+      navigate(getSafeRedirectTarget(), { replace: true });
     }
     return <WelcomeSplash />;
   }
 
   // If already authenticated, redirect to intended destination or home
   if (user && !authLoading) {
-    const from = (location.state as any)?.from?.pathname || '/home';
-    navigate(from, { replace: true });
+    navigate(getSafeRedirectTarget(), { replace: true });
     return null;
   }
 

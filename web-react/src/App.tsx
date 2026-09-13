@@ -74,9 +74,12 @@ function ProtectedRoutes() {
     );
   }
 
-  // Redirect to onboarding if not authenticated
+  // Redirect to onboarding if not authenticated. Preserve only valid app routes;
+  // avoid sending users back to a stale settings screen after sign-in.
   if (!user) {
-    return <Navigate to="/" state={{ from: location }} replace />;
+    const fromPath = location.pathname;
+    const safeFrom = fromPath && fromPath.startsWith('/') && fromPath !== '/' && !fromPath.startsWith('/settings') ? fromPath : '/home';
+    return <Navigate to="/" state={{ from: { pathname: safeFrom } }} replace />;
   }
 
   // User is authenticated, show main app

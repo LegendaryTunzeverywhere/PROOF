@@ -66,7 +66,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setError(null);
       const response = await authService.verify(data);
-      setUser(response.user);
+      setUser({
+        ...response.user,
+        unreadNotifications: response.user?.unreadNotifications ?? 0,
+      });
     } catch (err: any) {
       const message = err.message || 'Login failed';
       setError(message);
