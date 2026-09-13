@@ -18,7 +18,7 @@ import { ChallengeService, chessConfigFromTemplate, chessConfigFromChallenge } f
 import { MarketplaceService } from './services/marketplace.js';
 import { TeachingService } from './services/teaching.js';
 import { generateLearningPath, generateLesson, recommendNextSkill, tutorReply, detectDomain } from './ai/service.js';
-import { createCurriculumFromDocument, getUserDocumentCurricula, getDocumentCurriculum } from './services/document-curriculum.js';
+import { createCurriculumFromDocument, getUserDocumentCurricula, getDocumentCurriculum, documentTutorReply } from './services/document-curriculum.js';
 import { uid, now, toNim, escapeHtml, RateLimiter, looksLikeNimiqAddress, normalizeNimiqAddress, nimiqAddressFromPublicKey, validate, parseNumber, hmac } from './util.js';
 import * as stockfish from './ai/services/stockfish.js';
 import multer from 'multer';
@@ -1096,13 +1096,45 @@ route('POST', '/api/tutor', async (ctx) => {
   
   const errs = validate(body, { type: 'object', required: ['question'], props: { question: { type: 'string', min: 1, max: 600 } } });
   if (errs.length) throw httpError(400, 'BAD_INPUT', 'Ask the tutor a question.');
-  const out = await tutorReply({
-    domain: body.skillSlug || 'web-development',
-    topicSlug: body.topicSlug || '',
-    question: body.question,
-    history: Array.isArray(body.history) ? body.history.slice(-8) : [],
-  });
-  json(res, 200, out);
+  if (body.skillSlug === 'document-study') {
+    const out = await documentTutorReply({
+      pathId: body.pathId,
+      skillSlug: body.skillSlug,
+      topicSlug: body.topicSlug || '',
+      question: body.question,
+      history: Array.isArray(body.history) ? body.history.slice(-8) : [],
+    });
+    return json(res, 200, out);
+  }
+  try {
+    const out = await tutorReply({
+      domain: body.skillSlug || 'web-development',
+      topicSlug: body.topicSlug || '',
+      question: body.question,
+      history: Array.isArray(body.history) ? body.history.slice(-8) : [],
+    });
+    json(res, 200, out);
+  } catch (error) {
+    // Tutor failures must not take down the lesson. Return the built-in lesson
+    // context as a useful answer when a provider or topic lookup fails.
+    console.error('[Tutor] Falling back after tutor failure:', error.message);
+    try {
+      const lesson = await generateLesson(body.skillSlug || 'web-development', body.topicSlug || '');
+      const content = lesson.lesson || lesson;
+      return json(res, 200, {
+        intent: 'explain',
+        reply: `${content.tldr || 'Let us work through this lesson together.'}\n\n${(content.sections || []).slice(0, 2).map((section) => `${section.h}: ${section.body}`).join('\n\n')}\n\nKey points:\n${(content.keyPoints || []).slice(0, 6).map((point) => `• ${point}`).join('\n')}`,
+        engine: 'proof-engine',
+      });
+    } catch (fallbackError) {
+      console.error('[Tutor] Lesson fallback failed:', fallbackError.message);
+      return json(res, 200, {
+        intent: 'coach',
+        reply: 'I could not load the tutor context right now. Try asking about a specific piece, square, or chess idea again.',
+        engine: 'proof-engine',
+      });
+    }
+  }
 });
 
 /* ── CHALLENGES / PROOFS ───────────────────────────────────────────── */

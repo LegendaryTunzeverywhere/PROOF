@@ -12,6 +12,7 @@ interface TutorModalProps {
   onClose: () => void;
   skillSlug: string;
   topicSlug: string;
+  pathId?: string;
   lessonTitle: string;
 }
 
@@ -20,6 +21,7 @@ export const TutorModal: React.FC<TutorModalProps> = ({
   onClose, 
   skillSlug, 
   topicSlug, 
+  pathId,
   lessonTitle 
 }) => {
   const storageKey = `tutor-${skillSlug}-${topicSlug}`;
@@ -83,6 +85,7 @@ export const TutorModal: React.FC<TutorModalProps> = ({
         body: JSON.stringify({
           skillSlug,
           topicSlug,
+          pathId,
           question,
           history: messages.slice(-6)
         })
@@ -90,7 +93,7 @@ export const TutorModal: React.FC<TutorModalProps> = ({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to get tutor response');
+        throw new Error(errorData.error?.message || errorData.message || 'Failed to get tutor response');
       }
 
       const data = await response.json();

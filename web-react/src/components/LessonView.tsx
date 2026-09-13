@@ -678,6 +678,7 @@ export function LessonView({ pathId, skill, topic }: LessonViewProps) {
         onClose={() => setIsTutorOpen(false)}
         skillSlug={skill}
         topicSlug={topic}
+        pathId={pathId}
         lessonTitle={lesson?.title || ''}
       />
     </>

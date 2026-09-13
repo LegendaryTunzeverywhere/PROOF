@@ -520,6 +520,58 @@ Make it educational and complete - 3 sections, 4 key points, 3 practice question
   }
 }
 
+async function documentTutorReply({ skillSlug, topicSlug, pathId = '', question, history = [] }) {
+  const paths = await store.filter('paths', (path) =>
+    path.isFromDocument && (!pathId || path.id === pathId) && path.skillSlug === skillSlug
+  );
+  const path = paths[0];
+
+  if (!path) {
+    return {
+      intent: 'generic',
+      reply: 'This uploaded document is no longer available. Return to Learning to choose another path or upload the document again.',
+      engine: 'proof-engine',
+    };
+  }
+
+  const item = (path.days || []).flatMap((day) => day.items || []).find((candidate) => candidate.topic === topicSlug);
+  const lessonTitle = item?.title || topicSlug.replace(/-/g, ' ');
+  const documentExcerpt = path.sourceDocument?.content?.slice(0, 5000) || '';
+  const localLesson = buildDocumentLessonFallback(documentExcerpt, topicSlug, lessonTitle);
+
+  if (!llmEnabled()) {
+    return {
+      intent: 'explain',
+      reply: `${localLesson.tldr}\n\n${localLesson.sections[0].body}\n\nKey points:\n${localLesson.keyPoints.map((point) => `• ${point}`).join('\n')}\n\nQuick check: ${localLesson.ask}`,
+      engine: 'proof-engine',
+    };
+  }
+
+  try {
+    const response = await llmJson({
+      system: 'You are a helpful tutor. Answer only from the uploaded document context. If the context does not answer the question, say so and suggest what to inspect next. Return JSON with reply and intent.',
+      prompt: JSON.stringify({
+        lessonTitle,
+        documentExcerpt,
+        question,
+        history: history.slice(-6),
+      }),
+      maxTokens: 700,
+    });
+    if (!response || typeof response.reply !== 'string' || !response.reply.trim()) {
+      throw new Error('INVALID_TUTOR_RESPONSE');
+    }
+    return { reply: response.reply, intent: response.intent || 'explain', engine: 'llm+document' };
+  } catch (error) {
+    console.error('[DocumentTutor] Falling back to document lesson:', error.message);
+    return {
+      intent: 'explain',
+      reply: `${localLesson.tldr}\n\n${localLesson.sections[0].body}\n\nKey points:\n${localLesson.keyPoints.map((point) => `• ${point}`).join('\n')}`,
+      engine: 'proof-engine',
+    };
+  }
+}
+
 export {
   localDocumentCurriculum,
   buildDocumentLessonFallback,
@@ -529,4 +581,5 @@ export {
   getUserDocumentCurricula,
   getDocumentCurriculum,
   generateDocumentLesson,
+  documentTutorReply,
 };
