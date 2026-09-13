@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { normalizeNimiqAddress } from '../server/util.js';
 import { testbed, copyOnReadStore } from './helpers.js';
 
 test('rewards: insufficient balance blocks spending', async (t) => {
@@ -60,6 +61,23 @@ test('economy: payout respects minimum and balance', async (t) => {
   assert.equal(tx.status, 'confirmed');
   assert.equal(tb.users.get(u.id).balanceLuna, 50000);
   await assert.rejects(() => tb.rewards.requestPayout(u.id, 5), (e) => e.code === 'INSUFFICIENT_NIM');
+});
+
+test('economy: payout normalizes the stored Nimiq wallet address before treasury broadcast', async (t) => {
+  const tb = await testbed();
+  const user = await tb.users.createUser({ walletAddress: 'nq45  abcdefghijklmnopqrstuvwxyz 1234' });
+  const treasury = {
+    isConfigured: () => true,
+    send: async ({ recipient, amountLuna }) => {
+      assert.equal(recipient, normalizeNimiqAddress(recipient));
+      assert.equal(recipient.replace(/\s+/g, ''), normalizeNimiqAddress(recipient));
+      assert.equal(amountLuna, 100000);
+      return { hash: 'stubbed-ref' };
+    },
+  };
+  const rewards = new (Object.getPrototypeOf(tb.rewards).constructor)(tb.store, tb.config, { treasury });
+  await rewards.credit(user.id, 150000, 'reward', 'seed');
+  await rewards.requestPayout(user.id, 1);
 });
 
 test('economy: balance changes persist via store.update(), not just in-memory mutation', async (t) => {

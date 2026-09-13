@@ -6,13 +6,13 @@ test('passing reward is automatically paid from the treasury', async () => {
   const treasury = {
     isConfigured: () => true,
     send: async ({ recipient, amountLuna }) => {
-      assert.equal(recipient, 'NQXX TEST WALLET');
+      assert.equal(recipient, 'NQ45FEDCBA9876543210ABCDEFGHJKLMNPQRSTUVXY');
       assert.equal(amountLuna, 100000);
       return { hash: 'real-tx-hash' };
     },
   };
   const tb = await testbed();
-  const user = await tb.users.createUser({ walletAddress: 'NQXX TEST WALLET', walletMode: 'nimiqpay' });
+  const user = await tb.users.createUser({ walletAddress: 'NQ45 FEDCBA9876543210ABCDEFGHJKLMNPQRSTUVXY', walletMode: 'nimiqpay' });
   const rewards = new (Object.getPrototypeOf(tb.rewards).constructor)(tb.store, tb.config, { treasury });
 
   const result = await rewards.rewardForAttempt({
@@ -32,13 +32,14 @@ test('failed treasury broadcast leaves the credited balance available', async ()
   let refilled = false;
   const treasury = {
     isConfigured: () => true,
-    send: async () => {
+    send: async ({ recipient }) => {
       if (!refilled) throw new Error('treasury empty');
+      assert.equal(recipient, 'NQ45FEDCBA9876543210ABCDEFGHJKLMNPQRSTUVXY');
       return { hash: 'retry-tx-hash' };
     },
   };
   const tb = await testbed();
-  const user = await tb.users.createUser({ walletAddress: 'NQXX TEST WALLET', walletMode: 'nimiqpay' });
+  const user = await tb.users.createUser({ walletAddress: 'NQ45 FEDCBA9876543210ABCDEFGHJKLMNPQRSTUVXY', walletMode: 'nimiqpay' });
   const rewards = new (Object.getPrototypeOf(tb.rewards).constructor)(tb.store, tb.config, { treasury });
 
   const result = await rewards.rewardForAttempt({

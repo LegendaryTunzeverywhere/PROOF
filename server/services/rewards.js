@@ -9,7 +9,7 @@
  *  - in demo mode, txs settle to the in-app ledger and are labeled as such;
  *    with a configured treasury, reward payouts record on-chain refs.
  */
-import { uid, now, luna, toNim } from '../util.js';
+import { uid, now, luna, toNim, looksLikeNimiqAddress, normalizeNimiqAddress } from '../util.js';
 import { NimiqTreasury } from './nimiq-treasury.js';
 
 export class EconomyError extends Error {
@@ -158,8 +158,16 @@ export class RewardService {
     let ref = null;
     if (this.treasury.isConfigured()) {
       if (!user.walletAddress) throw new EconomyError('NO_WALLET', 'Connect a Nimiq wallet before receiving a payout.');
+      const recipient = normalizeNimiqAddress(user.walletAddress);
+      if (!looksLikeNimiqAddress(recipient)) {
+        throw new EconomyError('INVALID_WALLET', 'Stored wallet address is malformed. Connect a valid Nimiq wallet before receiving a payout.');
+      }
+      if (recipient !== user.walletAddress) {
+        await this.store.update('users', userId, { walletAddress: recipient, updatedAt: now() });
+        await this.store.save();
+      }
       try {
-        ({ hash: ref } = await this.treasury.send({ recipient: user.walletAddress, amountLuna: amount }));
+        ({ hash: ref } = await this.treasury.send({ recipient, amountLuna: amount }));
       } catch (error) {
         throw new EconomyError('PAYOUT_FAILED', `Treasury payout failed: ${error.message}`);
       }

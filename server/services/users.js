@@ -3,7 +3,7 @@
  * XP and levels are derived server-side from completed proofs. Users can
  * never set their own level, score, XP, or balance.
  */
-import { uid, now, clamp } from '../util.js';
+import { uid, now, clamp, normalizeNimiqAddress, looksLikeNimiqAddress } from '../util.js';
 
 const ADJ = ['Swift', 'Bright', 'Keen', 'Bold', 'Lucid', 'Prime', 'Nova', 'Sharp'];
 const NOUN = ['Otter', 'Falcon', 'Panda', 'Comet', 'Maple', 'Orbit', 'Ember', 'Cedar'];
@@ -18,12 +18,13 @@ export class UserService {
 
   async createUser({ walletAddress = null, walletMode = null, isDemo = false, username = null } = {}) {
     const handle = username || `${ADJ[Math.floor(Math.random() * ADJ.length)]}${NOUN[Math.floor(Math.random() * NOUN.length)]}${Math.floor(10 + Math.random() * 89)}`;
+    const canonicalWalletAddress = walletAddress ? normalizeNimiqAddress(walletAddress) : null;
     const user = await this.store.insert('users', {
       id: uid('u'),
       username: handle,
       usernameLower: handle.toLowerCase(),
       avatar: AVATARS[Math.floor(Math.random() * AVATARS.length)],
-      walletAddress,
+      walletAddress: canonicalWalletAddress,
       walletMode,
       publicKey: null,
       level: 1,
@@ -51,7 +52,11 @@ export class UserService {
   }
 
   findByWallet(address) {
-    return this.store.find('users', (u) => u.walletAddress && u.walletAddress.replace(/\s+/g, '') === String(address).replace(/\s+/g, ''));
+    const target = normalizeNimiqAddress(String(address || ''));
+    return this.store.find('users', (u) => {
+      const source = normalizeNimiqAddress(u.walletAddress || '');
+      return looksLikeNimiqAddress(source) && source === target;
+    });
   }
 
   findByPublicKey(pubKey) {

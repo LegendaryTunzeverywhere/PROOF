@@ -12,6 +12,11 @@ import { MarketplaceService } from '../server/services/marketplace.js';
 import { TeachingService } from '../server/services/teaching.js';
 
 export async function testbed() {
+  config.nimiq.rpcUrl = '';
+  config.nimiq.treasuryAddress = '';
+  config.nimiq.treasuryMnemonic = '';
+  config.nimiq.treasuryKey = '';
+
   const store = new Store({ dataDir: './data/test-' + Math.random().toString(36).slice(2, 8) });
   await store.open(seed);
   const auth = new AuthService(store, config);
