@@ -26,7 +26,10 @@ export function SettingsPage() {
         setLang(user.prefs.language);
       }
       // Sync theme from user prefs if available
-      if (user.prefs.theme && user.prefs.theme !== theme) {
+      // Keep an explicit local choice when navigating back to settings; the
+      // server preference is only the initial fallback on a new device.
+      const localTheme = localStorage.getItem('proof-theme');
+      if (!localTheme && user.prefs.theme && user.prefs.theme !== theme) {
         setTheme(user.prefs.theme);
       }
     }
