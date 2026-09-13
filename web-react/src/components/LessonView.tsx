@@ -34,6 +34,35 @@ interface LessonData {
 
 type Stage = 'hook' | 'learn' | 'quiz' | 'recall' | 'practice' | 'complete';
 
+function normalizeLessonData(data: any, skill: string, topic: string): LessonData {
+  const raw = { ...(data || {}), ...(data?.lesson || {}) };
+  const sections = Array.isArray(raw.sections)
+    ? raw.sections.map((section: any) => ({
+        h: section.h || section.heading || 'Lesson section',
+        body: section.body || (Array.isArray(section.paragraphs) ? section.paragraphs.join('\n\n') : ''),
+      })).filter((section: { h: string; body: string }) => section.body)
+    : [];
+  const normalizeQuestion = (question: any) => ({
+    q: question.q || question.question || 'Check your understanding.',
+    choices: Array.isArray(question.choices) ? question.choices : (Array.isArray(question.options) ? question.options : []),
+    answerIdx: Number.isInteger(question.answerIdx) ? question.answerIdx : (Number.isInteger(question.correctIndex) ? question.correctIndex : 0),
+    why: question.why || question.explanation || question.hint,
+  });
+
+  return {
+    ...raw,
+    skillSlug: raw.skillSlug || skill,
+    topicSlug: raw.topicSlug || topic,
+    title: raw.title || topic.replace(/-/g, ' '),
+    tldr: raw.tldr || raw.summary || 'Study this topic, connect it to the document, and explain it in your own words.',
+    sections,
+    keyPoints: Array.isArray(raw.keyPoints) ? raw.keyPoints : [],
+    quiz: Array.isArray(raw.quiz) ? raw.quiz.map(normalizeQuestion).filter((question: any) => question.choices.length > 0) : [],
+    practice: Array.isArray(raw.practice) ? raw.practice.map(normalizeQuestion).filter((question: any) => question.choices.length > 0) : [],
+    recall: Array.isArray(raw.recall) ? raw.recall : [],
+  };
+}
+
 export function LessonView({ pathId, skill, topic }: LessonViewProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -98,7 +127,7 @@ export function LessonView({ pathId, skill, topic }: LessonViewProps) {
       if (cached) {
         console.log('[LessonView] Cache HIT:', cacheKey);
         try {
-          const cachedLesson = JSON.parse(cached);
+          const cachedLesson = normalizeLessonData(JSON.parse(cached), skill, topic);
           console.log('[LessonView] Setting lesson from cache');
           setLesson(cachedLesson);
           setLoading(false);
@@ -145,10 +174,7 @@ export function LessonView({ pathId, skill, topic }: LessonViewProps) {
       console.log('[LessonView] Data received:', Object.keys(data));
       
       // Flatten the lesson structure
-      const flatLesson = {
-        ...data,
-        ...(data.lesson || {}),
-      };
+      const flatLesson = normalizeLessonData(data, skill, topic);
       
       console.log('[LessonView] Flattened lesson:', Object.keys(flatLesson));
       
