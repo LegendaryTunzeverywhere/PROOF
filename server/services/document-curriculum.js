@@ -355,6 +355,8 @@ async function createCurriculumFromDocument(userId, file, userGoal = '') {
         const challenge = {
           id: chId,
           skillSlug: curriculum.skillSlug,
+          pathId,
+          dayIndex: day.index,
           kind: day.kind === 'final' ? 'final' : day.kind === 'project' ? 'project' : 'checkpoint',
           type: template.type || 'text',
           title: template.title,
@@ -364,10 +366,14 @@ async function createCurriculumFromDocument(userId, file, userGoal = '') {
           passScore: template.passScore,
           rewardNim: template.rewardNim,
           xp: template.xp,
-          submissionFields: template.submissionFields || ['text'],
-          quiz: template.quiz || null,
-          isFromDocument: true,
-          documentPathId: pathId,
+          evaluator: {
+            type: template.type || 'text',
+            config: template.evaluator?.config || {},
+            submissionFields: template.submissionFields || ['text'],
+            quiz: template.quiz || null,
+            isFromDocument: true,
+            documentPathId: pathId,
+          },
           createdAt: now(),
         };
 
