@@ -92,7 +92,7 @@ export const aiEnabled = () =>
   config.ai.provider !== 'engine' && !!config.ai.apiKey;
 /** True when automatic treasury payouts have all required settings. */
 export const chainEnabled = () => Boolean(
-  config.nimiq.treasuryAddress && treasuryKeyValid() && config.nimiq.seedNodes.length,
+  config.nimiq.treasuryAddress && treasuryKeyValid() && config.nimiq.rpcUrl,
 );
 export const treasuryCredentialsEnabled = () => Boolean(
   config.nimiq.treasuryAddress && (config.nimiq.treasuryKey || config.nimiq.treasuryMnemonic),
@@ -118,8 +118,8 @@ export function validateConfig(logger = console) {
   if (!chainEnabled()) {
     if (treasuryCredentialsEnabled() && !treasuryKeyValid()) {
       logger.error('[config] Treasury credentials are invalid — set TREASURY_MNEMONIC or a 64-character hexadecimal TREASURY_KEY; on-chain payouts are disabled.');
-    } else if (treasuryCredentialsEnabled() && !config.nimiq.seedNodes.length) {
-      logger.warn('[config] TREASURY_ADDRESS and TREASURY_KEY loaded, but NIMIQ_SEED_NODES is missing — on-chain payouts are disabled.');
+    } else if (treasuryCredentialsEnabled() && !config.nimiq.rpcUrl) {
+      logger.warn('[config] Treasury credentials loaded, but NIMIQ_RPC_URL is missing — on-chain payouts are disabled.');
     } else {
       logger.warn('[config] NIMIQ_SEED_NODES, TREASURY_ADDRESS, or TREASURY_KEY not set — rewards settle to the in-app demo ledger (no on-chain txs).');
     }

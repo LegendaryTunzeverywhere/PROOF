@@ -1,27 +1,26 @@
 import * as Nimiq from '@nimiq/core';
 
-const NETWORK_IDS = {
-  mainnet: 'mainalbatross',
-  testnet: 'testalbatross',
+const NETWORK_NUMBERS = {
+  mainnet: 24,
+  testnet: 5,
 };
 
 export class NimiqTreasury {
   constructor(config) {
     this.config = config.nimiq;
-    this.clientPromise = null;
   }
 
   isConfigured() {
     return Boolean(
       (this.config.treasuryMnemonic || /^[0-9a-fA-F]{64}$/.test(this.config.treasuryKey || ''))
       && this.config.treasuryAddress
-      && this.config.seedNodes.length,
+      && this.config.rpcUrl,
     );
   }
 
   configurationError() {
     if (!this.config.treasuryAddress) return 'TREASURY_ADDRESS is missing.';
-    if (!this.config.seedNodes.length) return 'NIMIQ_SEED_NODES is missing.';
+    if (!this.config.rpcUrl) return 'NIMIQ_RPC_URL is missing.';
     if (!this.config.treasuryMnemonic && !/^[0-9a-fA-F]{64}$/.test(this.config.treasuryKey || '')) {
       return 'Set TREASURY_MNEMONIC or a 64-character hexadecimal TREASURY_KEY.';
     }
@@ -45,36 +44,38 @@ export class NimiqTreasury {
     return Nimiq.KeyPair.derive(Nimiq.PrivateKey.fromHex(this.config.treasuryKey));
   }
 
-  async #client() {
-    if (!this.clientPromise) {
-      this.clientPromise = Nimiq.Client.create({
-        networkId: NETWORK_IDS[this.config.network] || this.config.network,
-        seedNodes: this.config.seedNodes,
-        desiredPeerCount: 4,
-      });
-    }
-    return this.clientPromise;
+  async #rpc(method, params = []) {
+    if (!this.config.rpcUrl) throw new Error('NIMIQ_RPC_URL is missing.');
+    const response = await fetch(this.config.rpcUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', method, params, id: Date.now() }),
+    });
+    if (!response.ok) throw new Error(`Nimiq RPC HTTP ${response.status}`);
+    const result = await response.json();
+    if (result.error) throw new Error(result.error.message || `Nimiq RPC ${method} failed.`);
+    return result.result?.data ?? result.result;
   }
 
   async send({ recipient, amountLuna }) {
     const configurationError = this.configurationError();
     if (configurationError) throw new Error(`Treasury payout is not configured: ${configurationError}`);
 
-    const client = await this.#client();
-    await client.waitForConsensusEstablished();
     const keyPair = this.#keyPair();
     const sender = keyPair.toAddress();
+    const height = await this.#rpc('getBlockNumber');
+    if (!Number.isInteger(height)) throw new Error('Nimiq RPC returned an invalid block height.');
 
     const transaction = Nimiq.TransactionBuilder.newBasic(
       sender,
       Nimiq.Address.fromString(recipient),
       BigInt(amountLuna),
       0n,
-      await client.getHeadHeight(),
-      await client.getNetworkId(),
+      height,
+      NETWORK_NUMBERS[this.config.network] || 24,
     );
     transaction.sign(keyPair);
-    const details = await client.sendTransaction(transaction);
-    return { hash: details.transactionHash };
+    const result = await this.#rpc('pushTransaction', [transaction.toHex()]);
+    return { hash: result?.transactionHash || transaction.hash() };
   }
 }
