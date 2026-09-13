@@ -245,7 +245,16 @@ export function OnboardingPage() {
       if (walletResult.isNewUser) {
         setShowUsernameModal(true);
       } else {
-        setShowSkillModal(true);
+        // A verified returning wallet already has an identity. Do not ask for
+        // onboarding details again; continue directly to the app.
+        localStorage.setItem('onboarding_completed', 'true');
+        try {
+          sessionStorage.setItem('proof_welcome_pending', 'true');
+        } catch {
+          // The redirect still works when session storage is unavailable.
+        }
+        setShowWelcome(true);
+        window.setTimeout(() => window.location.reload(), 1250);
       }
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to connect wallet. Please try again.';
