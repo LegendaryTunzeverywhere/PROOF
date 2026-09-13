@@ -6,7 +6,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { config, validateConfig } from './config.js';
 import { seed } from './seed.js';
 import { AuthService, sessionCookie, clearSessionCookie } from './auth.js';
@@ -2465,5 +2465,9 @@ function readBody(req) {
   });
 }
 
-server.listen(config.port, '0.0.0.0', () => console.log(`[proof] listening on :${config.port}`));
-for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { store.save(); server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 1500); });
+const isDirectRun = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isDirectRun) {
+  server.listen(config.port, '0.0.0.0', () => console.log(`[proof] listening on :${config.port}`));
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { store.save(); server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 1500); });
+}

@@ -57,47 +57,181 @@ async function parseDocument(file) {
   return text.trim();
 }
 
+function slugify(value) {
+  return String(value || 'topic')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48) || 'topic';
+}
+
+function makeTopicTitle(text, fallback = 'Document concept') {
+  const clean = String(text || fallback).replace(/\s+/g, ' ').trim();
+  const clipped = clean.length > 72 ? `${clean.slice(0, 69).trim()}...` : clean;
+  return clipped || fallback;
+}
+
+function buildTopicQuiz(topicTitle, contextSentence) {
+  return [
+    {
+      question: `Which statement best explains ${topicTitle}?`,
+      options: [
+        `It focuses on the core idea described in the document: ${contextSentence}`,
+        'It is unrelated to the document and should be skipped.',
+        'It only matters if the document is very short.',
+        'It is just a random title without meaning.'
+      ],
+      correctIndex: 0,
+      explanation: `The main idea is to understand the concept in context, not memorize a label. ${contextSentence}`,
+    },
+    {
+      question: `Why is ${topicTitle} worth studying?`,
+      options: [
+        'It helps you connect the document to a practical, usable skill.',
+        'It is only useful for experts and not beginners.',
+        'It replaces the need to read the document.',
+        'It has no relationship to the key topic.'
+      ],
+      correctIndex: 0,
+      explanation: 'Studying the topic creates a clearer mental model and makes it easier to apply the material later.',
+    }
+  ];
+}
+
+function buildDocumentLessonFallback(documentText, topicSlug, lessonTitle) {
+  const cleanText = String(documentText || '').replace(/\s+/g, ' ').trim();
+  const sourceSentences = cleanText
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.replace(/\s+/g, ' ').trim())
+    .filter((sentence) => sentence.length > 25);
+
+  const conceptLine = sourceSentences[0] || 'This topic is a key concept from your uploaded document.';
+  const supportingLine = sourceSentences[1] || 'The document gives practical guidance that becomes clearer when you break it into parts and apply it in a small example.';
+  const applicationLine = sourceSentences[2] || 'You can use this idea by explaining it in your own words, connecting it to an example, and checking whether the same principle appears elsewhere.';
+
+  const keyPoints = [
+    `Focus on the central idea behind ${lessonTitle}.`,
+    'Connect the concept to a concrete example in the document.',
+    'Explain it out loud in your own words before moving on.',
+    'Check how the idea appears in a real task or decision.'
+  ];
+
+  const sections = [
+    {
+      h: 'Overview',
+      body: `${lessonTitle} is a core idea from the uploaded document. ${conceptLine}`
+    },
+    {
+      h: 'Key Concepts',
+      body: `${supportingLine} The important part is to recognize the main idea, identify the supporting details, and connect them to the larger argument or process.`
+    },
+    {
+      h: 'Practical Use',
+      body: `${applicationLine} Use this knowledge by summarizing it, applying it to one example, and testing whether you can explain it without rereading the document.`
+    }
+  ];
+
+  const practice = [
+    {
+      q: `Which summary best captures the meaning of ${lessonTitle}?`,
+      choices: [
+        `It is the main idea being explained and applied in the document.`,
+        'It is a random label with no useful meaning.',
+        'It only matters to the author, not the learner.',
+        'It should never be connected to examples.'
+      ],
+      answerIdx: 0,
+      why: 'The best summary makes the concept concrete and tied to the document’s purpose.'
+    },
+    {
+      q: 'What should you do right after learning a concept?',
+      choices: [
+        'Explain it in your own words and apply it to an example.',
+        'Ignore it and move on to unrelated content.',
+        'Memorize only the title without understanding it.',
+        'Delete your notes so the idea feels fresh.'
+      ],
+      answerIdx: 0,
+      why: 'Teaching the concept back to yourself and applying it helps the idea stick.'
+    }
+  ];
+
+  const quiz = buildTopicQuiz(lessonTitle, conceptLine);
+
+  return {
+    topic: topicSlug,
+    title: lessonTitle,
+    tldr: `${lessonTitle} matters because it helps you grasp the document’s main idea and apply it in a useful way.`,
+    ask: `How would you explain ${lessonTitle} in one sentence using your own words?`,
+    sections,
+    keyPoints,
+    practice,
+    quiz,
+    recall: ['Explain the main idea in your own words.', 'Name one example from the document.', 'State why the concept matters.'],
+    summary: `You should now be able to describe ${lessonTitle}, explain why it matters, and connect it to a practical example from the uploaded material.`
+  };
+}
+
 function localDocumentCurriculum(text, userGoal = '') {
-  const sections = text
+  const sections = String(text || '')
     .split(/\n+|(?<=[.!?])\s+/)
     .map((section) => section.replace(/\s+/g, ' ').trim())
-    .filter((section) => section.length >= 20);
-  const sourceSections = sections.length ? sections : [text.replace(/\s+/g, ' ').trim()];
-  const lessonTitle = (section, index) => {
-    const words = section.split(' ').slice(0, 8).join(' ');
-    return `${words || 'Document fundamentals'}${words.endsWith('.') ? '' : '...'} (${index + 1})`;
+    .filter((section) => section.length >= 25);
+  const sourceSections = sections.length ? sections : [String(text || '').replace(/\s+/g, ' ').trim()];
+
+  const buildDayTitle = (dayIndex, section) => {
+    const idea = makeTopicTitle(section, `Core idea ${dayIndex}`);
+    const phrase = idea.replace(/\s+/g, ' ').trim();
+    return `${phrase.slice(0, 48)}${phrase.length > 48 ? '…' : ''}`;
   };
 
-  const days = Array.from({ length: 7 }, (_, dayIndex) => ({
-    index: dayIndex + 1,
-    title: `Document study day ${dayIndex + 1}`,
-    estMin: 30,
-    xp: 50,
-    kind: 'study',
-    items: Array.from({ length: 3 }, (_, itemIndex) => {
-      const index = dayIndex * 3 + itemIndex;
-      const section = sourceSections[index % sourceSections.length];
+  const days = Array.from({ length: 7 }, (_, dayIndex) => {
+    const items = Array.from({ length: 3 }, (_, itemIndex) => {
+      const section = sourceSections[(dayIndex * 3 + itemIndex) % sourceSections.length] || sourceSections[0];
+      const title = makeTopicTitle(section, `Study item ${dayIndex + 1}-${itemIndex + 1}`);
+      const topic = slugify(`${dayIndex + 1}-${title}`);
       return {
-        topic: `document-${dayIndex + 1}-${itemIndex + 1}`,
-        title: lessonTitle(section, index),
+        topic,
+        title,
         kind: 'study',
-        estMin: 10,
-        xp: 15 + (itemIndex === 2 ? 5 : 0),
+        estMin: 12 + itemIndex * 6,
+        xp: 15 + itemIndex * 10,
+        challengeTemplate: {
+          title: `${title} check-in`,
+          brief: `Explain ${title.toLowerCase()} in your own words and connect it to the document.`,
+          requirements: ['Summarize the idea in plain language', 'Give one concrete example', 'Explain why the idea matters'],
+          timeMin: 15,
+          passScore: 70,
+          rewardNim: 1,
+          xp: 40,
+          type: 'text',
+          submissionFields: ['text'],
+          quiz: buildTopicQuiz(title, section) || []
+        }
       };
-    }),
-  }));
+    });
+
+    return {
+      index: dayIndex + 1,
+      title: `Day ${dayIndex + 1}: ${buildDayTitle(dayIndex + 1, sourceSections[dayIndex % sourceSections.length])}`,
+      estMin: 30,
+      xp: 60,
+      kind: 'study',
+      items,
+    };
+  });
 
   return {
     skillSlug: 'document-study',
     skillName: userGoal || 'Document study',
     skillEmoji: '📚',
     title: userGoal ? `${userGoal} — Document Path` : 'Document Study Path',
-    description: 'A structured seven-day study path generated from your document.',
+    description: 'A structured seven-day study path built from the ideas, examples, and concepts in your uploaded document.',
     level: 'beginner',
     minutesPerDay: 30,
-    totalXp: 350,
+    totalXp: 7 * 60,
     days,
-    keyConcepts: sourceSections.slice(0, 4).map((section, index) => lessonTitle(section, index)),
+    keyConcepts: sourceSections.slice(0, 5).map((section, index) => makeTopicTitle(section, `Concept ${index + 1}`)),
     engine: 'proof-engine',
   };
 }
@@ -359,27 +493,13 @@ Make it educational and complete - 3 sections, 4 key points, 3 practice question
     return lesson;
   } catch (e) {
     console.error('[DocumentLesson] Failed to generate lesson:', e);
-    // Return fallback structure
-    return {
-      topic: topicSlug,
-      title: lessonTitle,
-      sections: [
-        {
-          heading: 'Overview',
-          paragraphs: [
-            `This lesson covers ${lessonTitle}.`,
-            'The content is derived from your uploaded document.'
-          ]
-        }
-      ],
-      keyPoints: [],
-      practice: [],
-      summary: `Learn about ${lessonTitle} from your document.`
-    };
+    return buildDocumentLessonFallback(documentExcerpt, topicSlug, lessonTitle);
   }
 }
 
 export {
+  localDocumentCurriculum,
+  buildDocumentLessonFallback,
   parseDocument,
   analyzeDocumentWithAI,
   createCurriculumFromDocument,
