@@ -353,6 +353,13 @@ export const LogoHtml = (p: IconProps) => (
   </svg>
 );
 
+export const LogoChess = (p: IconProps) => (
+  <svg viewBox="0 0 28 28" aria-hidden="true" {...p}>
+    <circle cx="14" cy="14" r="12" fill="#0F9F8A" />
+    <text x="14" y="21" textAnchor="middle" fill="#fff" fontSize="18" fontFamily="Georgia, serif">♞</text>
+  </svg>
+);
+
 export const LogoCss = (p: IconProps) => (
   <svg viewBox="0 0 28 28" aria-hidden="true" {...p}>
     <path fill="#1572B6" d="M4.2 2.6h19.6l-1.8 20.2L14 25.4 5.9 22.8z" />

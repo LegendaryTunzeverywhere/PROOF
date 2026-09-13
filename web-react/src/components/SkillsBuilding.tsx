@@ -3,6 +3,7 @@ import { CARD, PANEL_PAD } from "@/lib/utils";
 import { PanelHeader } from "./PanelHeader";
 import { 
   LogoHtml, 
+  LogoChess,
   LogoCss, 
   LogoJs, 
   LogoReact, 
@@ -19,6 +20,7 @@ import {
 // Map skill slugs to their logo components
 const SKILL_LOGOS: Record<string, React.ComponentType<any>> = {
   'web-development': LogoHtml,
+  'chess': LogoChess,
   'html': LogoHtml,
   'css': LogoCss,
   'javascript': LogoJs,
