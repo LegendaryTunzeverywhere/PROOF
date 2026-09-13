@@ -4,7 +4,7 @@
  */
 
 import { api } from '../lib/api';
-import type { Challenge, DailyChallenge, SponsoredChallenge } from '../types/api';
+import type { Attempt, Challenge, DailyChallenge, RewardResult, SponsoredChallenge } from '../types/api';
 
 export const challengesService = {
   /**
@@ -21,7 +21,7 @@ export const challengesService = {
     return api.post(`/api/challenges/${challengeId}/start`);
   },
 
-  async submitAttempt(attemptId: string, payload: Record<string, unknown>): Promise<{ attempt: any; xpAwarded?: number; nimAwarded?: number; levelUp?: boolean }> {
+  async submitAttempt(attemptId: string, payload: Record<string, unknown>): Promise<{ attempt: Attempt; reward?: RewardResult; xpAwarded?: number; nimAwarded?: number; levelUp?: boolean }> {
     return api.post(`/api/attempts/${attemptId}/submit`, payload);
   },
 

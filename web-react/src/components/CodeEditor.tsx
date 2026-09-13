@@ -112,6 +112,7 @@ export function CodeEditor({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
+            onBeforeInput={pasteBlocker.onBeforeInput}
             onPaste={pasteBlocker.onPaste}
             onDrop={pasteBlocker.onDrop}
             onContextMenu={pasteBlocker.onContextMenu}

@@ -24,11 +24,6 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
   }
 
-  private handleReset = () => {
-    this.setState({ hasError: false, error: null });
-    window.location.href = '/home';
-  };
-
   public render() {
     if (this.state.hasError) {
       if (this.props.fallback) {

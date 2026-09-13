@@ -145,6 +145,17 @@ export interface Attempt {
   feedback: string;
   submittedAt: number;
   timings?: any;
+  reward?: {
+    granted: boolean;
+    amountNim?: number;
+    reason?: string;
+  };
+}
+
+export interface RewardResult {
+  granted: boolean;
+  amountNim?: number;
+  reason?: string;
 }
 
 export interface DailyChallenge extends Challenge {

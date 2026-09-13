@@ -3974,6 +3974,18 @@ for (const [skillSlug, topics] of Object.entries(ENRICH)) {
   }
 }
 
+// Keep recall present even for domains that do not have a hand-authored
+// enrichment map yet. Cybersecurity lessons still get prompts grounded in
+// their own question and key points.
+for (const topic of KB.cybersecurity?.topics || []) {
+  if (Array.isArray(topic.lesson?.recall) && topic.lesson.recall.length) continue;
+  const recall = [];
+  if (topic.lesson?.ask) recall.push(`Without looking back, answer: ${topic.lesson.ask}`);
+  const points = Array.isArray(topic.lesson?.keyPoints) ? topic.lesson.keyPoints.slice(0, 3) : [];
+  if (points.length) recall.push(`From memory, explain these ideas: ${points.join('; ')}.`);
+  if (recall.length) topic.lesson.recall = recall;
+}
+
 /** Domain suggestion for a free-text goal. */
 export function suggestDomain(goal) {
   const g = String(goal || '').toLowerCase();

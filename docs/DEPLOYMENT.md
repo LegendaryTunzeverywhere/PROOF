@@ -18,6 +18,7 @@ Production checklist:
 | `AUTH_SECRET` | **required in prod** — persistent session tokens (`openssl rand -hex 32`) |
 | `AI_API_KEY`, `AI_MODEL`, `AI_BASE_URL` | LLM-enhanced tutor/feedback (optional; engine otherwise) |
 | `NIMIQ_RPC_URL`, `NIMIQ_NETWORK` | on-chain balance reads + settlement refs |
+| `NIMIQ_SEED_NODES` | comma-separated Nimiq peer seed URLs used for treasury payouts |
 | `TREASURY_ADDRESS`, `TREASURY_KEY` | on-chain reward payouts (production; treat as hot-wallet material) |
 | `PASS_THRESHOLD`, caps | economy tuning |
 

@@ -38,6 +38,7 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
   const typingEffort = useRef(0);
   const pasteAttempts = useRef(0);
   const [chessPayload, setChessPayload] = useState<ChessProofPayload>({ positions: [] });
+  const { refreshUser } = useAuth();
   const isCodeProof = challenge?.type === 'html' || challenge?.type === 'js-static';
   const isChessProof = challenge?.type === 'chess';
   const responseLabel = isChessProof ? 'Chess proof board' : isCodeProof ? 'Your solution' : 'Your response';
@@ -138,7 +139,8 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
       }
       
       const res = await challengesService.submitAttempt(attemptId, payload);
-      setResult(res.attempt);
+      setResult({ ...res.attempt, reward: res.reward });
+      await refreshUser();
     } catch (err: any) {
       console.error('Failed to submit attempt:', err);
       setError(err.message || 'Failed to submit solution');
@@ -194,9 +196,9 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
           </h2>
           <p className="mt-2 text-lg font-semibold text-ink">Score: {result.score}%</p>
           
-          {challenge.rewardNim && passed && (
+          {result.reward?.granted && passed && (
             <p className="mt-3 text-base text-ink">
-              +{challenge.rewardNim} NIM earned! 🎁
+              +{result.reward.amountNim} NIM earned! 🎁
             </p>
           )}
           

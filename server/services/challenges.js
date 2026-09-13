@@ -27,9 +27,34 @@ const PAYLOAD_SHAPES = {
   chess: ['positions'],
 };
 
+const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+function normalizedChessEntries(entries, label, fallbackFen) {
+  if (Array.isArray(entries)) {
+    return entries.slice(0, 8).map((entry, index) => ({
+      name: String(entry?.name || entry?.opening || entry?.theme || `${label} ${index + 1}`).slice(0, 80),
+      fen: String(entry?.fen || fallbackFen).slice(0, 160),
+      task: String(entry?.task || entry?.objective || entry?.opening || '').slice(0, 500),
+      hint: String(entry?.hint || '').slice(0, 300),
+      correctMoves: Array.isArray(entry?.correctMoves) ? entry.correctMoves.slice(0, 20).map(String) : undefined,
+      solution: Array.isArray(entry?.solution) ? entry.solution.slice(0, 20).map(String) : undefined,
+    }));
+  }
+  if (Number.isInteger(entries) && entries > 0) {
+    return Array.from({ length: Math.min(entries, 8) }, (_, index) => ({
+      name: `${label} ${index + 1}`,
+      fen: fallbackFen,
+      task: `${label} ${index + 1}: play a legal continuation.`,
+      hint: 'Use the AI analysis to choose a legal continuation.',
+    }));
+  }
+  return [];
+}
+
 /** Keep only the board data a challenge runner needs; curriculum prose stays server-side. */
 export function chessConfigFromTemplate(template = {}) {
   if (template.type !== 'chess') return null;
+  const fallbackFen = template.fen === 'start' ? STARTING_FEN : String(template.fen || STARTING_FEN).slice(0, 160);
   const position = (entry = {}) => ({
     name: String(entry.name || entry.theme || '').slice(0, 80),
     fen: String(entry.fen || '').slice(0, 160),
@@ -39,17 +64,18 @@ export function chessConfigFromTemplate(template = {}) {
     solution: Array.isArray(entry.solution) ? entry.solution.slice(0, 20).map(String) : undefined,
   });
   return {
-    fen: template.fen === 'start' ? 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' : String(template.fen || ''),
+    fen: fallbackFen,
     tasks: Array.isArray(template.tasks) ? template.tasks.slice(0, 8).map((task) => String(task).slice(0, 300)) : [],
-    scenarios: Array.isArray(template.scenarios) ? template.scenarios.slice(0, 8).map(position) : [],
-    positions: Array.isArray(template.positions) ? template.positions.slice(0, 8).map(position) : [],
-    puzzles: Array.isArray(template.puzzles) ? template.puzzles.slice(0, 8).map(position) : [],
+    scenarios: normalizedChessEntries(template.scenarios, 'Scenario', fallbackFen).map(position),
+    positions: normalizedChessEntries(template.positions, 'Position', fallbackFen).map(position),
+    puzzles: normalizedChessEntries(template.puzzles, 'Puzzle', fallbackFen).map(position),
   };
 }
 
 /** Stored inside evaluator JSONB for Supabase compatibility; legacy JSON rows may use `challenge.chess`. */
 export function chessConfigFromChallenge(challenge = {}) {
-  return challenge.chess || challenge.evaluator?.chess || null;
+  const chess = challenge.chess || challenge.evaluator?.chess || null;
+  return chess ? chessConfigFromTemplate({ type: 'chess', ...chess }) : null;
 }
 
 export class ChallengeService {

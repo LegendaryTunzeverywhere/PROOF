@@ -6,16 +6,30 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 
 function loadDotEnv(file = '.env') {
-  try {
-    const raw = fs.readFileSync(path.resolve(process.cwd(), file), 'utf8');
-    for (const line of raw.split('\n')) {
-      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-      if (!m) continue;
-      if (process.env[m[1]] === undefined) process.env[m[1]] = m[2];
+  const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const candidates = [
+    process.env.ENV_FILE,
+    path.resolve(process.cwd(), file),
+    path.join(projectRoot, file),
+  ].filter(Boolean);
+  const envPath = candidates.find((candidate) => fs.existsSync(candidate));
+  if (!envPath) return;
+
+  const raw = fs.readFileSync(envPath, 'utf8');
+  for (const line of raw.split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+    if (!m || process.env[m[1]] !== undefined) continue;
+    let value = m[2];
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    } else {
+      value = value.replace(/\s+#.*$/, '').trim();
     }
-  } catch { /* no .env — fine */ }
+    process.env[m[1]] = value;
+  }
 }
 loadDotEnv();
 
@@ -78,6 +92,9 @@ export const aiEnabled = () =>
 export const chainEnabled = () => Boolean(
   config.nimiq.treasuryAddress && config.nimiq.treasuryKey && config.nimiq.seedNodes.length,
 );
+export const treasuryCredentialsEnabled = () => Boolean(
+  config.nimiq.treasuryAddress && config.nimiq.treasuryKey,
+);
 
 export function validateConfig(logger = console) {
   const problems = [];
@@ -93,7 +110,11 @@ export function validateConfig(logger = console) {
     logger.warn('[config] AI_API_KEY not set — using the local ProofEngine (deterministic evaluation).');
   }
   if (!chainEnabled()) {
-    logger.warn('[config] NIMIQ_SEED_NODES, TREASURY_ADDRESS, or TREASURY_KEY not set — rewards settle to the in-app demo ledger (no on-chain txs).');
+    if (treasuryCredentialsEnabled() && !config.nimiq.seedNodes.length) {
+      logger.warn('[config] TREASURY_ADDRESS and TREASURY_KEY loaded, but NIMIQ_SEED_NODES is missing — on-chain payouts are disabled.');
+    } else {
+      logger.warn('[config] NIMIQ_SEED_NODES, TREASURY_ADDRESS, or TREASURY_KEY not set — rewards settle to the in-app demo ledger (no on-chain txs).');
+    }
   }
   return problems;
 }

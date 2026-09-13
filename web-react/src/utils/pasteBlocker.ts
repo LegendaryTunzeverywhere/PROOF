@@ -90,6 +90,19 @@ export function blockDrop(
   if (opts.showWarning && opts.warningMessage) showWarningToast(opts.warningMessage);
 }
 
+/** Block browser input paths that insert clipboard or dropped content before paste fires. */
+export function blockBeforeInput(
+  event: InputEvent,
+  options: PasteBlockerOptions = {}
+): void {
+  if (event.inputType !== 'insertFromPaste' && event.inputType !== 'insertFromDrop') return;
+  const opts = { ...DEFAULT_OPTIONS, ...options };
+  event.preventDefault();
+  event.stopPropagation();
+  opts.onPasteAttempt();
+  if (opts.showWarning && opts.warningMessage) showWarningToast(opts.warningMessage);
+}
+
 /**
  * Show a warning toast message
  */
@@ -133,6 +146,7 @@ function showWarningToast(_message: string): void {
 export function usePasteBlocker(options: PasteBlockerOptions = {}) {
   return {
     onPaste: (event: React.ClipboardEvent) => blockPaste(event.nativeEvent, options),
+    onBeforeInput: (event: React.FormEvent) => blockBeforeInput(event.nativeEvent as InputEvent, options),
     onDrop: (event: React.DragEvent) => blockDrop(event.nativeEvent, options),
     onContextMenu: (event: React.MouseEvent) => blockContextMenu(event.nativeEvent),
     onKeyDown: (event: React.KeyboardEvent) => blockPasteShortcuts(event.nativeEvent, options),
