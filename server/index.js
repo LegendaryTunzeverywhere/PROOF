@@ -262,10 +262,17 @@ route('POST', '/api/auth/verify', async (ctx) => {
   
   if (isNimiqMode && looksLikeNimiqAddress(authenticatedAddress)) {
     if (!user) user = await users.createUser({ walletAddress: authenticatedAddress, walletMode: mode, username: customUsername });
-    else await users.update(user, { walletAddress: authenticatedAddress, walletMode: mode, publicKey: body.publicKey });
+    else {
+      const updatedUser = await users.update(user, { walletAddress: authenticatedAddress, walletMode: mode, publicKey: body.publicKey });
+      // A user cache can outlive a manual Supabase reset. Never issue a
+      // session for a row that the database no longer contains.
+      user = updatedUser || await users.get(user.id);
+      if (!user) user = await users.createUser({ walletAddress: authenticatedAddress, walletMode: mode, username: customUsername });
+    }
   } else {
     if (!user) user = await users.createUser({ walletMode: 'demo', username: customUsername });
-    await users.update(user, { publicKey: body.publicKey, walletMode: 'demo' });
+    else user = await users.update(user, { publicKey: body.publicKey, walletMode: 'demo' }) || await users.get(user.id);
+    if (!user) user = await users.createUser({ walletMode: 'demo', username: customUsername });
   }
 
   const hasWelcomeNotification = store.find('notifications', (n) => n.userId === user.id && n.type === 'welcome');
