@@ -60,8 +60,14 @@ export const pathsService = {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to upload document');
+      let message = 'Failed to upload document';
+      try {
+        const error = await response.json();
+        message = error?.error?.message || error?.message || error?.error || message;
+      } catch {
+        message = response.statusText || message;
+      }
+      throw new Error(message);
     }
 
     return response.json();

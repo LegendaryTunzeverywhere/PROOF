@@ -72,8 +72,21 @@ export async function llmJson({ system, prompt, maxTokens = 900 }) {
     
     throw lastError;
   }
-  
-  throw new Error('NO_GROQ_API_KEY_CONFIGURED');
+
+  if (config.ai.apiKey) {
+    let lastError;
+    for (const model of modelCandidates()) {
+      try {
+        return await callGemini({ system, prompt, maxTokens, model });
+      } catch (e) {
+        lastError = e;
+        console.warn(`[LLM] Gemini model ${model} failed:`, e.message);
+      }
+    }
+    throw lastError || new Error('GEMINI_UNAVAILABLE');
+  }
+
+  throw new Error('LLM_NOT_CONFIGURED');
 }
 
 async function callGroq({ system, prompt, maxTokens }) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { PanelHeader } from '../components/PanelHeader';
 import { Reveal } from '../components/Reveal';
@@ -6,6 +6,8 @@ import { DailyChallenge } from '../components/DailyChallenge';
 import { TrendingProofs } from '../components/TrendingProofs';
 import { ArrowRightIcon, CheckIcon, ProveIcon, TrophyIcon } from '../components/Icons';
 import { ChessProofBoard, type ChessProofPayload } from '../components/chess/ChessProofBoard';
+import { CodeEditor } from '../components/CodeEditor';
+import { TypeOnlyInput } from '../components/TypeOnlyInput';
 import { useAuth } from '../context/AuthContext';
 import { pathsService } from '../services/paths.service';
 import { challengesService } from '../services/challenges.service';
@@ -32,6 +34,9 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Attempt | null>(null);
   const [code, setCode] = useState('');
+  const proofStartedAt = useRef(Date.now());
+  const typingEffort = useRef(0);
+  const pasteAttempts = useRef(0);
   const [chessPayload, setChessPayload] = useState<ChessProofPayload>({ positions: [] });
   const isCodeProof = challenge?.type === 'html' || challenge?.type === 'js-static';
   const isChessProof = challenge?.type === 'chess';
@@ -40,6 +45,17 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
     ? challenge.requirements
     : String(challenge?.requirements || '').split(/\r?\n|\s*â€¢\s*/).map((item) => item.trim()).filter(Boolean);
   const onChessChange = useCallback((payload: ChessProofPayload) => setChessPayload(payload), []);
+
+  const handleProofTextChange = (value: string) => {
+    typingEffort.current += Math.max(1, Math.abs(value.length - code.length));
+    setCode(value);
+  };
+
+  const resetTypingTelemetry = () => {
+    proofStartedAt.current = Date.now();
+    typingEffort.current = 0;
+    pasteAttempts.current = 0;
+  };
 
   useEffect(() => {
     loadChallenge();
@@ -82,6 +98,7 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
     
     try {
       setError(null);
+      resetTypingTelemetry();
       const res = await challengesService.startAttempt(challenge.id);
       setAttemptId(res.attemptId);
     } catch (err: any) {
@@ -103,6 +120,14 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
       setError(null);
       
       const payload: Record<string, unknown> = isChessProof ? chessPayload : isCodeProof ? { code } : { text: code };
+
+      if (!isChessProof) {
+        payload.meta = {
+          effort: typingEffort.current,
+          pastes: pasteAttempts.current,
+          ms: Date.now() - proofStartedAt.current,
+        };
+      }
       
       // Add other fields based on challenge type
       if (challenge?.submissionFields?.includes('explanation')) {
@@ -200,6 +225,7 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
                 onClick={() => {
                   setResult(null);
                   setCode('');
+                    resetTypingTelemetry();
                   setChessPayload({ positions: [] });
                   handleStartAttempt();
                 }}
@@ -329,13 +355,27 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
               {isChessProof ? (
                 <ChessProofBoard challenge={challenge} disabled={submitting} onChange={onChessChange} />
               ) : (
-              <textarea
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder={isCodeProof ? 'Write your code here…' : 'Write your proof response here…'}
-                className={`mt-4 h-64 w-full rounded-xl border border-line bg-elevated p-4 text-sm text-ink outline-none transition-colors focus:border-brand focus:ring-4 focus:ring-brand-soft ${isCodeProof ? 'font-mono' : 'leading-relaxed'}`}
-                disabled={submitting}
-              />
+                isCodeProof ? (
+                  <CodeEditor
+                    value={code}
+                    onChange={handleProofTextChange}
+                    onPasteAttempt={() => { pasteAttempts.current += 1; }}
+                    placeholder="Write your code here..."
+                    disabled={submitting}
+                    className="mt-4"
+                  />
+                ) : (
+                  <TypeOnlyInput
+                    value={code}
+                    onChange={handleProofTextChange}
+                    onPasteAttempt={() => { pasteAttempts.current += 1; }}
+                    type="textarea"
+                    placeholder="Write your proof response here..."
+                    rows={8}
+                    disabled={submitting}
+                    className="mt-4"
+                  />
+                )
               )}
               
               {error && (

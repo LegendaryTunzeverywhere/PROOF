@@ -933,28 +933,17 @@ async function pathView(p, userId) {
 /* ── DOCUMENT CURRICULUM ────────────────────────────────────────────── */
 route('POST', '/api/curriculum/from-document', async (ctx) => {
   const { user, req, res } = ctx;
-  
-  // Wrap multer in a promise so errors can be caught properly
-  await new Promise((resolve, reject) => {
-    upload.single('document')(req, res, (err) => {
-      if (err) {
-        if (err instanceof multer.MulterError) {
-          return reject(httpError(400, 'UPLOAD_ERROR', err.message));
-        }
-        return reject(httpError(400, 'UPLOAD_ERROR', err.message));
-      }
-      
-      if (!req.file) {
-        return reject(httpError(400, 'NO_FILE', 'No document uploaded.'));
-      }
-      
-      resolve();
-    });
-  });
-
-  const userGoal = req.body.goal || '';
-  
   try {
+    // Wrap multer in a promise so upload errors reach the request boundary.
+    await new Promise((resolve, reject) => {
+      upload.single('document')(req, res, (err) => {
+        if (err) return reject(httpError(400, 'UPLOAD_ERROR', err.message));
+        if (!req.file) return reject(httpError(400, 'NO_FILE', 'No document uploaded.'));
+        resolve();
+      });
+    });
+
+    const userGoal = req.body?.goal || '';
     const result = await createCurriculumFromDocument(user.id, req.file, userGoal);
     json(res, 201, { 
       path: await pathView(result.path, user.id),
@@ -962,7 +951,14 @@ route('POST', '/api/curriculum/from-document', async (ctx) => {
     });
   } catch (e) {
     console.error('[curriculum/from-document] Error:', e.message);
-    throw httpError(500, 'CURRICULUM_FAILED', e.message || 'Failed to generate curriculum from document.');
+    if (e.status) throw e;
+    if (e.message?.includes('LLM_NOT_CONFIGURED')) {
+      throw httpError(503, 'AI_NOT_CONFIGURED', 'Document curricula are temporarily unavailable because AI is not configured.');
+    }
+    if (e.message?.includes('empty or too short')) {
+      throw httpError(400, 'DOCUMENT_TOO_SHORT', e.message);
+    }
+    throw httpError(502, 'CURRICULUM_FAILED', e.message || 'Failed to generate curriculum from document.');
   }
 });
 

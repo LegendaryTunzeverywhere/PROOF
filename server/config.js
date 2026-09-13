@@ -66,7 +66,7 @@ export const config = {
      * reports edit telemetry; the server rejects pastes and implausible
      * typing (too fast / too few edits for the content length).
      */
-    typingVerification: (process.env.TYPING_VERIFICATION || 'on') !== 'off',
+    typingVerification: true,
   },
 };
 

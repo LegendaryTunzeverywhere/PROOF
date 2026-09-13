@@ -6,6 +6,7 @@
 import { store } from '../index.js';
 import { uid, now } from '../util.js';
 import { generateLearningPath, generateLesson } from '../ai/service.js';
+import { llmEnabled, llmJson } from '../ai/providers.js';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
@@ -56,7 +57,54 @@ async function parseDocument(file) {
   return text.trim();
 }
 
+function localDocumentCurriculum(text, userGoal = '') {
+  const sections = text
+    .split(/\n+|(?<=[.!?])\s+/)
+    .map((section) => section.replace(/\s+/g, ' ').trim())
+    .filter((section) => section.length >= 20);
+  const sourceSections = sections.length ? sections : [text.replace(/\s+/g, ' ').trim()];
+  const lessonTitle = (section, index) => {
+    const words = section.split(' ').slice(0, 8).join(' ');
+    return `${words || 'Document fundamentals'}${words.endsWith('.') ? '' : '...'} (${index + 1})`;
+  };
+
+  const days = Array.from({ length: 7 }, (_, dayIndex) => ({
+    index: dayIndex + 1,
+    title: `Document study day ${dayIndex + 1}`,
+    estMin: 30,
+    xp: 50,
+    kind: 'study',
+    items: Array.from({ length: 3 }, (_, itemIndex) => {
+      const index = dayIndex * 3 + itemIndex;
+      const section = sourceSections[index % sourceSections.length];
+      return {
+        topic: `document-${dayIndex + 1}-${itemIndex + 1}`,
+        title: lessonTitle(section, index),
+        kind: 'study',
+        estMin: 10,
+        xp: 15 + (itemIndex === 2 ? 5 : 0),
+      };
+    }),
+  }));
+
+  return {
+    skillSlug: 'document-study',
+    skillName: userGoal || 'Document study',
+    skillEmoji: '📚',
+    title: userGoal ? `${userGoal} — Document Path` : 'Document Study Path',
+    description: 'A structured seven-day study path generated from your document.',
+    level: 'beginner',
+    minutesPerDay: 30,
+    totalXp: 350,
+    days,
+    keyConcepts: sourceSections.slice(0, 4).map((section, index) => lessonTitle(section, index)),
+    engine: 'proof-engine',
+  };
+}
+
 async function analyzeDocumentWithAI(text, userGoal = '') {
+  if (!llmEnabled()) return localDocumentCurriculum(text, userGoal);
+
   const systemPrompt = `Create comprehensive learning curricula. Keep JSON complete and valid.`;
 
   // Reduced from 8000 to 4000 chars to prevent HTTP 413 (Request Too Large)
@@ -91,8 +139,6 @@ Return JSON (7 days, 3 lessons each):
 
 Keep it complete and valid. 7 days exactly.`;
 
-  const { llmJson } = await import('../ai/providers.js');
-  
   try {
     const curriculum = await llmJson({
       system: systemPrompt,

@@ -78,6 +78,18 @@ export function blockPasteShortcuts(
   }
 }
 
+/** Block dragged text or files from being inserted into proof fields. */
+export function blockDrop(
+  event: DragEvent,
+  options: PasteBlockerOptions = {}
+): void {
+  const opts = { ...DEFAULT_OPTIONS, ...options };
+  event.preventDefault();
+  event.stopPropagation();
+  opts.onPasteAttempt();
+  if (opts.showWarning && opts.warningMessage) showWarningToast(opts.warningMessage);
+}
+
 /**
  * Show a warning toast message
  */
@@ -121,6 +133,7 @@ function showWarningToast(_message: string): void {
 export function usePasteBlocker(options: PasteBlockerOptions = {}) {
   return {
     onPaste: (event: React.ClipboardEvent) => blockPaste(event.nativeEvent, options),
+    onDrop: (event: React.DragEvent) => blockDrop(event.nativeEvent, options),
     onContextMenu: (event: React.MouseEvent) => blockContextMenu(event.nativeEvent),
     onKeyDown: (event: React.KeyboardEvent) => blockPasteShortcuts(event.nativeEvent, options),
   };
