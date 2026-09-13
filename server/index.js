@@ -1001,9 +1001,19 @@ route('DELETE', '/api/curriculum/documents/:id', async (ctx) => {
   
   // Get the path to verify ownership
   const path = await getDocumentCurriculum(user.id, params.id);
+
+  for (const day of path.days || []) {
+    for (const item of day.items || []) {
+      for (const language of ['en', 'es', 'fr', 'de', 'pt', 'zh']) {
+        lessonCache.delete(`${language}:${path.skillSlug}:${item.topic}`);
+      }
+    }
+  }
   
   // Delete associated challenges first (they reference the path)
-  const challenges = await store.filter('challenges', (c) => c.documentPathId === params.id);
+  const challenges = await store.filter('challenges', (c) =>
+    c.documentPathId === params.id || c.evaluator?.documentPathId === params.id
+  );
   for (const challenge of challenges) {
     await store.remove('challenges', challenge.id);
   }

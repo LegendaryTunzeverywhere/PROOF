@@ -410,7 +410,20 @@ async function generateDocumentLesson(skillSlug, topicSlug) {
   const paths = await store.filter('paths', (p) => p.skillSlug === skillSlug && p.isFromDocument);
   
   if (paths.length === 0) {
-    throw new Error('Document curriculum not found for this skill');
+    return {
+      topic: topicSlug,
+      title: 'Document no longer available',
+      tldr: 'This uploaded document was deleted, so its lesson content is no longer available.',
+      sections: [{
+        h: 'Document removed',
+        body: 'Return to Learning to choose another path or upload the document again.'
+      }],
+      keyPoints: ['The source document is no longer available.', 'Choose another learning path or upload the document again.'],
+      practice: [],
+      quiz: [],
+      recall: [],
+      summary: 'This document curriculum has been deleted.'
+    };
   }
   
   const path = paths[0];
@@ -488,6 +501,10 @@ Return JSON:
 }
 
 Make it educational and complete - 3 sections, 4 key points, 3 practice questions, 2 quiz questions.`;
+
+  if (!llmEnabled()) {
+    return buildDocumentLessonFallback(documentExcerpt, topicSlug, lessonTitle);
+  }
 
   try {
     const lesson = await llmJson({
