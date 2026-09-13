@@ -14,7 +14,7 @@ test('challenge: full pipeline — submit → score → skill → reward → xp'
       evaluator: { type: 'html', config: { required: ['nav', 'article', 'footer', 'h1', 'img'], needViewport: true, needLang: true, needAlt: true, minNavLinks: 3, minMediaQueries: 1, wantFluidUnits: true, minCards: 3, minCssProps: 12 } },
     },
   });
-  const { attempt } = tb.challenges.startAttempt(user.id, ch.id);
+  const { attempt } = await tb.challenges.startAttempt(user.id, ch.id);
   const result = await tb.challenges.submitAttempt(user.id, attempt.id, { code: goodHtml, meta: typedMeta(goodHtml) });
 
   assert.equal(result.evaluation.pass, true);
@@ -39,7 +39,7 @@ test('challenge: first verified proof pushes a real skill_verified notification'
       evaluator: { type: 'html', config: { required: ['nav', 'article', 'footer', 'h1', 'img'], needViewport: true, needLang: true, needAlt: true, minNavLinks: 3, minMediaQueries: 1, wantFluidUnits: true, minCards: 3, minCssProps: 12 } },
     },
   });
-  const { attempt } = tb.challenges.startAttempt(user.id, ch.id);
+  const { attempt } = await tb.challenges.startAttempt(user.id, ch.id);
   await tb.challenges.submitAttempt(user.id, attempt.id, { code: goodHtml, meta: typedMeta(goodHtml) });
 
   const notifs = await tb.notifications.list(user.id);
@@ -55,7 +55,7 @@ test('anti-cheat: client cannot inject score/status into the pipeline', async (t
     skillSlug: 'web-development',
     template: { type: 'html', kind: 'proof', title: 'T', brief: 'B', passScore: 70, rewardNim: 2, xp: 100, evaluator: { type: 'html', config: { required: ['h1'] } } },
   });
-  const { attempt } = tb.challenges.startAttempt(user.id, ch.id);
+  const { attempt } = await tb.challenges.startAttempt(user.id, ch.id);
   // malicious payload tries to claim a perfect score
   const result = await tb.challenges.submitAttempt(user.id, attempt.id, { code: '<h1>hi</h1>', score: 100, status: 'passed', rewardNim: 999, meta: typedMeta('<h1>hi</h1>') });
   assert.notEqual(result.evaluation.score, 100, 'client-provided score must be ignored');
@@ -88,7 +88,7 @@ test('submitAttempt persists status/score/evaluationId via store.update()', asyn
       evaluator: { type: 'html', config: { required: ['nav', 'article', 'footer', 'h1', 'img'], needViewport: true, needLang: true, needAlt: true, minNavLinks: 3, minMediaQueries: 1, wantFluidUnits: true, minCards: 3, minCssProps: 12 } },
     },
   });
-  const { attempt } = tb.challenges.startAttempt(user.id, ch.id);
+  const { attempt } = await tb.challenges.startAttempt(user.id, ch.id);
   const result = await tb.challenges.submitAttempt(user.id, attempt.id, { code: goodHtml, meta: typedMeta(goodHtml) });
 
   const stored = tb.store.get('attempts', attempt.id);
@@ -105,12 +105,12 @@ test('anti-cheat: rate limit blocks instant resubmission', async (t) => {
     skillSlug: 'web-development',
     template: { type: 'html', kind: 'proof', title: 'T', brief: 'B', passScore: 70, rewardNim: 2, xp: 100, evaluator: { type: 'html', config: { required: ['h1'] } } },
   });
-  const a1 = tb.challenges.startAttempt(user.id, ch.id);
+  const a1 = await tb.challenges.startAttempt(user.id, ch.id);
   await tb.challenges.submitAttempt(user.id, a1.attempt.id, { code: '<h1>one</h1>', meta: typedMeta('<h1>one</h1>') });
-  assert.throws(() => tb.challenges.startAttempt(user.id, ch.id), (e) => e.code === 'RATE_LIMITED');
+  await assert.rejects(() => tb.challenges.startAttempt(user.id, ch.id), (e) => e.code === 'RATE_LIMITED');
 });
 
-test('anti-cheat: same challenge cannot be rewarded twice', async (t) => {
+test('anti-cheat: passed challenge cannot be started or rewarded again', async (t) => {
   const tb = await testbed();
   const user = await tb.users.createUser({});
   const ch = tb.challenges.createFromTemplate({
@@ -120,16 +120,15 @@ test('anti-cheat: same challenge cannot be rewarded twice', async (t) => {
       evaluator: { type: 'html', config: { required: ['h1'], needViewport: false, needLang: false } },
     },
   });
-  const a1 = tb.challenges.startAttempt(user.id, ch.id);
+  const a1 = await tb.challenges.startAttempt(user.id, ch.id);
   const r1 = await tb.challenges.submitAttempt(user.id, a1.attempt.id, { code: goodHtml, meta: typedMeta(goodHtml) });
   assert.equal(r1.reward.granted, true);
 
-  // force-allow a second attempt (bypass interval like time travel would)
-  tb.store.update('attempts', a1.attempt.id, { submittedAt: Date.now() - 999999 });
-  const a2 = tb.challenges.startAttempt(user.id, ch.id);
-  const r2 = await tb.challenges.submitAttempt(user.id, a2.attempt.id, { code: goodHtml + '<!-- v2 -->', meta: typedMeta(goodHtml) });
-  assert.equal(r2.reward.granted, false, 'reward must be one-time per challenge');
-  assert.equal(r2.reward.reason, 'ALREADY_REWARDED');
+  await assert.rejects(
+    () => tb.challenges.startAttempt(user.id, ch.id),
+    (error) => error.code === 'ALREADY_PASSED',
+    'a passed challenge must not create another attempt'
+  );
   assert.equal(tb.users.get(user.id).balanceLuna, 200000, 'balance must not double');
 });
 
@@ -143,12 +142,12 @@ test('anti-cheat: duplicate submission hash is flagged and unrewarded', async (t
       evaluator: { type: 'html', config: { required: ['h1'], needViewport: false, needLang: false } },
     },
   });
-  const a1 = tb.challenges.startAttempt(user.id, ch.id);
+  const a1 = await tb.challenges.startAttempt(user.id, ch.id);
   await tb.challenges.submitAttempt(user.id, a1.attempt.id, { code: '<h1>dup</h1> <!-- a -->', meta: typedMeta('<h1>dup</h1>') });
   tb.store.update('attempts', a1.attempt.id, { submittedAt: Date.now() - 999999 });
   
   // Second attempt with identical content should be rejected immediately
-  const a2 = tb.challenges.startAttempt(user.id, ch.id);
+  const a2 = await tb.challenges.startAttempt(user.id, ch.id);
   try {
     await tb.challenges.submitAttempt(user.id, a2.attempt.id, { code: '<h1>dup</h1> <!-- a -->', meta: typedMeta('<h1>dup</h1>') });
     assert.fail('Duplicate submission should have been rejected');
@@ -165,7 +164,7 @@ test('daily challenge: one reward per day per user', async (t) => {
   const tb = await testbed();
   const user = await tb.users.createUser({});
   const daily = await tb.challenges.todayDaily();
-  const a1 = tb.challenges.startAttempt(user.id, daily.id);
+  const a1 = await tb.challenges.startAttempt(user.id, daily.id);
   const r1 = await tb.challenges.submitAttempt(user.id, a1.attempt.id, { text: 'Yesterday semantic HTML finally clicked for me. Tags are not about how things look, they describe what things mean: a nav element tells the browser and screen readers this is navigation, an article wraps a self-contained piece of content, and a footer closes the page. When I rebuilt my practice page using semantic elements instead of div soup, the structure became obvious at a glance and my heading order stopped skipping levels. Meaning first, styling second, that is the lesson I am keeping.', meta: typedMeta('Yesterday semantic HTML finally clicked for me. Tags are not about how things look, they describe what things mean: a nav element tells the browser and screen readers this is navigation, an article wraps a self-contained piece of content, and a footer closes the page. When I rebuilt my practice page using semantic elements instead of div soup, the structure became obvious at a glance and my heading order stopped skipping levels. Meaning first, styling second, that is the lesson I am keeping.') });
   assert.equal(r1.reward.granted, true);
   assert.equal(r1.reward.reward.sourceKind, 'daily');

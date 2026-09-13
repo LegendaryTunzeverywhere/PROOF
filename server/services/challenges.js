@@ -130,6 +130,15 @@ export class ChallengeService {
     const ch = await this.get(challengeId);
     if (!ch) throw Object.assign(new Error('Challenge not found.'), { code: 'NOT_FOUND', status: 404 });
 
+    const passed = await this.store.find('attempts', (a) =>
+      a.userId === userId && a.challengeId === challengeId && a.status === 'passed'
+    );
+    if (passed) {
+      throw Object.assign(new Error('This proof has already been passed. It cannot be submitted again.'), {
+        code: 'ALREADY_PASSED', status: 409,
+      });
+    }
+
     // resume open attempt
     const open = await this.store.find('attempts', (a) => a.userId === userId && a.challengeId === challengeId && a.status === 'in_progress');
     if (open) return { attempt: open, resumed: true };
@@ -292,6 +301,17 @@ export class ChallengeService {
     if (attempt.status !== 'in_progress')
       throw Object.assign(new Error('This attempt was already submitted.'), { code: 'ALREADY_SUBMITTED', status: 409 });
     const ch = await this.get(attempt.challengeId);
+
+    const passed = await this.store.find('attempts', (candidate) =>
+      candidate.userId === userId && candidate.challengeId === ch.id &&
+      candidate.status === 'passed' && candidate.id !== attempt.id
+    );
+    if (passed) {
+      throw Object.assign(new Error('This proof has already been passed. It cannot be submitted again.'), {
+        code: 'ALREADY_PASSED', status: 409,
+      });
+    }
+
     const payload = this.validatePayload(ch.type, rawPayload, ch);
 
     // ── typing verification (anti paste / anti AI-dump) ──
