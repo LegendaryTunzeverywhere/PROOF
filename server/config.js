@@ -42,6 +42,7 @@ export const config = {
     network: process.env.NIMIQ_NETWORK || 'mainnet',
     treasuryAddress: process.env.TREASURY_ADDRESS || '',
     treasuryKey: process.env.TREASURY_KEY || '',
+    seedNodes: (process.env.NIMIQ_SEED_NODES || '').split(',').map((value) => value.trim()).filter(Boolean),
   },
 
   economy: {
@@ -73,8 +74,10 @@ export const config = {
 /** True when a real LLM provider is configured. */
 export const aiEnabled = () =>
   config.ai.provider !== 'engine' && !!config.ai.apiKey;
-/** True when an on-chain Nimiq RPC is configured. */
-export const chainEnabled = () => !!config.nimiq.rpcUrl;
+/** True when automatic treasury payouts have all required settings. */
+export const chainEnabled = () => Boolean(
+  config.nimiq.treasuryAddress && config.nimiq.treasuryKey && config.nimiq.seedNodes.length,
+);
 
 export function validateConfig(logger = console) {
   const problems = [];
@@ -90,7 +93,7 @@ export function validateConfig(logger = console) {
     logger.warn('[config] AI_API_KEY not set — using the local ProofEngine (deterministic evaluation).');
   }
   if (!chainEnabled()) {
-    logger.warn('[config] NIMIQ_RPC_URL not set — rewards settle to the in-app demo ledger (no on-chain txs).');
+    logger.warn('[config] NIMIQ_SEED_NODES, TREASURY_ADDRESS, or TREASURY_KEY not set — rewards settle to the in-app demo ledger (no on-chain txs).');
   }
   return problems;
 }

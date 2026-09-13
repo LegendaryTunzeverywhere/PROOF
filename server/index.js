@@ -72,6 +72,11 @@ skills.seedCatalog();
 await seedRelations({ users, skills, market, teaching });
 console.log(`[proof] ready · engine=${config.ai.apiKey ? 'llm+engine' : 'engine'} · network=${config.nimiq.rpcUrl ? 'nimiq-rpc' : 'demo-ledger'}`);
 
+const payoutRetryTimer = setInterval(() => {
+  rewards.retryPendingPayouts().catch((error) => console.error('[rewards] retry worker failed:', error.message));
+}, 60_000);
+payoutRetryTimer.unref?.();
+
 /* ── Multer setup for document uploads ── */
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -1481,6 +1486,7 @@ route('GET', '/api/wallet', async (ctx) => {
     address: user.walletAddress,
     balanceNim: toNim(user.balanceLuna),
     earnedNim: toNim(user.earnedLuna),
+    pendingPayouts: await rewards.pendingPayoutsForUser(user.id),
     txs: (await rewards.txHistory(user.id)).map((t) => ({ ...t, amountNim: toNim(t.amountLuna) })),
   });
 });
@@ -2151,6 +2157,29 @@ route('POST', '/api/admin/authenticate', async (ctx) => {
   
   res.setHeader('Set-Cookie', `admin_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400`);
   json(res, 200, { success: true });
+});
+
+route('GET', '/api/admin/payouts/pending', async (ctx) => {
+  const { req, res } = ctx;
+  if (!(await verifyAdminSession(req))) throw httpError(403, 'FORBIDDEN', 'Admin authentication required');
+  const pending = await rewards.pendingPayouts();
+  const usersById = new Map((await store.all('users')).map((user) => [user.id, user]));
+  json(res, 200, {
+    count: pending.length,
+    totalNim: pending.reduce((total, reward) => total + toNim(reward.amountLuna), 0),
+    payouts: pending.map((reward) => {
+      const user = usersById.get(reward.userId);
+      return {
+        rewardId: reward.id,
+        userId: reward.userId,
+        username: user?.username || null,
+        walletAddress: user?.walletAddress || null,
+        amountNim: toNim(reward.amountLuna),
+        challengeId: reward.challengeId,
+        createdAt: reward.createdAt,
+      };
+    }),
+  });
 });
 
 // Helper function to verify admin session

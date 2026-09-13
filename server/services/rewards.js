@@ -7,18 +7,20 @@
  *  - daily reward cap + daily rewarded-attempt cap (anti-farming)
  *  - every money movement is a wallet_tx with pending/confirmed/failed/cancelled
  *  - in demo mode, txs settle to the in-app ledger and are labeled as such;
- *    with NIMIQ_RPC_URL configured, the same ledger records on-chain refs.
+ *    with a configured treasury, reward payouts record on-chain refs.
  */
 import { uid, now, luna, toNim } from '../util.js';
+import { NimiqTreasury } from './nimiq-treasury.js';
 
 export class EconomyError extends Error {
   constructor(code, message) { super(message); this.code = code; }
 }
 
 export class RewardService {
-  constructor(store, config) {
+  constructor(store, config, { treasury = new NimiqTreasury(config) } = {}) {
     this.store = store;
     this.config = config;
+    this.treasury = treasury;
     store.declareUniques('rewards', ['key']);   // ← duplicate-claim prevention
     store.declareUniques('wallet_txs', []);
   }
@@ -128,24 +130,83 @@ export class RewardService {
       `Reward: ${challenge.title}`, { rewardId: reward.id, challengeId: challenge.id });
     await this.store.update('rewards', reward.id, { transactionId: tx.id });
     await this.store.save();
-    return { granted: true, reward: { ...reward, transactionId: tx.id }, amountNim: rewardNim };
+    let payout = null;
+    if (this.treasury.isConfigured()) {
+      try {
+        payout = await this.requestPayout(userId, rewardNim, { automatic: true, rewardId: reward.id });
+        await this.store.update('rewards', reward.id, { status: 'paid' });
+      } catch (error) {
+        await this.store.update('rewards', reward.id, { status: 'pending_payout' });
+        console.error('[rewards] automatic treasury payout failed:', error.message);
+      }
+    }
+    return { granted: true, reward: { ...reward, transactionId: tx.id }, amountNim: rewardNim, payout };
   }
 
   /**
-   * Request an on-chain payout of the in-app balance (demo ledger → wallet).
-   * Demo mode: records a pending → confirmed payout tx, clearly labeled.
+  * Request a payout of the in-app balance. Configured treasury mode broadcasts
+  * first and debits the balance only after the network accepts the transfer.
    */
-  async requestPayout(userId, amountNim) {
+  async requestPayout(userId, amountNim, { automatic = false, rewardId = null } = {}) {
     const amount = luna(amountNim);
     const user = await this.#user(userId);
     if (amount < luna(1)) throw new EconomyError('MIN_PAYOUT', 'Minimum payout is 1 NIM.');
     if (user.balanceLuna < amount) throw new EconomyError('INSUFFICIENT_NIM', 'Not enough NIM for that payout.');
-    const tx = await this.#tx({ userId, kind: 'payout', direction: 'debit', amountLuna: amount,
-      note: this.config.nimiq.rpcUrl ? 'On-chain payout' : 'Payout (demo ledger — connect Nimiq Pay in production)' });
+    if (this.treasury.isConfigured() && !rewardId && (await this.pendingPayoutsForUser(userId)).length) {
+      throw new EconomyError('PENDING_PAYOUT', 'A previous reward is waiting for treasury funds. It will be retried automatically.');
+    }
+    let ref = null;
+    if (this.treasury.isConfigured()) {
+      if (!user.walletAddress) throw new EconomyError('NO_WALLET', 'Connect a Nimiq wallet before receiving a payout.');
+      try {
+        ({ hash: ref } = await this.treasury.send({ recipient: user.walletAddress, amountLuna: amount }));
+      } catch (error) {
+        throw new EconomyError('PAYOUT_FAILED', `Treasury payout failed: ${error.message}`);
+      }
+    } else if (automatic) {
+      throw new EconomyError('TREASURY_NOT_CONFIGURED', 'Automatic treasury payouts are not configured.');
+    }
+    const tx = await this.#tx({ userId, kind: 'payout', direction: 'debit', amountLuna: amount, ref,
+      meta: rewardId ? { rewardId } : {},
+      note: ref ? 'Automatic on-chain treasury payout' : 'Payout (demo ledger — configure Nimiq treasury for real NIM)' });
     await this.store.update('users', userId, { balanceLuna: user.balanceLuna - amount, updatedAt: now() });
     await this.#settle(tx);
     await this.store.save();
     return tx;
+  }
+
+  async pendingPayoutsForUser(userId) {
+    const pending = await this.store.filter('rewards', (reward) =>
+      reward.userId === userId && reward.status === 'pending_payout'
+    );
+    return pending.map((reward) => ({
+      id: reward.id,
+      challengeId: reward.challengeId,
+      amountNim: toNim(reward.amountLuna),
+      createdAt: reward.createdAt,
+      status: reward.status,
+    }));
+  }
+
+  async pendingPayouts(limit = 100) {
+    const pending = await this.store.filter('rewards', (reward) => reward.status === 'pending_payout');
+    return pending.slice(0, limit);
+  }
+
+  async retryPendingPayouts(limit = 100) {
+    if (!this.treasury.isConfigured()) return { attempted: 0, paid: 0 };
+    const pending = await this.pendingPayouts(limit);
+    let paid = 0;
+    for (const reward of pending) {
+      try {
+        await this.requestPayout(reward.userId, toNim(reward.amountLuna), { automatic: true, rewardId: reward.id });
+        await this.store.update('rewards', reward.id, { status: 'paid' });
+        paid++;
+      } catch (error) {
+        console.error(`[rewards] retry failed for ${reward.id}:`, error.message);
+      }
+    }
+    return { attempted: pending.length, paid };
   }
 
   /* ── tips & payments ───────────────────────────────────────────── */

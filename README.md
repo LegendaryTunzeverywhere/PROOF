@@ -67,7 +67,9 @@ npm start          # → http://localhost:3001
 ```bash
 cp .env.example .env
 # AI_API_KEY=…      → Google Gemini tutoring & feedback (schema-validated)
-# NIMIQ_RPC_URL=…   → on-chain balances + Nimiq settlement references
+# NIMIQ_SEED_NODES=wss://…,...
+# TREASURY_ADDRESS=NQ…
+# TREASURY_KEY=…     → server-side key for automatic reward payouts
 npm test           # 43 unit tests
 npm run smoke      # end-to-end demo flow over the real HTTP API (needs the server running; see SMOKE_BASE)
 ```
@@ -138,7 +140,7 @@ proof/
 
 ## Honest engineering notes
 
-- **No faked blockchain.** Without an RPC/treasury configured, rewards settle to an in-app **demo ledger**, labeled `demo-ledger` in every transaction. With Nimiq Pay connected, payments go through the wallet's real `sendBasicTransaction` and the hash is recorded.
+- **No faked blockchain.** Without `NIMIQ_SEED_NODES`, `TREASURY_ADDRESS`, and `TREASURY_KEY`, rewards settle to an in-app **demo ledger**, labeled `demo-ledger` in every transaction. When all three are configured, every passing reward is signed by the treasury and broadcast to the user's connected Nimiq address; the on-chain transaction hash is recorded.
 - **No client-trusted anything.** Scores, XP, levels, rewards, qualifications, and payouts are computed and stored server-side. Tests prove it (`tests/challenges.test.js`).
 - **Demo identities are fictional and labeled** (`Tunz`, marketplace clients…) so judges are never misled by seeded data.
 
