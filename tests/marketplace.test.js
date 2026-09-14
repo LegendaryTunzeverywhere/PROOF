@@ -1,7 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeNimiqAddress } from '../server/util.js';
+import { normalizeNimiqAddress, kindIncludesReward } from '../server/util.js';
 import { testbed, goodHtml, typedMeta } from './helpers.js';
+
+test('util: reward kind checks are safe on absent or non-string kinds', async (t) => {
+  assert.equal(kindIncludesReward(undefined), false);
+  assert.equal(kindIncludesReward(null), false);
+  assert.equal(kindIncludesReward('reward_daily'), true);
+  assert.equal(kindIncludesReward('tip'), false);
+});
 
 test('marketplace: qualification gate blocks unqualified applicants', async (t) => {
   const tb = await testbed();

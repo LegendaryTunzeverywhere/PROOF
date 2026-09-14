@@ -19,7 +19,7 @@ import { MarketplaceService } from './services/marketplace.js';
 import { TeachingService } from './services/teaching.js';
 import { generateLearningPath, generateLesson, recommendNextSkill, tutorReply, detectDomain } from './ai/service.js';
 import { createCurriculumFromDocument, getUserDocumentCurricula, getDocumentCurriculum, documentTutorReply } from './services/document-curriculum.js';
-import { uid, now, toNim, escapeHtml, RateLimiter, looksLikeNimiqAddress, normalizeNimiqAddress, nimiqAddressFromPublicKey, validate, parseNumber, hmac } from './util.js';
+import { uid, now, toNim, escapeHtml, RateLimiter, looksLikeNimiqAddress, normalizeNimiqAddress, nimiqAddressFromPublicKey, validate, parseNumber, hmac, kindIncludesReward } from './util.js';
 import * as stockfish from './ai/services/stockfish.js';
 import multer from 'multer';
 
@@ -95,10 +95,13 @@ const upload = multer({
 
 async function seedRelations({ users, skills, market, teaching }) {
   // Keep the marketplace task table empty unless a real poster creates a task.
-  // Seeded mock tasks are intentionally not inserted here because they were
-  // polluting the WorkPage feed with fabricated open-work count noise.
-  if (store.count('marketplace_tasks') > 0) return;
-  store.save();
+  // Clear any stale persisted rows from older seeded/mock fixtures so the
+  // work feed never reports fabricated open task counts at startup.
+  const tasks = await store.all('marketplace_tasks');
+  for (const task of tasks) {
+    await store.remove('marketplace_tasks', task.id);
+  }
+  await store.save();
 }
 
 /* ── tiny routing framework ────────────────────────────────────────── */
@@ -2277,8 +2280,8 @@ route('GET', '/api/admin/analytics', async (ctx) => {
       totalCirculating: Math.round(allUsers.reduce((sum, u) => sum + u.balanceLuna, 0) / 100000),
       averageBalance: allUsers.length > 0 ? Math.round(allUsers.reduce((sum, u) => sum + u.balanceLuna, 0) / allUsers.length / 100000) : 0,
       rewardsToday: Math.round(recentTxs
-        .filter(t => t.kind.includes('reward') && t.direction === 'credit')
-        .reduce((sum, t) => sum + t.amountLuna, 0) / 100000),
+        .filter(t => kindIncludesReward(t.kind) && t.direction === 'credit')
+        .reduce((sum, t) => sum + (Number(t.amountLuna) || 0), 0) / 100000),
     },
     
     // Top Users
@@ -2315,7 +2318,7 @@ async function detectSuspiciousActivity(store, cutoffTime) {
     const flags = [];
     const userAttempts = attempts.filter(a => a.userId === user.id);
     const userTxs = txs.filter(t => t.userId === user.id && new Date(t.createdAt).getTime() > cutoffTime);
-    const rewardTxs = userTxs.filter(t => t.kind.includes('reward'));
+    const rewardTxs = userTxs.filter(t => kindIncludesReward(t.kind));
     
     // Flag 1: Hitting daily cap consistently
     const daysAtCap = rewardTxs.filter(t => {
@@ -2405,7 +2408,7 @@ route('GET', '/api/admin/users/:id/activity', async (ctx) => {
     },
     economy: {
       totalTransactions: txs.length,
-      rewardsReceived: txs.filter(t => t.kind.includes('reward') && t.direction === 'credit').length,
+      rewardsReceived: txs.filter(t => kindIncludesReward(t.kind) && t.direction === 'credit').length,
       tips: {
         received: txs.filter(t => t.kind === 'tip' && t.direction === 'credit').length,
         sent: txs.filter(t => t.kind === 'tip' && t.direction === 'debit').length,
@@ -2460,8 +2463,8 @@ route('GET', '/api/admin/metrics/realtime', async (ctx) => {
       passed: recent24h.filter(a => a.status === 'passed').length,
       activeUsers: [...new Set(recent24h.map(a => a.userId))].length,
       nimDistributed: Math.round(txs24h
-        .filter(t => t.direction === 'credit' && t.kind.includes('reward'))
-        .reduce((s, t) => s + t.amountLuna, 0) / 100000),
+        .filter(t => t.direction === 'credit' && kindIncludesReward(t.kind))
+        .reduce((s, t) => s + (Number(t.amountLuna) || 0), 0) / 100000),
     },
     lastHour: {
       attempts: recent1h.length,

@@ -163,6 +163,10 @@ export const looksLikeNimiqAddress = (s) =>
 export const normalizeNimiqAddress = (s) =>
   typeof s === 'string' ? s.replace(/\s+/g, '').toUpperCase() : '';
 
+export function kindIncludesReward(kind) {
+  return typeof kind === 'string' && kind.toLowerCase().includes('reward');
+}
+
 /** Derive the checksummed user-friendly basic-account address from an Ed25519 key. */
 export function nimiqAddressFromPublicKey(pubHex) {
   const normalizedKey = typeof pubHex === 'string'
