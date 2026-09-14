@@ -2201,6 +2201,22 @@ route('GET', '/api/admin/payouts/pending', async (ctx) => {
   });
 });
 
+route('DELETE', '/api/admin/users/:id', async (ctx) => {
+  const { params, req, res } = ctx;
+  if (!(await verifyAdminSession(req))) throw httpError(403, 'FORBIDDEN', 'Admin authentication required');
+
+  const target = await users.get(params.id);
+  if (!target) throw httpError(404, 'NOT_FOUND', 'User not found');
+  if (!target.isDemo && target.walletMode !== 'demo') {
+    throw httpError(400, 'NOT_DEMO_WALLET', 'Only demo wallet accounts may be deleted from admin');
+  }
+
+  const removed = await users.deleteDemoUser(params.id);
+  if (!removed) throw httpError(404, 'NOT_FOUND', 'User not found');
+
+  json(res, 200, { ok: true, deletedUserId: params.id });
+});
+
 // Helper function to verify admin session
 async function verifyAdminSession(req) {
   const cookies = req.headers.cookie || '';

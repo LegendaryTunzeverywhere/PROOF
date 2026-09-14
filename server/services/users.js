@@ -118,6 +118,41 @@ export class UserService {
     return { demo, real };
   }
 
+  async deleteDemoUser(userId) {
+    const user = this.get(userId);
+    if (!user) return false;
+    if (!user.isDemo && user.walletMode !== 'demo') return false;
+
+    const tableHints = [
+      { table: 'user_skills', userField: 'userId' },
+      { table: 'skill_proofs', userField: 'userId' },
+      { table: 'attempts', userField: 'userId' },
+      { table: 'rewards', userField: 'userId' },
+      { table: 'wallet_txs', userField: 'userId' },
+      { table: 'notifications', userField: 'userId' },
+      { table: 'achievements', userField: 'userId' },
+      { table: 'user_achievements', userField: 'userId' },
+      { table: 'task_applications', userField: 'userId' },
+      { table: 'teaching_sessions', userField: 'teacherId' },
+      { table: 'bookings', userField: 'userId' },
+      { table: 'reviews', userField: 'userId' },
+      { table: 'reviews', userField: 'revieweeId' },
+      { table: 'marketplace_tasks', userField: 'clientId' },
+    ];
+
+    for (const hint of tableHints) {
+      const rows = await this.store.filter(hint.table, (row) => row[hint.userField] === userId);
+      for (const row of rows) {
+        await this.store.remove(hint.table, row.id);
+      }
+    }
+
+    // Remove the user itself last.
+    const removed = await this.store.remove('users', userId);
+    await this.store.save();
+    return removed;
+  }
+
   /** XP curve: level n needs 60·(n−1)² xp. */
   xpForLevel(level) { return 60 * (level - 1) * (level - 1); }
 

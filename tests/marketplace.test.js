@@ -10,6 +10,13 @@ test('util: reward kind checks are safe on absent or non-string kinds', async (t
   assert.equal(kindIncludesReward('tip'), false);
 });
 
+test('users: admin can delete a demo wallet account by id', async (t) => {
+  const tb = await testbed();
+  const demo = await tb.users.createUser({ username: 'demoer', avatar: '🧪', walletMode: 'demo', isDemo: true });
+  await tb.users.deleteDemoUser(demo.id);
+  assert.equal(tb.users.get(demo.id), null);
+});
+
 test('marketplace: qualification gate blocks unqualified applicants', async (t) => {
   const tb = await testbed();
   const pro = await tb.users.createUser({});

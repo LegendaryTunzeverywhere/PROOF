@@ -148,6 +148,44 @@ export function AdminDashboard() {
     }
   };
 
+  const deleteDemoUser = async (userId: string) => {
+    if (!window.confirm('Delete this demo wallet account?')) return;
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error?.message || 'Unable to delete demo user');
+      }
+      await loadAnalytics();
+      await loadRealtime();
+    } catch (err: any) {
+      console.error('Failed to delete demo user:', err);
+      setError(err.message || 'Failed to delete demo user.');
+    }
+  };
+
+  const deleteDemoUser = async (userId: string) => {
+    if (!window.confirm('Delete this demo wallet account?')) return;
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error?.message || 'Unable to delete demo user');
+      }
+      await loadAnalytics();
+      await loadRealtime();
+    } catch (err: any) {
+      console.error('Failed to delete demo user:', err);
+      setError(err.message || 'Failed to delete demo user.');
+    }
+  };
+
   const loadRealtime = async () => {
     if (!authenticated) return;
     
@@ -401,6 +439,7 @@ export function AdminDashboard() {
                       <th>Avatar</th>
                       <th>Wallet Type</th>
                       <th>Wallet</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -410,6 +449,7 @@ export function AdminDashboard() {
                         <td>{u.avatar}</td>
                         <td>{u.walletMode}</td>
                         <td className="wallet-address">{u.walletAddress || 'demo-wallet'}</td>
+                        <td><button onClick={() => deleteDemoUser(u.id)} className="delete-demo-button">Delete</button></td>
                       </tr>
                     ))}
                   </tbody>
