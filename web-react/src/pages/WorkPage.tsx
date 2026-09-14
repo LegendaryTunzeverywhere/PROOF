@@ -6,6 +6,7 @@ import { marketplaceService } from '../services/marketplace.service';
 import { teachingService } from '../services/teaching.service';
 import { challengesService } from '../services/challenges.service';
 import { userService } from '../services/user.service';
+import { WalletService } from '../services/wallet.service';
 import type { MarketplaceTask, TeachingSession, SponsoredChallenge, Skill } from '../types/api';
 
 type Tab = 'work' | 'teach' | 'sponsored';
@@ -19,6 +20,17 @@ export function WorkPage() {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showPostTask, setShowPostTask] = useState(false);
+  const [postTaskLoading, setPostTaskLoading] = useState(false);
+  const [treasuryAddress, setTreasuryAddress] = useState<string>('');
+  const [postForm, setPostForm] = useState({
+    title: '',
+    description: '',
+    budgetNim: '1',
+    skillSlug: '',
+    minScore: '0',
+    tags: '',
+  });
 
   useEffect(() => {
     if (authLoading) return;
@@ -76,6 +88,76 @@ export function WorkPage() {
       </div>
     );
   }
+
+  const loadTreasury = async () => {
+    try {
+      const res = await marketplaceService.getTreasuryAddress();
+      setTreasuryAddress(res.treasuryAddress || '');
+    } catch {
+      setTreasuryAddress('');
+    }
+  };
+
+  const startPostTask = async () => {
+    await loadTreasury();
+    setShowPostTask(true);
+    setError(null);
+  };
+
+  const submitTaskPost = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      setPostTaskLoading(true);
+      setError(null);
+      const budget = Number(postForm.budgetNim);
+      const title = postForm.title.trim();
+      const description = postForm.description.trim();
+      if (!title || !description) {
+        throw new Error('Title and description are required.');
+      }
+      if (!Number.isFinite(budget) || budget < 1) {
+        throw new Error('Budget must be at least 1 NIM.');
+      }
+      if (!WalletService.connected || !WalletService.address) {
+        throw new Error('Connect a Nimiq Pay or Hub wallet before posting escrowed work.');
+      }
+      if (!treasuryAddress) {
+        const res = await marketplaceService.getTreasuryAddress();
+        if (!res.treasuryAddress) {
+          throw new Error('Treasury address is not configured for marketplace escrow.');
+        }
+        setTreasuryAddress(res.treasuryAddress);
+      }
+      const ok = window.confirm(
+        `You are posting work for ${budget} NIM. The poster deposit will be sent from your connected Nimiq wallet to the treasury address ${treasuryAddress}. This NIM deposit is sent to the treasury and is not recoverable once broadcast. Continue?`
+      );
+      if (!ok) return;
+
+      await WalletService.sendNim({
+        recipient: treasuryAddress,
+        nim: budget,
+        note: `Proof task escrow: ${title}`,
+      });
+
+      await marketplaceService.postTask({
+        title,
+        description,
+        budgetNim: budget,
+        skillSlug: postForm.skillSlug || null,
+        minScore: Math.min(Math.max(Number(postForm.minScore) || 0, 0), 100),
+        tags: postForm.tags.split(/[\s,]+/).map((t) => t.trim()).filter(Boolean),
+      });
+
+      setShowPostTask(false);
+      setPostForm({ title: '', description: '', budgetNim: '1', skillSlug: '', minScore: '0', tags: '' });
+      await loadWorkData();
+    } catch (err: any) {
+      console.error('Failed to post marketplace work:', err);
+      setError(err.message || 'Failed to post work.');
+    } finally {
+      setPostTaskLoading(false);
+    }
+  };
 
   const formatNim = (amount: number) => amount.toFixed(1);
   const timeAgo = (timestamp: string) => {
@@ -194,12 +276,74 @@ export function WorkPage() {
                         {formatNim(user.balanceNim)} NIM
                       </div>
                     </div>
-                    <div className="rounded-lg bg-brand-soft px-3 py-2 text-sm font-medium text-brand">
-                      {tasks.length} tasks open
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={startPostTask}
+                        className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-deep"
+                      >
+                        + Post Work
+                      </button>
+                      <div className="rounded-lg bg-brand-soft px-3 py-2 text-sm font-medium text-brand">
+                        {tasks.length} tasks open
+                      </div>
                     </div>
                   </div>
                 </div>
               </Reveal>
+
+              {showPostTask && (
+                <Reveal delay={0.12}>
+                  <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
+                    <div className="mb-4 flex items-center justify-between">
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-wide text-muted">Post Work</div>
+                        <div className="text-lg font-bold text-ink">Create a paid task</div>
+                      </div>
+                      <button type="button" onClick={() => setShowPostTask(false)} className="rounded-lg px-3 py-2 text-sm font-medium text-muted hover:bg-elevated">Close</button>
+                    </div>
+                    <form className="grid gap-3" onSubmit={submitTaskPost}>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <label className="grid gap-1 text-sm font-semibold text-muted">
+                          Title
+                          <input className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink" value={postForm.title} onChange={(e) => setPostForm({ ...postForm, title: e.target.value })} required />
+                        </label>
+                        <label className="grid gap-1 text-sm font-semibold text-muted">
+                          Budget (NIM)
+                          <input type="number" min="1" className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink" value={postForm.budgetNim} onChange={(e) => setPostForm({ ...postForm, budgetNim: e.target.value })} required />
+                        </label>
+                      </div>
+                      <label className="grid gap-1 text-sm font-semibold text-muted">
+                        Description
+                        <textarea className="min-h-28 rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink" value={postForm.description} onChange={(e) => setPostForm({ ...postForm, description: e.target.value })} required />
+                      </label>
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <label className="grid gap-1 text-sm font-semibold text-muted">
+                          Skill slug
+                          <input className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink" placeholder="web-development" value={postForm.skillSlug} onChange={(e) => setPostForm({ ...postForm, skillSlug: e.target.value })} />
+                        </label>
+                        <label className="grid gap-1 text-sm font-semibold text-muted">
+                          Min score
+                          <input type="number" min="0" max="100" className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink" value={postForm.minScore} onChange={(e) => setPostForm({ ...postForm, minScore: e.target.value })} />
+                        </label>
+                        <label className="grid gap-1 text-sm font-semibold text-muted">
+                          Tags
+                          <input className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink" placeholder="web, design" value={postForm.tags} onChange={(e) => setPostForm({ ...postForm, tags: e.target.value })} />
+                        </label>
+                      </div>
+                      <div className="rounded-xl border border-warn bg-warn-soft p-3 text-sm font-medium text-warn">
+                        Warning: this task poster deposit will be sent to the treasury address <span className="font-bold break-all">{treasuryAddress || 'treasury address unavailable'}</span> and the NIM is not recoverable once broadcast.
+                      </div>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => setShowPostTask(false)} className="rounded-lg bg-surface-2 px-4 py-2 font-semibold text-muted">Cancel</button>
+                        <button type="submit" disabled={postTaskLoading} className="rounded-lg bg-brand px-4 py-2 font-semibold text-white">
+                          {postTaskLoading ? 'Posting…' : 'Deposit to Treasury & Post'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </Reveal>
+              )}
 
               {/* Recommended Tasks */}
               <Reveal delay={0.15}>

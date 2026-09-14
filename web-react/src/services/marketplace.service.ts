@@ -22,6 +22,27 @@ export const marketplaceService = {
   },
 
   /**
+   * Get the configured treasury wallet address that posters must fund.
+   */
+  async getTreasuryAddress(): Promise<{ treasuryAddress: string; configured: boolean }> {
+    return api.get<{ treasuryAddress: string; configured: boolean }>('/api/market/treasury');
+  },
+
+  /**
+   * Create a marketplace task and escrow the poster budget.
+   */
+  async postTask(payload: {
+    title: string;
+    description: string;
+    budgetNim: number;
+    skillSlug?: string | null;
+    minScore?: number;
+    tags?: string[];
+  }): Promise<{ task: MarketplaceTask }> {
+    return api.post<{ task: MarketplaceTask }>('/api/market/tasks', payload);
+  },
+
+  /**
    * Get details of a specific task
    */
   async getTask(id: string): Promise<{ task: MarketplaceTask }> {

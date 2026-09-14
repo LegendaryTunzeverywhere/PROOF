@@ -62,7 +62,7 @@ const skills = new SkillService(store, config);
 const rewards = new RewardService(store, config);
 const notifications = new NotificationService(store);
 const challenges = new ChallengeService(store, config, { users, skills, rewards, notifications });
-const market = new MarketplaceService(store, config, { users, skills, rewards, notifications });
+const market = new MarketplaceService(store, config, { users, skills, rewards, notifications, treasury: rewards.treasury });
 const teaching = new TeachingService(store, config, { users, skills, rewards, notifications });
 
 // Export store for other modules
@@ -94,15 +94,10 @@ const upload = multer({
 });
 
 async function seedRelations({ users, skills, market, teaching }) {
+  // Keep the marketplace task table empty unless a real poster creates a task.
+  // Seeded mock tasks are intentionally not inserted here because they were
+  // polluting the WorkPage feed with fabricated open-work count noise.
   if (store.count('marketplace_tasks') > 0) return;
-  market.seedTask({ title: 'Build a landing page', description: 'Need a one-page site for my sneaker resale shop. Responsive, clean, with a waitlist form. Reference vibes: minimal, bold type.', budgetNim: 50, skillSlug: 'web-development', minScore: 70, clientName: 'KickLayer', clientAvatar: '👟', postedAgoMin: 42, tags: ['html', 'css', 'js'] });
-  market.seedTask({ title: 'Create a social media campaign', description: 'Two-week launch campaign for a new stout brand. Need: message, channel plan, 6 post concepts with hooks.', budgetNim: 30, skillSlug: 'marketing', minScore: 65, clientName: 'Zoo Road Brews', clientAvatar: '🍺', postedAgoMin: 90, tags: ['campaign', 'content'] });
-  market.seedTask({ title: 'Design mobile UI screens', description: '3 screens for a savings app onboarding. Design system provided. Figma or precise spec.', budgetNim: 75, skillSlug: 'ui-design', minScore: 80, clientName: 'SaveNest', clientAvatar: '🐦', postedAgoMin: 140, tags: ['mobile', 'figma'] });
-  market.seedTask({ title: 'Analyze shop sales data', description: 'Small CSV (90 rows). Need: 3 trends, 1 anomaly, recommendation. Clear write-up.', budgetNim: 40, skillSlug: 'data-analysis', minScore: 65, clientName: 'Mama Nkechi Foods', clientAvatar: '🍲', postedAgoMin: 200, tags: ['analysis'] });
-  market.seedTask({ title: 'Write a product launch article', description: '400-word launch piece for our delivery app rebrand. Punchy, concrete, one CTA.', budgetNim: 20, skillSlug: 'writing', minScore: 60, clientName: 'SwiftDrop', clientAvatar: '🚀', postedAgoMin: 320, tags: ['copy'] });
-  market.seedTask({ title: 'Automate my invoice emails', description: 'AI workflow that drafts + schedules supplier invoice reminders. Specs and samples provided.', budgetNim: 45, skillSlug: 'ai', minScore: 70, clientName: 'Hajar Textiles', clientAvatar: '🧵', postedAgoMin: 400, tags: ['automation'] });
-  market.seedTask({ title: 'French conversation practice partner', description: '2× 20-min conversational sessions for a trip to Lyon. Friendly + patient.', budgetNim: 15, skillSlug: 'languages', minScore: 60, clientName: 'Tobi', clientAvatar: '🌍', postedAgoMin: 500, tags: ['french'] });
-  market.seedTask({ title: 'Fix my site’s mobile layout', description: 'Menu overlaps content on iPhone. Need it responsive 320px+ without a rebuild.', budgetNim: 25, skillSlug: 'web-development', minScore: 60, clientName: 'Bara Studio', clientAvatar: '🛠️', postedAgoMin: 610, tags: ['css'] });
   store.save();
 }
 
@@ -1568,6 +1563,11 @@ route('GET', '/api/rewards', async (ctx) => {
 });
 
 /* ── MARKETPLACE ───────────────────────────────────────────────────── */
+route('GET', '/api/market/treasury', async (ctx) => {
+  const { res } = ctx;
+  const treasuryAddress = config.nimiq.treasuryAddress || '';
+  json(res, 200, { treasuryAddress, configured: Boolean(treasuryAddress) });
+});
 route('GET', '/api/market/tasks', async (ctx) => {
   const { user, query, res } = ctx;
   json(res, 200, { tasks: await market.listTasks(user.id, { onlyQualified: query.get('qualified') === '1' }) });
@@ -1601,9 +1601,10 @@ route('GET', '/api/teach/sessions', async (ctx) => {
   const { user, query, res } = ctx;
   json(res, 200, { sessions: await teaching.list({ skillSlug: query.get('skill') || null }) });
 });
-route('POST', '/api/teach/sessions', (ctx) => {
+route('POST', '/api/teach/sessions', async (ctx) => {
   const { user, body, res } = ctx;
-  json(res, 201, { session: teaching.view(teaching.createSession(user, body || {})) });
+  const session = await teaching.createSession(user, body || {});
+  json(res, 201, { session: teaching.view(session) });
 });
 route('GET', '/api/teach/mine', async (ctx) => {
   const { user, res } = ctx;

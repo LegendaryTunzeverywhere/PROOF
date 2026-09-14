@@ -18,8 +18,8 @@ export class TeachingService {
     store.declareUniques('reviews', []);
   }
 
-  createSession(user, { title, description, durationMin, priceNim, maxStudents, skillSlug }) {
-    const us = this.skills.userSkill(user.id, skillSlug);
+  async createSession(user, { title, description, durationMin, priceNim, maxStudents, skillSlug }) {
+    const us = await this.skills.userSkill(user.id, skillSlug);
     if (!us || !us.verified || us.score < 70)
       throw Object.assign(new Error(`You can teach ${skillSlug.replace('-', ' ')} once it's verified at 70+. Prove it first — you're ${us ? `at ${us.score}` : 'not started'}.`), { code: 'NOT_VERIFIED', status: 403 });
     if (!title || !(priceNim > 0) || !(durationMin >= 10))

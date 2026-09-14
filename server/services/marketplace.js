@@ -3,16 +3,17 @@
  * Tasks require a minimum VERIFIED skill score to apply — qualification is
  * computed server-side from proof results, never self-declared.
  */
-import { uid, now, luna } from '../util.js';
+import { uid, now, luna, looksLikeNimiqAddress, normalizeNimiqAddress } from '../util.js';
 
 export class MarketplaceService {
-  constructor(store, config, { users, skills, rewards, notifications }) {
+  constructor(store, config, { users, skills, rewards, notifications, treasury = null } = {}) {
     this.store = store;
     this.config = config;
     this.users = users;
     this.skills = skills;
     this.rewards = rewards;
     this.notify = notifications;
+    this.treasury = treasury || rewards?.treasury || null;
     store.declareUniques('marketplace_tasks', []);
     store.declareUniques('task_applications', []);
   }
@@ -152,12 +153,25 @@ export class MarketplaceService {
     const budget = luna(budgetNim);
     if (!title || !description) throw Object.assign(new Error('Title and description are required.'), { code: 'BAD_INPUT', status: 400 });
     if (!(budget >= luna(1))) throw Object.assign(new Error('Minimum budget is 1 NIM.'), { code: 'BAD_INPUT', status: 400 });
-    
-    // Escrow funds — wrap in try/catch to rollback on failure
+
+    const treasuryConfigured = Boolean(this.treasury?.isConfigured?.());
+    const treasuryAddress = normalizeNimiqAddress(this.config?.nimiq?.treasuryAddress || '');
+    const treasuryAddressIsUsable = looksLikeNimiqAddress(treasuryAddress);
+
     let debitTx = null;
     try {
       debitTx = await this.rewards.debit(user.id, budget, 'task_escrow', `Escrow for task: ${title}`);
-      
+
+      if (treasuryConfigured) {
+        if (!treasuryAddressIsUsable) {
+          throw Object.assign(new Error('Treasury address is malformed.'), { code: 'BAD_TREASURY_ADDRESS', status: 500 });
+        }
+        const result = await this.treasury.send({ recipient: treasuryAddress, amountLuna: budget });
+        await this.store.update('wallet_txs', debitTx.id, {
+          meta: { ...(debitTx.meta || {}), treasuryHash: result?.hash || null, treasuryRecipient: treasuryAddress },
+        });
+      }
+
       const task = this.store.insert('marketplace_tasks', {
         id: uid('task'), title: String(title).slice(0, 120), description: String(description).slice(0, 1000), tags,
         budgetLuna: budget, minProof: skillSlug ? { skillSlug, min: Math.min(Math.max(minScore, 0), 100) } : null,
@@ -166,12 +180,10 @@ export class MarketplaceService {
       this.store.save();
       return this.taskView(task, user.id);
     } catch (err) {
-      // Rollback: if task creation failed but debit succeeded, credit the funds back
       if (debitTx) {
         try {
-          this.rewards.credit(user.id, budget, 'task_escrow_refund', 'Task creation failed — funds returned').catch(() => {});
+          await this.rewards.credit(user.id, budget, 'task_escrow_refund', 'Task creation failed — funds returned');
         } catch (refundErr) {
-          // Log but don't throw - original error is more important
           console.error('Failed to refund escrowed funds after task creation failure:', refundErr);
         }
       }
