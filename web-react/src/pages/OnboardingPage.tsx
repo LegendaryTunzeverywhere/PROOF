@@ -260,7 +260,7 @@ export function OnboardingPage() {
           // The redirect still works when session storage is unavailable.
         }
         setShowWelcome(true);
-        window.setTimeout(() => window.location.reload(), 1250);
+        window.setTimeout(() => navigate(getSafeRedirectTarget(), { replace: true }), 1250);
       }
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to connect wallet. Please try again.';
@@ -353,7 +353,7 @@ export function OnboardingPage() {
         // The transition can still cover the reload without session storage.
       }
       setShowWelcome(true);
-      window.setTimeout(() => window.location.reload(), 1250);
+      window.setTimeout(() => navigate(getSafeRedirectTarget(), { replace: true }), 1250);
     } catch (err: any) {
       console.error('Failed to connect wallet:', err);
       const errorMessage = err.message || 'Failed to connect wallet. Please try again.';
