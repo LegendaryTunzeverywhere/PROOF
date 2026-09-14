@@ -14,7 +14,7 @@ Disallow: /server/
 Allow: /api/public/
 
 # Sitemaps
-Sitemap: https://proofnim.vercel.app/sitemap.xml
+Sitemap: https://proof.nimagent.online/sitemap.xml
 
 # Crawl delay (be nice to servers)
 Crawl-delay: 1
