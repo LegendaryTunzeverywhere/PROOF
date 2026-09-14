@@ -99,6 +99,11 @@ export class RewardService {
    */
   async rewardForAttempt({ userId, challenge, attempt, evaluation, sourceKind = 'challenge', sourceKey = null }) {
     const eco = this.config.economy;
+    const user = await this.#user(userId);
+    if (user.isDemo || user.walletMode === 'demo') {
+      return { granted: false, reason: 'DEMO_WALLET_REQUIRED' };
+    }
+
     const rewardNim = challenge.rewardNim || 0;
     if (!(rewardNim > 0)) return { granted: false, reason: 'NO_REWARD' };
     if (!evaluation.pass) return { granted: false, reason: 'NOT_PASSED' };
@@ -150,6 +155,9 @@ export class RewardService {
   async requestPayout(userId, amountNim, { automatic = false, rewardId = null } = {}) {
     const amount = luna(amountNim);
     const user = await this.#user(userId);
+    if (user.isDemo || user.walletMode === 'demo') {
+      throw new EconomyError('DEMO_WALLET_REQUIRED', 'Demo wallets cannot receive or withdraw real NIM. Connect Nimiq Pay to continue.');
+    }
     if (amount < luna(1)) throw new EconomyError('MIN_PAYOUT', 'Minimum payout is 1 NIM.');
     if (user.balanceLuna < amount) throw new EconomyError('INSUFFICIENT_NIM', 'Not enough NIM for that payout.');
     if (this.treasury.isConfigured() && !rewardId && (await this.pendingPayoutsForUser(userId)).length) {

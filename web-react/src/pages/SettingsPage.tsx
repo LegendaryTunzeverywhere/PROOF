@@ -16,8 +16,17 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const [savingTheme, setSavingTheme] = useState(false);
   const [savingLanguage, setSavingLanguage] = useState(false);
+  const [savingIdentity, setSavingIdentity] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [usernameDraft, setUsernameDraft] = useState(user?.username || '');
+  const [avatarDraft, setAvatarDraft] = useState(user?.avatar || '🙂');
+  const [identityError, setIdentityError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setUsernameDraft(user?.username || '');
+    setAvatarDraft(user?.avatar || '🙂');
+  }, [user?.username, user?.avatar]);
 
   useEffect(() => {
     if (user?.prefs) {
@@ -78,6 +87,24 @@ export function SettingsPage() {
     }
   };
 
+  const saveIdentity = async () => {
+    try {
+      setSavingIdentity(true);
+      setIdentityError(null);
+      const payload: { username?: string; avatar?: string } = {};
+      if (usernameDraft.trim() && usernameDraft.trim() !== user?.username) payload.username = usernameDraft.trim();
+      if (avatarDraft && avatarDraft !== user?.avatar) payload.avatar = avatarDraft;
+      if (Object.keys(payload).length === 0) return;
+      const { user: updated } = await userService.updateProfile(payload);
+      updateUser(updated);
+    } catch (error: any) {
+      console.error('Failed to save identity:', error);
+      setIdentityError(error?.message || 'Unable to update username or avatar.');
+    } finally {
+      setSavingIdentity(false);
+    }
+  };
+
   const signOut = async () => {
     try {
       setSigningOut(true);
@@ -98,6 +125,47 @@ export function SettingsPage() {
           <p className="mt-2 text-base text-muted">
             {t.settings.subtitle}
           </p>
+        </div>
+      </Reveal>
+
+      {/* Identity Card */}
+      <Reveal delay={0.04}>
+        <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
+          <div className="mb-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Identity</h3>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-ink">Username</label>
+              <input
+                value={usernameDraft}
+                onChange={(e) => setUsernameDraft(e.target.value)}
+                className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-ink outline-none focus:border-brand"
+                placeholder="Choose a username"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-ink">Avatar Emoji</label>
+              <div className="flex flex-wrap gap-2">
+                {['🙂','🦊','🐼','🦉','🐝','🦋','🐙','🦜','🐳','🦁','🐬','🌍','⚡','🔥','🎯','⭐'].map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    className={`h-10 w-10 rounded-full border text-lg ${avatarDraft === emoji ? 'border-brand bg-brand text-white' : 'border-line bg-surface-2 text-ink hover:bg-elevated'}`}
+                    onClick={() => setAvatarDraft(emoji)}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          {identityError && <div className="mt-3 text-sm text-red-600">{identityError}</div>}
+          <div className="mt-4">
+            <button type="button" className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white" disabled={savingIdentity} onClick={saveIdentity}>
+              {savingIdentity ? 'Saving...' : 'Save Identity'}
+            </button>
+          </div>
         </div>
       </Reveal>
 

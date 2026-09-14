@@ -125,6 +125,11 @@ export class MarketplaceService {
   }
 
   async completeTask(taskId, user) {
+    const account = await this.users.get(user.id);
+    if (account?.isDemo || account?.walletMode === 'demo') {
+      throw Object.assign(new Error('Demo wallets cannot earn real NIM. Connect Nimiq Pay to continue.'), { code: 'DEMO_WALLET_REQUIRED', status: 403 });
+    }
+
     const task = await this.store.get('marketplace_tasks', taskId);
     if (!task) throw Object.assign(new Error('Task not found.'), { code: 'NOT_FOUND', status: 404 });
     const app = await this.store.find('task_applications', (a) => a.taskId === taskId && a.userId === user.id && a.status === 'accepted');
@@ -150,6 +155,11 @@ export class MarketplaceService {
   }
 
   async postTask(user, { title, description, budgetNim, skillSlug = null, minScore = 0, tags = [] }) {
+    const account = await this.users.get(user.id);
+    if (account?.isDemo || account?.walletMode === 'demo') {
+      throw Object.assign(new Error('Demo wallets cannot post work. Connect Nimiq Pay to continue.'), { code: 'DEMO_WALLET_REQUIRED', status: 403 });
+    }
+
     const budget = luna(budgetNim);
     if (!title || !description) throw Object.assign(new Error('Title and description are required.'), { code: 'BAD_INPUT', status: 400 });
     if (!(budget >= luna(1))) throw Object.assign(new Error('Minimum budget is 1 NIM.'), { code: 'BAD_INPUT', status: 400 });

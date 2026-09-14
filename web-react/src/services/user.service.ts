@@ -8,6 +8,7 @@ import type { User, MeResponse, Skill } from '../types/api';
 
 export interface UpdateUserRequest {
   username?: string;
+  avatar?: string;
   prefs?: Partial<User['prefs']>;
 }
 

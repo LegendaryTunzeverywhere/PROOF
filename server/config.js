@@ -42,6 +42,10 @@ export const config = {
   appUrl: process.env.APP_URL || `http://localhost:${int(process.env.PORT, 3000)}`,
   authSecret: process.env.AUTH_SECRET || `dev-secret-${crypto.randomBytes(16).toString('hex')}`,
   adminSecret: process.env.ADMIN_SECRET || '',
+  allowedOrigins: (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((value) => String(value).trim())
+    .filter(Boolean),
 
   ai: {
     provider: process.env.AI_PROVIDER || 'auto',   // auto | engine | gemini | groq

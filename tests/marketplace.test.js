@@ -64,6 +64,28 @@ test('marketplace: postTask forwards escrowed treasury deposit when configured',
   assert.equal(sent[0].amountLuna, 2000000);
 });
 
+test('marketplace: demo wallets cannot post tasks or earn rewards', async (t) => {
+  const tb = await testbed();
+  const demo = await tb.users.createUser({ username: 'demoer', walletMode: 'demo', isDemo: true });
+
+  await assert.rejects(
+    () => tb.market.postTask(tb.users.get(demo.id), { title: 'Logo', description: 'd', budgetNim: 20, skillSlug: 'ui-design', minScore: 60 }),
+    (e) => e.code === 'DEMO_WALLET_REQUIRED'
+  );
+
+  const result = await tb.rewards.rewardForAttempt({
+    userId: demo.id,
+    challenge: { id: 'c-demo', title: 'Reward gate', rewardNim: 1 },
+    attempt: { duplicate: false },
+    evaluation: { pass: true },
+    sourceKind: 'challenge',
+    sourceKey: 'demo-reward-gate',
+  });
+
+  assert.equal(result.granted, false);
+  assert.equal(result.reason, 'DEMO_WALLET_REQUIRED');
+});
+
 test('marketplace: double-apply and own-task are rejected', async (t) => {
   const tb = await testbed();
   const owner = await tb.users.createUser({});
@@ -102,6 +124,18 @@ test('teaching: only verified skills 70+ can teach; booking pays the teacher', a
   await tb.teaching.review(session.id, tb.users.get(student.id), { rating: 5, text: 'brilliant' });
   assert.ok(tb.users.get(teacher.id).reputation > repBefore);
   await assert.rejects(() => tb.teaching.review(session.id, tb.users.get(student.id), { rating: 5 }), (e) => e.code === 'ALREADY_REVIEWED');
+});
+
+test('users: listWalletAccounts exposes demo and real wallet users with usernames and visible addresses', async (t) => {
+  const tb = await testbed();
+  const demo = await tb.users.createUser({ username: 'demoer', avatar: '🧪', walletMode: 'demo', isDemo: true });
+  const realAddress = 'NQ18 TAQ8 CL7P K505 LE2M C78A 1YQC 1CH1 6Y4G';
+  const real = await tb.users.createUser({ username: 'realer', avatar: '🌍', walletMode: 'nimiqpay', walletAddress: realAddress, isDemo: false });
+
+  const wallets = tb.users.listWalletAccounts();
+  assert.ok(wallets.demo.some((u) => u.username === 'demoer' && u.avatar === '🧪' && u.walletMode === 'demo'));
+  assert.ok(wallets.real.some((u) => u.username === 'realer' && u.avatar === '🌍' && u.walletMode === 'nimiqpay' && u.walletAddress === normalizeNimiqAddress(realAddress)));
+  assert.ok(!wallets.demo.some((u) => u.id === real.id));
 });
 
 test('gamification: achievements unlock through the pipeline', async (t) => {

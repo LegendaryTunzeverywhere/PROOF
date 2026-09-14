@@ -376,6 +376,14 @@ route('PATCH', '/api/me', async (ctx) => {
       throw httpError(409, 'USERNAME_TAKEN', 'That username is taken.');
     patch.username = name; patch.usernameLower = name.toLowerCase();
   }
+  if (body.avatar) {
+    const avatar = String(body.avatar).trim().slice(0, 4);
+    if (/^\p{Extended_Pictographic}$/u.test(avatar) || /^[\u2600-\u27BF]$/u.test(avatar) || /[\u{1F300}-\u{1FAFF}]/u.test(avatar)) {
+      patch.avatar = avatar;
+    } else {
+      throw httpError(400, 'BAD_AVATAR', 'Avatar must be a single emoji or pictograph.');
+    }
+  }
   if (body.prefs) {
     const p = { ...user.prefs, ...body.prefs };
     p.goal = String(p.goal || '').slice(0, 240);
@@ -2235,6 +2243,7 @@ route('GET', '/api/admin/analytics', async (ctx) => {
   const allUsers = await store.all('users');
   const allAttempts = await store.all('attempts');
   const allTransactions = await store.all('wallet_txs');
+  const walletAccounts = users.listWalletAccounts();
   
   // Filter by time range
   const recentUsers = allUsers.filter(u => new Date(u.createdAt).getTime() > cutoff);
@@ -2283,6 +2292,9 @@ route('GET', '/api/admin/analytics', async (ctx) => {
         earned: Math.round(u.earnedLuna / 100000),
         proofs: u.proofsPassed,
       })),
+
+    // Wallet account visibility map for the admin dashboard
+    walletAccounts,
     
     // Abuse Detection
     suspicious: await detectSuspiciousActivity(store, cutoff),
@@ -2485,21 +2497,36 @@ function serveStatic(req, res, pathname) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   const pathname = url.pathname;
-  
-  // CORS headers for development
-  const origin = req.headers.origin || '*';
-  res.setHeader('Access-Control-Allow-Origin', origin);
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  
+  const origin = String(req.headers.origin || '');
+  const allowlist = new Set(config.allowedOrigins || []);
+
+  if (origin && allowlist.size > 0 && !allowlist.has(origin)) {
+    res.writeHead(403, {
+      'content-type': 'application/json; charset=utf-8',
+      'access-control-allow-origin': '',
+      'access-control-allow-methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+      'access-control-allow-headers': 'Content-Type, Authorization',
+      'vary': 'Origin',
+    });
+    res.end(JSON.stringify({ error: 'Origin not allowed.' }));
+    return;
+  }
+
+  if (origin && allowlist.size > 0) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Vary', 'Origin');
+  }
+
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
     return;
   }
-  
+
   try {
     if (pathname.startsWith('/api/') || pathname.startsWith('/p/') || pathname.startsWith('/share/')) {
       for (const r of routes) {

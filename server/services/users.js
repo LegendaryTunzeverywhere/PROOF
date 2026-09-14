@@ -36,14 +36,15 @@ export class UserService {
     store.declareUniques('users', ['usernameLower']);
   }
 
-  async createUser({ walletAddress = null, walletMode = null, isDemo = false, username = null } = {}) {
+  async createUser({ walletAddress = null, walletMode = null, isDemo = false, username = null, avatar = null } = {}) {
     const handle = username || `${ADJ[Math.floor(Math.random() * ADJ.length)]}${NOUN[Math.floor(Math.random() * NOUN.length)]}${Math.floor(10 + Math.random() * 89)}`;
     const canonicalWalletAddress = walletAddress ? normalizeNimiqAddress(walletAddress) : null;
+    const chosenAvatar = avatar || AVATARS[Math.floor(Math.random() * AVATARS.length)];
     const user = await this.store.insert('users', {
       id: uid('u'),
       username: handle,
       usernameLower: handle.toLowerCase(),
-      avatar: AVATARS[Math.floor(Math.random() * AVATARS.length)],
+      avatar: chosenAvatar,
       walletAddress: canonicalWalletAddress,
       walletMode,
       publicKey: null,
@@ -85,10 +86,36 @@ export class UserService {
 
   async update(user, patch) {
     delete patch.id; delete patch.balanceLuna; delete patch.earnedLuna; delete patch.xp; delete patch.level; delete patch.reputation; delete patch.isAdmin;
+    if (patch.avatar) patch.avatar = String(patch.avatar).trim().slice(0, 4);
+    if (patch.username) {
+      const name = String(patch.username).trim().slice(0, 24).replace(/[^\w\d -]/g, '');
+      patch.username = name;
+      patch.usernameLower = name.toLowerCase();
+    }
     patch.updatedAt = now();
     const next = await this.store.update('users', user.id, patch);
     this.store.save();
     return next;
+  }
+
+  listWalletAccounts() {
+    const users = this.store.all('users');
+    const demo = [];
+    const real = [];
+    for (const u of users) {
+      const row = {
+        id: u.id,
+        username: u.username,
+        avatar: u.avatar || '🙂',
+        walletMode: u.walletMode || 'none',
+        walletAddress: u.walletAddress ? normalizeNimiqAddress(u.walletAddress) : null,
+        isDemo: Boolean(u.isDemo || u.walletMode === 'demo'),
+        publicKey: u.publicKey || null,
+      };
+      if (row.isDemo || row.walletMode === 'demo') demo.push(row);
+      else real.push(row);
+    }
+    return { demo, real };
   }
 
   /** XP curve: level n needs 60·(n−1)² xp. */

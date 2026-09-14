@@ -173,6 +173,7 @@ export function WorkPage() {
 
   const verifiedSkills = skills.filter((s) => s.verified && s.score >= 70);
   const canTeach = verifiedSkills.length > 0;
+  const walletModeIsDemo = Boolean(user.walletModeIsDemo || user.wallet?.mode === 'demo');
 
   const applyToTask = async (taskId: string) => {
     const pitch = window.prompt('Briefly introduce yourself and explain how you can help.');
@@ -247,6 +248,11 @@ export function WorkPage() {
       {/* Find Work Tab */}
       {activeTab === 'work' && (
         <>
+          {walletModeIsDemo && (
+            <div className="rounded-2xl border border-warn bg-warn-soft p-4 text-sm font-semibold text-warn">
+              Demo wallet detected. Connect Nimiq Pay to continue earning or posting real NIM work.
+            </div>
+          )}
           {loading ? (
             <div className="flex items-center justify-center p-8">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand border-t-transparent" />

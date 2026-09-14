@@ -28,6 +28,10 @@ interface Analytics {
     earned: number;
     proofs: number;
   }>;
+  walletAccounts?: {
+    demo: Array<{ id: string; username: string; avatar: string; walletMode: string; walletAddress?: string | null; isDemo: boolean; publicKey?: string | null }>;
+    real: Array<{ id: string; username: string; avatar: string; walletMode: string; walletAddress?: string | null; isDemo: boolean; publicKey?: string | null }>;
+  };
   suspicious: Array<{
     userId: string;
     username: string;
@@ -381,6 +385,65 @@ export function AdminDashboard() {
           />
         </div>
       </section>
+
+      {/* Wallet Watch */}
+      {analytics.walletAccounts && (
+        <section className="metrics-section">
+          <h2>👛 Wallet Accounts</h2>
+          <div className="wallet-account-grid">
+            <div>
+              <h3>Demo Wallets</h3>
+              <div className="data-table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Username</th>
+                      <th>Avatar</th>
+                      <th>Wallet Type</th>
+                      <th>Wallet</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analytics.walletAccounts.demo.map((u) => (
+                      <tr key={u.id}>
+                        <td className="username">{u.username}</td>
+                        <td>{u.avatar}</td>
+                        <td>{u.walletMode}</td>
+                        <td className="wallet-address">{u.walletAddress || 'demo-wallet'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <h3>Real Wallets</h3>
+              <div className="data-table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Username</th>
+                      <th>Avatar</th>
+                      <th>Wallet Type</th>
+                      <th>Wallet</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analytics.walletAccounts.real.map((u) => (
+                      <tr key={u.id}>
+                        <td className="username">{u.username}</td>
+                        <td>{u.avatar}</td>
+                        <td>{u.walletMode}</td>
+                        <td className="wallet-address">{u.walletAddress || 'not-connected'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Top Users */}
       <section className="metrics-section">
