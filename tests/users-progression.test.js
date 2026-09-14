@@ -33,6 +33,8 @@ test('user progression: streaks persist via store.update(), not in-memory mutati
 
   const streak = await users.touchStreak(user.id);
   assert.equal(streak.current, 1);
+  assert.equal(streak.emoji, '📚', 'streak should surface a UI-friendly emoji without relying on a caller-side defaults');
+  assert.equal(streak.atRisk, false, 'streak should surface an at-risk boolean instead of returning the bare stored shape');
   const stored = tb.store.get('users', user.id);
   assert.equal(stored.streak?.current, 1, 'streak must persist through store.update()');
 });

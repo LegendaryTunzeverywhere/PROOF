@@ -14,6 +14,8 @@ const SDK_CANDIDATES = [
   'https://cdn.jsdelivr.net/npm/@nimiq/mini-app-sdk/+esm',
 ];
 
+const NIMIQ_PAY_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.nimiq.pay';
+
 const HUB_VERSION = 'v1.10.0';
 const HUB_CDN = `https://cdn.jsdelivr.net/npm/@nimiq/hub-api@${HUB_VERSION}/dist/standalone/HubApi.standalone.umd.js`;
 const HUB_ENDPOINT = 'https://hub.nimiq.com';
@@ -195,6 +197,15 @@ async function getHubApi(): Promise<any> {
   return hubApiInstance;
 }
 
+function openNimiqPayPlayStore(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.location.assign(NIMIQ_PAY_PLAY_STORE_URL);
+  } catch {
+    window.open(NIMIQ_PAY_PLAY_STORE_URL, '_blank', 'noopener,noreferrer');
+  }
+}
+
 async function loadNimiqSdk(): Promise<any> {
   if (state.nimiq) return state.nimiq;
   
@@ -223,7 +234,8 @@ async function loadNimiqSdk(): Promise<any> {
     throw new Error('NIMIQ_SDK_UNAVAILABLE');
   }
   
-  // Outside Nimiq Pay (regular browser): fail fast
+  // Outside Nimiq Pay (regular browser): open the Google Play install flow
+  openNimiqPayPlayStore();
   throw new Error('NIMIQ_PAY_UNAVAILABLE');
 }
 

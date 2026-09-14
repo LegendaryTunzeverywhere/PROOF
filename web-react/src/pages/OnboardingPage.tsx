@@ -267,7 +267,7 @@ export function OnboardingPage() {
       setError(errorMessage.includes('USER_REJECTED')
         ? 'Connection cancelled. Please try again when ready.'
         : errorMessage.includes('NIMIQ_PAY_UNAVAILABLE')
-        ? 'Nimiq Pay is only available in the mobile app. Use Nimiq Hub or Demo Wallet instead.'
+        ? 'Install the Nimiq Pay app from Google Play to continue with Nimiq Pay.'
         : errorMessage.includes('HUB_TIMEOUT')
         ? 'Connection timed out. Please try again.'
         : errorMessage.includes('NO_ACCOUNTS')

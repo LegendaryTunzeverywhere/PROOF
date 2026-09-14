@@ -98,6 +98,9 @@ export class SkillService {
 
   /** Record a completed proof (shareable). */
   async recordProof({ userId, skillSlug, challengeId, challengeTitle, kind, score, passed, evaluationId }) {
+    if (!skillSlug || !String(skillSlug).trim()) {
+      return null;
+    }
     const proof = await this.store.insert('skill_proofs', {
       id: uid('pf'),
       publicId: uid('pf').replace('pf_', ''),

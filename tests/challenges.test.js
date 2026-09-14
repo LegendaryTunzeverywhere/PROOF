@@ -160,6 +160,20 @@ test('anti-cheat: duplicate submission hash is flagged and unrewarded', async (t
   assert.equal(attempt2.duplicate, true, 'identical content must be flagged');
 });
 
+test('daily challenge: no SkillProof row is written when the daily challenge has no skillSlug', async (t) => {
+  const tb = await testbed();
+  const user = await tb.users.createUser({});
+  const daily = await tb.challenges.todayDaily();
+  assert.equal(daily.skillSlug, null, 'daily challenge records legitimately carry a null skillSlug');
+
+  const a = await tb.challenges.startAttempt(user.id, daily.id);
+  const text = 'Yesterday semantic HTML finally clicked for me. Tags are not about how things look, they describe what things mean: a nav element tells the browser and screen readers this is navigation, an article wraps a self-contained piece of content, and a footer closes the page. When I rebuilt my practice page using semantic elements instead of div soup, the structure became obvious at a glance and my heading order stopped skipping levels. Meaning first, styling second, that is the lesson I am keeping.';
+  const result = await tb.challenges.submitAttempt(user.id, a.attempt.id, { text, meta: typedMeta(text) });
+
+  assert.equal(result.proof, null, 'daily challenge proof records must be skipped when skillSlug is null');
+  assert.equal(tb.store.filter('skill_proofs', (p) => p.challengeId === daily.id).length, 0, 'no skill proof should be inserted for a null-skill daily challenge');
+});
+
 test('daily challenge: one reward per day per user', async (t) => {
   const tb = await testbed();
   const user = await tb.users.createUser({});

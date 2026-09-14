@@ -9,6 +9,26 @@ const ADJ = ['Swift', 'Bright', 'Keen', 'Bold', 'Lucid', 'Prime', 'Nova', 'Sharp
 const NOUN = ['Otter', 'Falcon', 'Panda', 'Comet', 'Maple', 'Orbit', 'Ember', 'Cedar'];
 const AVATARS = ['🦊', '🐼', '🦉', '🐝', '🦋', '🐙', '🦜', '🐳', '🦁', '🐬'];
 
+function streakEmoji(current) {
+  if (current >= 30) return '👑';
+  if (current >= 7) return '⚡';
+  if (current >= 3) return '🔥';
+  return '📚';
+}
+
+function normalizeStreakShape(streak = null) {
+  const s = streak && typeof streak === 'object' ? streak : { current: 0, longest: 0, lastDay: null };
+  const current = Number(s.current) || 0;
+  const longest = Number(s.longest) || 0;
+  return {
+    current,
+    longest,
+    lastDay: s.lastDay || null,
+    emoji: streakEmoji(current),
+    atRisk: false,
+  };
+}
+
 export class UserService {
   constructor(store, config) {
     this.store = store;
@@ -34,7 +54,7 @@ export class UserService {
       earnedLuna: 0,
       proofsPassed: 0,
       proofsAttempted: 0,
-      streak: { current: 0, longest: 0, lastDay: null },
+      streak: { current: 0, longest: 0, lastDay: null, emoji: '📚', atRisk: false },
       isDemo,
       isAdmin: false, // Admin flag for analytics access
       prefs: { goal: '', level: '', minutesPerDay: 30, style: 'practical', interests: [] },
@@ -94,20 +114,30 @@ export class UserService {
   /* ── streaks (encouraging, never punitive — spec §53) ── */
   async touchStreak(userId) {
     const user = this.get(userId);
-    if (!user) return user?.streak;
+    if (!user) return undefined;
+
     const today = new Date().toISOString().slice(0, 10);
-    const s = user.streak || { current: 0, longest: 0, lastDay: null };
-    if (s.lastDay === today) return s;
+    const s = user.streak || { current: 0, longest: 0, lastDay: null, emoji: '📚', atRisk: false };
+    const lastDay = s.lastDay || null;
+
+    if (lastDay === today) {
+      return normalizeStreakShape({ ...s, emoji: streakEmoji(s.current || 0), atRisk: false });
+    }
+
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    const streak = {
-      current: s.lastDay === yesterday ? s.current + 1 : 1,
-      longest: s.longest,
+    const next = {
+      current: lastDay === yesterday ? (Number(s.current) || 0) + 1 : 1,
+      longest: Number(s.longest) || 0,
       lastDay: today,
+      emoji: '📚',
+      atRisk: false,
     };
-    streak.longest = Math.max(streak.longest, streak.current);
-    await this.store.update('users', userId, { streak, updatedAt: now() });
+    next.longest = Math.max(next.longest, next.current);
+    next.emoji = streakEmoji(next.current);
+
+    await this.store.update('users', userId, { streak: next, updatedAt: now() });
     await this.store.save();
-    return streak;
+    return normalizeStreakShape(next);
   }
 
   async addReputation(userId, delta) {

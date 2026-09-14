@@ -416,12 +416,14 @@ export class ChallengeService {
       score: evaluation.score, passed: evaluation.pass, challengeKind: ch.kind,
     });
 
-    const proof = await this.skills.recordProof({
-      userId, skillSlug: ch.skillSlug, challengeId: ch.id, challengeTitle: ch.title,
-      kind: ch.kind, score: evaluation.score, passed: evaluation.pass, evaluationId: evaluation.id,
-    });
+    const proof = ch.skillSlug
+      ? await this.skills.recordProof({
+          userId, skillSlug: ch.skillSlug, challengeId: ch.id, challengeTitle: ch.title,
+          kind: ch.kind, score: evaluation.score, passed: evaluation.pass, evaluationId: evaluation.id,
+        })
+      : null;
     
-    console.log(`[submitAttempt] recording proof with score=${evaluation.score}, passed=${evaluation.pass}`);
+    console.log(`[submitAttempt] recording proof with score=${evaluation.score}, passed=${evaluation.pass}, skillSlug=${ch.skillSlug || 'none'}`);
 
     const xpGain = evaluation.pass ? ch.xp : 10;
     const xp = await this.users.addXp(userId, xpGain, evaluation.pass ? 'Proof passed' : 'Attempt');
@@ -450,7 +452,7 @@ export class ChallengeService {
         type: 'proof_passed', emoji: '✅',
         title: `You passed: ${ch.title}`,
         body: rewardResult.granted ? `+${ch.xp} XP · +${rewardResult.amountNim} NIM` : `+${ch.xp} XP`,
-        href: `#/proof/${proof.publicId}`,
+        href: proof ? `#/proof/${proof.publicId}` : '#/profile',
       });
     } else {
       this.notify.push(userId, {
