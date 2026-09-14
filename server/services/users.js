@@ -98,8 +98,8 @@ export class UserService {
     return next;
   }
 
-  listWalletAccounts() {
-    const users = this.store.all('users');
+  async listWalletAccounts() {
+    const users = await this.store.all('users');
     const demo = [];
     const real = [];
     for (const u of users) {

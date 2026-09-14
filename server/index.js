@@ -943,6 +943,29 @@ async function repairPathChallenges(pathRow) {
   return pathRow;
 }
 
+function normalizeTopicForProgress(topic) {
+  return String(topic || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, '-')
+    .replace(/--+/g, '-');
+}
+
+function hasProgressItem(progress, dayIndex, topic, part) {
+  const normalizedTopic = normalizeTopicForProgress(topic);
+  const directKey = `${dayIndex}:${topic}:${part}`;
+  if (progress?.[directKey]) return true;
+
+  for (const [key, value] of Object.entries(progress || {})) {
+    if (!value) continue;
+    const [storedDay, storedTopic, storedPart] = String(key).split(':');
+    if (storedPart !== part) continue;
+    if (Number(storedDay) !== Number(dayIndex)) continue;
+    if (normalizeTopicForProgress(storedTopic) === normalizedTopic) return true;
+  }
+  return false;
+}
+
 async function pathView(p, userId) {
   // OPTIMIZED: Fetch all user attempts once using optimized query
   const userAttempts = await store.filterOptimized('attempts', { userId: userId, submittedAt_not_null: true });
@@ -952,8 +975,8 @@ async function pathView(p, userId) {
     ...d,
     items: d.items.map((i) => ({
       ...i,
-      lessonDone: !!p.progress[`${d.index}:${i.topic}:lesson`],
-      practiceDone: !!p.progress[`${d.index}:${i.topic}:practice`],
+      lessonDone: hasProgressItem(p.progress, d.index, i.topic, 'lesson'),
+      practiceDone: hasProgressItem(p.progress, d.index, i.topic, 'practice'),
       attempt: i.challengeId ? (attemptsByChallenge.get(i.challengeId) || null) : null,
     })),
   }));
@@ -2262,7 +2285,7 @@ route('GET', '/api/admin/analytics', async (ctx) => {
   const allUsers = await store.all('users');
   const allAttempts = await store.all('attempts');
   const allTransactions = await store.all('wallet_txs');
-  const walletAccounts = users.listWalletAccounts();
+  const walletAccounts = await users.listWalletAccounts();
   
   // Filter by time range
   const recentUsers = allUsers.filter(u => new Date(u.createdAt).getTime() > cutoff);

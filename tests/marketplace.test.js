@@ -1,7 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeNimiqAddress, kindIncludesReward } from '../server/util.js';
-import { testbed, goodHtml, typedMeta } from './helpers.js';
+import { UserService } from '../server/services/users.js';
+import { asyncStore, testbed, goodHtml, typedMeta } from './helpers.js';
+
+test('users: listWalletAccounts works with async store.all', async (t) => {
+  const tb = await testbed();
+  await tb.users.createUser({ username: 'demoer', avatar: '🧪', walletMode: 'demo', isDemo: true });
+  await tb.users.createUser({ username: 'walletreal', avatar: '🤖', walletMode: 'hub' });
+
+  const asyncUsers = new UserService(asyncStore(tb.store, ['all']), tb.config);
+  const accounts = await asyncUsers.listWalletAccounts();
+
+  assert.ok(Array.isArray(accounts.demo));
+  assert.ok(Array.isArray(accounts.real));
+  assert.ok(accounts.demo.length >= 1);
+  assert.ok(accounts.real.length >= 1);
+});
 
 test('util: reward kind checks are safe on absent or non-string kinds', async (t) => {
   assert.equal(kindIncludesReward(undefined), false);
@@ -146,7 +161,7 @@ test('users: listWalletAccounts exposes demo and real wallet users with username
   const realAddress = 'NQ18 TAQ8 CL7P K505 LE2M C78A 1YQC 1CH1 6Y4G';
   const real = await tb.users.createUser({ username: 'realer', avatar: '🌍', walletMode: 'nimiqpay', walletAddress: realAddress, isDemo: false });
 
-  const wallets = tb.users.listWalletAccounts();
+  const wallets = await tb.users.listWalletAccounts();
   assert.ok(wallets.demo.some((u) => u.username === 'demoer' && u.avatar === '🧪' && u.walletMode === 'demo'));
   assert.ok(wallets.real.some((u) => u.username === 'realer' && u.avatar === '🌍' && u.walletMode === 'nimiqpay' && u.walletAddress === normalizeNimiqAddress(realAddress)));
   assert.ok(!wallets.demo.some((u) => u.id === real.id));

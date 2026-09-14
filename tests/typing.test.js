@@ -10,7 +10,7 @@ const challenge = () => ({
 async function setup(tb) {
   const user = await tb.users.createUser({});
   const ch = tb.challenges.createFromTemplate({ skillSlug: 'web-development', template: challenge() });
-  const { attempt } = tb.challenges.startAttempt(user.id, ch.id);
+  const { attempt } = await tb.challenges.startAttempt(user.id, ch.id);
   return { user, ch, attempt };
 }
 
