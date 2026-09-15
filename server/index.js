@@ -1685,6 +1685,60 @@ route('GET', '/api/rewards', async (ctx) => {
   });
 });
 
+async function dailyLearningActivity(userId) {
+  const start = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z').getTime();
+  const [paths, attempts] = await Promise.all([
+    store.filter('paths', (path) => path.userId === userId),
+    store.filter('attempts', (attempt) => attempt.userId === userId && attempt.submittedAt >= start),
+  ]);
+  const progressActivity = paths.flatMap((path) => Object.entries(path.progress || {}))
+    .map(([key, value]) => ({ part: String(key).split(':').at(-1), value }))
+    .find(({ part, value }) => {
+      const timestamp = typeof value === 'number' ? value : Date.parse(String(value));
+      return ['lesson', 'practice', 'quiz'].includes(part) && Number.isFinite(timestamp) && timestamp >= start;
+    });
+  const hasActivity = Boolean(progressActivity || attempts.length);
+  return { hasActivity, source: progressActivity?.part || (attempts.length ? 'proof' : null) };
+}
+
+async function dailyClaimView(userId) {
+  const user = await store.get('users', userId);
+  const today = rewards.todayKey();
+  const claim = await store.find('rewards', (reward) => reward.userId === userId && reward.key === `${userId}:daily:${today}`);
+  const activity = await dailyLearningActivity(userId);
+  const streak = users.currentStreak(user);
+  return {
+    claimed: Boolean(claim),
+    eligible: !claim && activity.hasActivity,
+    amountNim: claim ? toNim(claim.amountLuna) : Math.round(Math.max(1, streak + (activity.hasActivity && streak === 0 ? 1 : 0)) * 0.1 * 10) / 10,
+    streak: Math.max(1, streak),
+    activity: activity.source,
+  };
+}
+
+route('GET', '/api/rewards/daily', async (ctx) => {
+  const { user, res } = ctx;
+  json(res, 200, await dailyClaimView(user.id));
+});
+
+route('POST', '/api/rewards/daily/claim', async (ctx) => {
+  const { user, res } = ctx;
+  const activity = await dailyLearningActivity(user.id);
+  if (!activity.hasActivity) throw httpError(400, 'DAILY_ACTIVITY_REQUIRED', 'Complete a lesson, quiz, practice, or proof before claiming today\'s NIM.');
+
+  const streak = await users.touchStreak(user.id);
+  const dailyChallenge = await challenges.todayDaily();
+  const result = await rewards.claimDaily({
+    userId: user.id,
+    challengeId: dailyChallenge.id,
+    streak: streak?.current || 1,
+  });
+  if (!result.granted && result.reason === 'ALREADY_CLAIMED') {
+    throw httpError(409, 'ALREADY_CLAIMED', 'Today\'s NIM has already been claimed.');
+  }
+  json(res, 201, { ...result, amountNim: result.amountNim });
+});
+
 /* ── MARKETPLACE ───────────────────────────────────────────────────── */
 route('GET', '/api/market/treasury', async (ctx) => {
   const { res } = ctx;
@@ -1745,7 +1799,7 @@ route('POST', '/api/teach/sessions/:id/review', async (ctx) => {
 /* ── EXTRAS ────────────────────────────────────────────────────────── */
 route('GET', '/api/leaderboard', async (ctx) => {
   const { query, res } = ctx;
-  const cat = ['proofs', 'score', 'xp', 'helpful', 'teacher', 'consistent', 'tasks', 'earned'].includes(query.get('cat')) ? query.get('cat') : 'proofs';
+  const cat = ['xp', 'streak', 'proofs', 'score', 'helpful', 'teacher', 'consistent', 'tasks', 'earned'].includes(query.get('cat')) ? query.get('cat') : 'xp';
   json(res, 200, { category: cat, entries: await users.leaderboard(cat, 12) });
 });
 

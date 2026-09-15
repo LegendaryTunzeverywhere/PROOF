@@ -28,6 +28,21 @@ test('rewards: daily caps stop farming', async (t) => {
   assert.equal(granted, 15, 'must stop at the daily NIM cap');
 });
 
+test('rewards: daily learning claim grants 0.1 NIM once per day', async (t) => {
+  const tb = await testbed();
+  const u = await tb.users.createUser({});
+
+  const first = await tb.rewards.claimDaily({ userId: u.id, challengeId: 'daily-test', streak: 1 });
+  assert.equal(first.granted, true);
+  assert.equal(first.amountNim, 0.1);
+  assert.equal(tb.store.get('users', u.id).balanceLuna, 10000);
+
+  const second = await tb.rewards.claimDaily({ userId: u.id, challengeId: 'daily-test', streak: 1 });
+  assert.equal(second.granted, false);
+  assert.equal(second.reason, 'ALREADY_CLAIMED');
+  assert.equal(tb.store.get('users', u.id).balanceLuna, 10000, 'duplicate daily claims must not add balance');
+});
+
 test('economy: tips and payments move through transaction states', async (t) => {
   const tb = await testbed();
   const a = await tb.users.createUser({});

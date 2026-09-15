@@ -267,6 +267,7 @@ export interface LeaderboardEntry {
   value: number;
   xp?: number;
   totalXpEarned?: number;
+  streak?: number;
   walletMode?: string;
   address?: string;
   level?: number;

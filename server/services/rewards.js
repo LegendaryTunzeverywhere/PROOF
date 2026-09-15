@@ -93,6 +93,38 @@ export class RewardService {
     return { count: txs.length, amountLuna: txs.reduce((a, x) => a + x.amountLuna, 0) };
   }
 
+  async claimDaily({ userId, challengeId, streak }) {
+    const activeStreak = Math.max(1, Number(streak) || 1);
+    const key = `${userId}:daily:${this.todayKey()}`;
+    if (await this.store.find('rewards', (reward) => reward.userId === userId && reward.key === key)) {
+      return { granted: false, reason: 'ALREADY_CLAIMED', amountNim: 0, streak: activeStreak };
+    }
+
+    const amountNim = Math.round(activeStreak * 0.1 * 10) / 10;
+    const today = await this.dailyRewardTotals(userId);
+    if (today.amountLuna + luna(amountNim) > luna(this.config.economy.dailyRewardCapNim)) {
+      return { granted: false, reason: 'DAILY_REWARD_CAP', amountNim: 0, streak: activeStreak };
+    }
+
+    const reward = await this.store.insert('rewards', {
+      id: uid('rw'),
+      key,
+      userId,
+      challengeId,
+      sourceKind: 'daily_claim',
+      amountLuna: luna(amountNim),
+      currency: 'NIM',
+      status: 'credited',
+      transactionId: null,
+      createdAt: now(),
+    });
+    const tx = await this.credit(userId, reward.amountLuna, 'reward',
+      `Daily learning claim: ${amountNim} NIM`, { rewardId: reward.id, streak: activeStreak });
+    await this.store.update('rewards', reward.id, { transactionId: tx.id });
+    await this.store.save();
+    return { granted: true, amountNim, streak: activeStreak, reward, tx };
+  }
+
   /**
    * Try to grant a reward for a passing attempt. Returns reward | null.
    * All caps/limits are config-driven and enforced server-side.

@@ -189,6 +189,14 @@ export class UserService {
     return level;
   }
 
+  currentStreak(user) {
+    const streak = user?.streak || {};
+    const lastDay = String(streak.lastDay || '');
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    return lastDay === today || lastDay === yesterday ? Number(streak.current) || 0 : 0;
+  }
+
   async recordedXp(userId) {
     const [attempts, challenges, paths] = await Promise.all([
       this.store.filter('attempts', (attempt) => attempt.userId === userId && attempt.submittedAt),
@@ -209,7 +217,7 @@ export class UserService {
   }
 
   async addXp(userId, amount, reason = '', eventKey = null) {
-    const user = this.get(userId);
+    const user = await this.store.get('users', userId);
     if (!user || !(amount > 0)) return { user, leveledUp: false };
 
     const ledger = Array.isArray(user.xpLedger) ? [...user.xpLedger] : [];
@@ -251,7 +259,7 @@ export class UserService {
 
   /* ── streaks (encouraging, never punitive — spec §53) ── */
   async touchStreak(userId) {
-    const user = this.get(userId);
+    const user = await this.store.get('users', userId);
     if (!user) return undefined;
 
     const today = new Date().toISOString().slice(0, 10);
@@ -369,6 +377,7 @@ export class UserService {
       proofs: async (u) => u.proofsPassed * 10 + u.xp / 50,
       score: async (u) => avgScore(this.store, u.id),
       xp: async (u) => Math.max(this.xpEarned(u), await this.recordedXp(u.id)),
+      streak: async (u) => this.currentStreak(u),
       helpful: async (u) => (await this.store.count('reviews', (r) => r.revieweeId === u.id && r.rating >= 4)) * 8 + u.reputation,
       teacher: async (u) => (await this.store.count('teaching_sessions', (t) => t.teacherId === u.id && t.bookings > 0)) * 12 + (await this.store.count('reviews', (r) => r.revieweeId === u.id && r.rating >= 4)) * 4,
       consistent: async (u) => (u.streak?.longest || 0) * 6 + u.proofsPassed,
@@ -392,6 +401,7 @@ export class UserService {
         reputation: user.reputation,
         xp: user.xp || 0,
         totalXpEarned,
+        streak: this.currentStreak(user),
         proofsPassed: user.proofsPassed,
         walletAddress: user.walletAddress, // Include real wallet address
         walletMode: user.walletMode, // Show wallet type (nimiqpay/demo)

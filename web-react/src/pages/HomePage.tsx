@@ -7,6 +7,7 @@ import { SkillsBuilding } from '../components/SkillsBuilding';
 import { TrendingProofs } from '../components/TrendingProofs';
 import { Recommended } from '../components/Recommended';
 import { Sponsored } from '../components/Sponsored';
+import { DailyNimClaim } from '../components/DailyNimClaim';
 import { Reveal } from '../components/Reveal';
 import { PanelHeader } from '../components/PanelHeader';
 import { useAuth } from '../context/AuthContext';
@@ -168,6 +169,10 @@ export function HomePage() {
         <div className="flex min-w-0 flex-col gap-4 sm:gap-5">
           <Reveal delay={40} className="hidden lg:block">
             <TodaysProof challenge={homeData.daily} />
+          </Reveal>
+
+          <Reveal delay={60}>
+            <DailyNimClaim />
           </Reveal>
           
           <Reveal delay={80}>

@@ -16,7 +16,7 @@ import { UserService } from '../server/services/users.js';
  * Promises even on the embedded store, reproducing the bug without a
  * real Supabase connection.
  */
-for (const cat of ['teacher', 'helpful', 'tasks', 'score']) {
+for (const cat of ['teacher', 'helpful', 'tasks', 'score', 'xp', 'streak']) {
   test(`leaderboard category '${cat}' produces a real number, not NaN/null, against an async store`, async (t) => {
     const tb = await testbed();
     const user = await tb.users.createUser({});
