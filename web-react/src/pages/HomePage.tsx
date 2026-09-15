@@ -75,6 +75,7 @@ export function HomePage() {
     );
   }
 
+  const lifetimeXp = Number(homeData.user.totalXpEarned ?? homeData.user.xpEarned ?? homeData.user.xp ?? 0);
   const xp = homeData.user.xp || 0;
   const level = homeData.user.level || 1;
   const levelProgress = xpProgress(xp, level);
@@ -137,7 +138,7 @@ export function HomePage() {
                 <div className="flex-1">
                   <div className="text-base font-semibold text-ink">Level {level}</div>
                   <div className="mt-1 text-sm text-muted">
-                    {xp.toLocaleString()} / {levelProgress.nextLevelXp.toLocaleString()} XP
+                    Total XP earned: {lifetimeXp.toLocaleString()} · Level progress: {xp.toLocaleString()} / {levelProgress.nextLevelXp.toLocaleString()}
                   </div>
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-elevated">
                     <div

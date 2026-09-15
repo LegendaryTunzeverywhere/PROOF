@@ -41,6 +41,7 @@ export function HeroBanner() {
   const { user } = useAuth();
   const { ref, inView } = useInView<HTMLDivElement>({ threshold: 0.05 });
   const hour = new Date().getHours();
+  const lifetimeXp = Number(user?.totalXpEarned ?? user?.xpEarned ?? user?.xp ?? 0);
 
   // Build stats from real user data
   const heroStats: StatData[] = user ? [
@@ -53,8 +54,8 @@ export function HeroBanner() {
     },
     { 
       id: "xp", 
-      value: user.xp || 0, 
-      label: "XP", 
+      value: lifetimeXp || 0, 
+      label: "Total XP", 
       icon: BoltIcon, 
       iconClass: "h-[19px] w-[19px]" 
     },

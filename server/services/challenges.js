@@ -427,7 +427,7 @@ export class ChallengeService {
     console.log(`[submitAttempt] recording proof with score=${evaluation.score}, passed=${evaluation.pass}, skillSlug=${ch.skillSlug || 'none'}`);
 
     const xpGain = evaluation.pass ? ch.xp : 10;
-    const xp = await this.users.addXp(userId, xpGain, evaluation.pass ? 'Proof passed' : 'Attempt');
+    const xp = await this.users.addXp(userId, xpGain, evaluation.pass ? 'Proof passed' : 'Attempt', `proof:${ch.id}:${userId}:${attempt.id}`);
     await this.users.touchStreak(userId);
 
     // ── economy ──

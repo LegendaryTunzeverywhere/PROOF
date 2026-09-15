@@ -45,7 +45,7 @@ export function RecentAchievements({ achievements = [] }: { achievements?: Recen
 
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13px] font-semibold text-ink">{item.title}</p>
-                <p className="mt-0.5 truncate text-[12.5px] text-muted">Proof passed</p>
+                <p className="mt-0.5 truncate text-[12.5px] text-muted">{item.detail || 'Achievement unlocked'}</p>
               </div>
 
               <div className="shrink-0 text-right">

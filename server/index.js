@@ -322,6 +322,15 @@ async function publicMe(user) {
   const current = await users.get(user.id) || user;
   const storedStreak = current.streak || {};
   const currentStreak = Number(storedStreak.current) || 0;
+  const totalXpEarned = users.xpEarned ? users.xpEarned(current) : (Array.isArray(current.xpLedger) ? current.xpLedger.reduce((sum, entry) => {
+    if (!entry) return sum;
+    if (typeof entry === 'object') {
+      const award = Number(entry.amount ?? entry.xp ?? entry.value ?? 0);
+      return Number.isFinite(award) ? sum + award : sum;
+    }
+    const numeric = Number(entry);
+    return Number.isFinite(numeric) ? sum + numeric : sum;
+  }, 0) : Number(current.xp || 0));
   const streak = {
     current: currentStreak,
     longest: Number(storedStreak.longest) || 0,
@@ -333,7 +342,7 @@ async function publicMe(user) {
   const walletBalanceNim = await connectedWalletBalance(current);
   return {
     id: current.id, username: current.username, avatar: current.avatar,
-    level: current.level, xp: current.xp, reputation: current.reputation,
+    level: current.level, xp: current.xp, xpEarned: totalXpEarned, totalXpEarned: totalXpEarned, reputation: current.reputation,
     balanceNim: walletBalanceNim,
     ledgerBalanceNim: toNim(current.balanceLuna),
     walletBalanceNim,
@@ -525,31 +534,41 @@ route('GET', '/api/home', async (ctx) => {
       };
     });
 
-  // Recent Achievements: Derived from actual user activity
-  const passedProofs = userAttempts.filter(a => a.status === 'passed');
-  
-  const achievements = [];
-  
-  // Calculate total NIM earned from passed attempts
-  const totalNimEarned = passedProofs.reduce((sum, a) => {
-    const challenge = a.challenge;
-    return sum + (challenge?.rewardNim || 0);
-  }, 0);
-  
-  if (totalNimEarned > 0) {
-    achievements.push({
-      id: 'nim-earned',
-      title: `${totalNimEarned.toFixed(1)} NIM earned`,
-      detail: 'From completed proofs',
-      xp: 0,
-      nim: totalNimEarned,
-      completedAt: now(),
-      type: 'nim'
-    });
-  }
-  
-  // Calculate total XP earned
-  if (user.xp > 0) {
+  // Recent achievements come from the same persisted XP awards shown in the
+  // user's total. This keeps the activity feed populated even when attempts
+  // do not include their related challenge row.
+  const xpLedger = Array.isArray(user.xpLedger) ? user.xpLedger : [];
+  const achievements = xpLedger
+    .map((entry, index) => {
+      const amount = typeof entry === 'object' ? Number(entry.amount || 0) : Number(entry || 0);
+      if (!(amount > 0)) return null;
+
+      const eventKey = typeof entry === 'object' ? String(entry.eventKey || '') : '';
+      const reason = typeof entry === 'object' ? String(entry.reason || '') : '';
+      const detail = eventKey.includes(':lesson')
+        ? 'Lesson completed'
+        : eventKey.includes(':practice')
+          ? 'Practice completed'
+          : eventKey.startsWith('proof:')
+            ? 'Proof submitted'
+            : reason || 'XP awarded';
+
+      return {
+        id: eventKey || `xp-award-${index}`,
+        title: `+${amount.toLocaleString()} XP`,
+        detail,
+        xp: amount,
+        nim: 0,
+        completedAt: typeof entry === 'object' ? (entry.grantedAt || entry.createdAt || now()) : now(),
+        type: 'xp',
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => Number(b.completedAt) - Number(a.completedAt))
+    .slice(0, 3);
+
+  // Older users may have XP but no ledger entries yet.
+  if (achievements.length === 0 && Number(user.xp) > 0) {
     achievements.push({
       id: 'xp-earned',
       title: `${user.xp.toLocaleString()} XP earned`,
@@ -557,26 +576,7 @@ route('GET', '/api/home', async (ctx) => {
       xp: user.xp,
       nim: 0,
       completedAt: now(),
-      type: 'xp'
-    });
-  }
-  
-  // Count completed lessons across all paths
-  const totalLessonsCompleted = myPaths.reduce((sum, path) => {
-    const progressKeys = Object.keys(path.progress || {});
-    const lessonKeys = progressKeys.filter(k => k.includes(':lesson'));
-    return sum + lessonKeys.length;
-  }, 0);
-  
-  if (totalLessonsCompleted > 0) {
-    achievements.push({
-      id: 'lessons-completed',
-      title: `${totalLessonsCompleted} lessons completed`,
-      detail: 'Keep up the great work!',
-      xp: totalLessonsCompleted * 20,
-      nim: 0,
-      completedAt: now(),
-      type: 'lessons'
+      type: 'xp',
     });
   }
 
@@ -852,7 +852,7 @@ route('POST', '/api/paths/:id/progress', async (ctx) => {
     await store.update('paths', p.id, { progress: p.progress });
     if (part === 'lesson') {
       await users.touchStreak(user.id);
-      await users.addXp(user.id, 20, 'Lesson complete');
+      await users.addXp(user.id, 20, 'Lesson complete', `path:${p.id}:${dayIndex}:${topicSlug}:lesson`);
       await userStats.incrementLessons(user.id);
       await learningGoals.updateGoalProgress(user.id, 'weekly_lessons', 1);
       await masteryBadges.checkSpecialBadges(user.id);
@@ -868,7 +868,7 @@ route('POST', '/api/paths/:id/progress', async (ctx) => {
     }
     if (part === 'practice') {
       await users.touchStreak(user.id);
-      await users.addXp(user.id, 10, 'Practice complete');
+      await users.addXp(user.id, 10, 'Practice complete', `path:${p.id}:${dayIndex}:${topicSlug}:practice`);
       await userStats.incrementPractices(user.id);
       await learningGoals.updateGoalProgress(user.id, 'weekly_practices', 1);
     }

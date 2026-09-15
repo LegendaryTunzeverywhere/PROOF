@@ -99,6 +99,7 @@ export function ProfilePage() {
   }
 
   const user = authUser;
+  const lifetimeXp = Number(user.totalXpEarned ?? user.xpEarned ?? user.xp ?? 0);
   const verifiedSkills = skills.filter((s) => s.verified);
   const inProgressSkills = skills.filter((s) => !s.verified);
   const unlockedBadges = badges.filter((b) => b.unlocked);
@@ -127,7 +128,7 @@ export function ProfilePage() {
               <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-white/90">
                 <span>Level {user.level || 1}</span>
                 <span>·</span>
-                <span>{(user.xp || 0).toLocaleString()} XP</span>
+                <span>Total XP earned: {lifetimeXp.toLocaleString()}</span>
                 <span>·</span>
                 <span>{user.reputation || 0} reputation</span>
               </div>

@@ -9,6 +9,8 @@ export interface User {
   avatar: string;
   level: number;
   xp: number;
+  xpEarned?: number;
+  totalXpEarned?: number;
   reputation: number;
   balanceNim: number;
   ledgerBalanceNim?: number;

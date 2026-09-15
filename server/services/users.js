@@ -29,6 +29,27 @@ function normalizeStreakShape(streak = null) {
   };
 }
 
+export function xpLedgerTotal(ledger = []) {
+  if (!Array.isArray(ledger)) return 0;
+
+  return ledger.reduce((sum, entry) => {
+    if (!entry) return sum;
+
+    if (typeof entry === 'number') return sum + entry;
+    if (typeof entry === 'string') {
+      const numeric = Number(entry);
+      return Number.isFinite(numeric) ? sum + numeric : sum;
+    }
+
+    if (typeof entry === 'object') {
+      const amount = Number(entry.amount ?? entry.xp ?? entry.value ?? 0);
+      return Number.isFinite(amount) ? sum + amount : sum;
+    }
+
+    return sum;
+  }, 0);
+}
+
 export class UserService {
   constructor(store, config) {
     this.store = store;
@@ -50,6 +71,7 @@ export class UserService {
       publicKey: null,
       level: 1,
       xp: 0,
+      xpLedger: [],
       reputation: 50,
       balanceLuna: 0,
       earnedLuna: 0,
@@ -156,21 +178,41 @@ export class UserService {
   /** XP curve: level n needs 60·(n−1)² xp. */
   xpForLevel(level) { return 60 * (level - 1) * (level - 1); }
 
-  async addXp(userId, amount, reason = '') {
+  xpEarned(user) {
+    if (!user) return 0;
+    return xpLedgerTotal(user.xpLedger);
+  }
+
+  async addXp(userId, amount, reason = '', eventKey = null) {
     const user = this.get(userId);
     if (!user || !(amount > 0)) return { user, leveledUp: false };
+
+    const ledger = Array.isArray(user.xpLedger) ? [...user.xpLedger] : [];
+    if (eventKey && ledger.includes(eventKey)) {
+      return { user, leveledUp: false, duplicated: true, reason };
+    }
+
+    const hasMatchingEntry = ledger.some((entry) => {
+      if (!entry || typeof entry !== 'object') return false;
+      return entry.eventKey === eventKey;
+    });
+    if (eventKey && hasMatchingEntry) {
+      return { user, leveledUp: false, duplicated: true, reason };
+    }
+
     const before = user.level;
     const xp = user.xp + Math.round(amount);
     let lvl = 1;
     while (this.xpForLevel(lvl + 1) <= xp) lvl++;
     const updatedAt = now();
-    // Persist via store.update() — mutating `user` alone and calling
-    // store.save() only works on the embedded store (shared object
-    // reference); SupabaseStore's save() is a no-op, so this must be an
-    // explicit write for xp/level to reach the database.
-    const updated = await this.store.update('users', userId, { xp, level: lvl, updatedAt });
+    if (eventKey) {
+      ledger.push({ eventKey, amount: Math.round(amount), reason: reason || 'xp-award', grantedAt: updatedAt });
+    } else {
+      ledger.push({ amount: Math.round(amount), reason: reason || 'xp-award', grantedAt: updatedAt });
+    }
+    const updated = await this.store.update('users', userId, { xp, level: lvl, xpLedger: ledger, updatedAt });
     await this.store.save();
-    return { user: updated || { ...user, xp, level: lvl, updatedAt }, leveledUp: lvl > before, newLevel: lvl, reason };
+    return { user: updated || { ...user, xp, level: lvl, xpLedger: ledger, updatedAt }, leveledUp: lvl > before, newLevel: lvl, reason, duplicated: false };
   }
 
   /* ── streaks (encouraging, never punitive — spec §53) ── */
