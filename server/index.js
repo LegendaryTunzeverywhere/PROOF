@@ -1743,7 +1743,7 @@ route('POST', '/api/teach/sessions/:id/review', async (ctx) => {
 /* ── EXTRAS ────────────────────────────────────────────────────────── */
 route('GET', '/api/leaderboard', async (ctx) => {
   const { query, res } = ctx;
-  const cat = ['proofs', 'score', 'helpful', 'teacher', 'consistent', 'tasks', 'earned'].includes(query.get('cat')) ? query.get('cat') : 'proofs';
+  const cat = ['proofs', 'score', 'xp', 'helpful', 'teacher', 'consistent', 'tasks', 'earned'].includes(query.get('cat')) ? query.get('cat') : 'proofs';
   json(res, 200, { category: cat, entries: await users.leaderboard(cat, 12) });
 });
 

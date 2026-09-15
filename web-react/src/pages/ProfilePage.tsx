@@ -105,7 +105,7 @@ export function ProfilePage() {
   const unlockedBadges = badges.filter((b) => b.unlocked);
   const upcomingBadges = nextBadges.slice(0, 3);
   const streak = user.streak || { current: 0, longest: 0, emoji: '', atRisk: false };
-  const levelProgress = xpProgress(user.xp || 0, user.level || 1);
+  const levelProgress = xpProgress(lifetimeXp, user.level || 1);
   const formatNim = (amount?: number) => Number.isFinite(Number(amount)) ? Number(amount).toFixed(1) : '0.0';
   const skillName = (skill: Skill) => skill.name || skill.skillSlug?.replace(/[-_]/g, ' ') || 'Untitled skill';
 

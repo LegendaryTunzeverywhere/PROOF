@@ -15,7 +15,7 @@ import type { HomeResponse } from '../types/api';
 import { xpProgress } from '../lib/progression';
 
 export function HomePage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, updateUser } = useAuth();
   const [homeData, setHomeData] = useState<HomeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +36,7 @@ export function HomePage() {
       setError(null);
       const data = await homeService.getHome();
       setHomeData(data);
+      updateUser(data.user);
     } catch (err: any) {
       console.error('Failed to load home data:', err);
       setError(err.message || 'Failed to load dashboard');
@@ -76,7 +77,7 @@ export function HomePage() {
   }
 
   const lifetimeXp = Number(homeData.user.totalXpEarned ?? homeData.user.xpEarned ?? homeData.user.xp ?? 0);
-  const xp = homeData.user.xp || 0;
+  const xp = lifetimeXp;
   const level = homeData.user.level || 1;
   const levelProgress = xpProgress(xp, level);
   const xpToNextLevel = Math.max(0, levelProgress.nextLevelXp - xp);
@@ -139,7 +140,7 @@ export function HomePage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                     <div className="text-base font-semibold text-ink">Level {level}</div>
-                    <div className="text-sm font-semibold tabular-nums text-ink">{lifetimeXp.toLocaleString()} <span className="font-normal text-muted">total XP</span></div>
+                    <div className="text-sm font-semibold tabular-nums text-ink">{lifetimeXp.toLocaleString()} <span className="font-normal text-muted">app-wide XP</span></div>
                   </div>
                   <div className="mt-1.5 text-sm text-muted">
                     {xpToNextLevel.toLocaleString()} XP to Level {level + 1}

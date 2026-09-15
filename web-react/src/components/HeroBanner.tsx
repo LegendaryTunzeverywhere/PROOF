@@ -55,7 +55,7 @@ export function HeroBanner() {
     { 
       id: "xp", 
       value: lifetimeXp || 0, 
-      label: "Total XP", 
+      label: "App-wide XP", 
       icon: BoltIcon, 
       iconClass: "h-[19px] w-[19px]" 
     },

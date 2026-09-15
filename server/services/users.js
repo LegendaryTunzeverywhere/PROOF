@@ -342,6 +342,7 @@ export class UserService {
     const score = {
       proofs: async (u) => u.proofsPassed * 10 + u.xp / 50,
       score: async (u) => avgScore(this.store, u.id),
+      xp: async (u) => Math.max(this.xpEarned(u), Number(u.xp) || 0),
       helpful: async (u) => (await this.store.count('reviews', (r) => r.revieweeId === u.id && r.rating >= 4)) * 8 + u.reputation,
       teacher: async (u) => (await this.store.count('teaching_sessions', (t) => t.teacherId === u.id && t.bookings > 0)) * 12 + (await this.store.count('reviews', (r) => r.revieweeId === u.id && r.rating >= 4)) * 4,
       consistent: async (u) => (u.streak?.longest || 0) * 6 + u.proofsPassed,
