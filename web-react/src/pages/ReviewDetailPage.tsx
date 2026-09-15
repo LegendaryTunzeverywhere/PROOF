@@ -266,7 +266,7 @@ export function ReviewDetailPage() {
                   value={userAnswer}
                   onChange={(e) => setUserAnswer(e.target.value)}
                   placeholder="Type or say your answer before rating yourself…"
-                  className="w-full rounded-lg border border-line bg-white p-3 text-sm text-ink focus:border-brand focus:outline-none"
+                  className="w-full rounded-lg border border-line bg-surface p-3 text-sm text-ink placeholder:text-muted focus:border-brand focus:outline-none"
                   rows={3}
                 />
               </div>

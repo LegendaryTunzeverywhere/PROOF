@@ -592,7 +592,7 @@ export function LessonView({ pathId, skill, topic }: LessonViewProps) {
                   <p className="mb-3 text-sm font-semibold text-ink sm:text-base">{prompt}</p>
                   <textarea
                     placeholder="Type or think through your answer..."
-                    className="w-full rounded-lg border border-line bg-white p-3 text-sm text-ink focus:border-brand focus:outline-none"
+                    className="w-full rounded-lg border border-line bg-surface p-3 text-sm text-ink placeholder:text-muted focus:border-brand focus:outline-none"
                     rows={3}
                   />
                 </div>
