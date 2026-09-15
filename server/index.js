@@ -732,58 +732,9 @@ route('POST', '/api/paths', async (ctx) => {
 route('GET', '/api/paths', async (ctx) => {
   const { user, res } = ctx;
   const filtered = await store.filter('paths', (p) => p.userId === user.id);
-  
-  // Auto-deduplicate: Keep only the best path per skill
-  const bySkill = new Map();
-  const toDelete = [];
-  
-  for (const path of filtered) {
-    const key = path.skillSlug || 'unknown';
-    const existing = bySkill.get(key);
-    
-    if (!existing) {
-      // First path for this skill
-      bySkill.set(key, path);
-    } else {
-      // Decide which to keep: prefer path with more progress, then newer
-      const pathProgress = Object.keys(path.progress || {}).length;
-      const existingProgress = Object.keys(existing.progress || {}).length;
-      
-      let keepPath, deletePath;
-      
-      if (pathProgress > existingProgress) {
-        // Current path has more progress, keep it
-        keepPath = path;
-        deletePath = existing;
-      } else if (pathProgress === existingProgress && path.createdAt > existing.createdAt) {
-        // Same progress, keep newer
-        keepPath = path;
-        deletePath = existing;
-      } else {
-        // Keep existing, delete current
-        keepPath = existing;
-        deletePath = path;
-      }
-      
-      bySkill.set(key, keepPath);
-      toDelete.push(deletePath.id);
-      console.log(`[AUTO-DEDUP] Removing duplicate ${deletePath.id} (progress: ${Object.keys(deletePath.progress || {}).length}) keeping ${keepPath.id} (progress: ${Object.keys(keepPath.progress || {}).length}) for skill ${key}`);
-    }
-  }
-  
-  // Delete duplicates in batch
-  if (toDelete.length > 0) {
-    for (const id of toDelete) {
-      await store.remove('paths', id);
-    }
-    await store.save();
-    console.log(`[AUTO-DEDUP] Removed ${toDelete.length} duplicate paths for user ${user.id}`);
-  }
-  
-  // Return deduplicated paths
-  const deduped = Array.from(bySkill.values());
-  const sorted = deduped.sort((a, b) => b.createdAt - a.createdAt);
-  for (const path of sorted) await repairPathChallenges(path);
+  // Keep every path. A user can intentionally have multiple paths for one
+  // skill, and loading the list must never delete older learning history.
+  const sorted = filtered.sort((a, b) => b.createdAt - a.createdAt);
   const mine = await Promise.all(sorted.map((p) => pathView(p, user.id)));
   json(res, 200, { paths: mine });
 });
@@ -792,7 +743,6 @@ route('GET', '/api/paths/:id', async (ctx) => {
   const { user, params, res } = ctx;
   const p = await store.get('paths', params.id);
   if (!p || p.userId !== user.id) throw httpError(404, 'NOT_FOUND', 'Path not found.');
-  await repairPathChallenges(p);
   json(res, 200, { path: await pathView(p, user.id) });
 });
 
@@ -1006,7 +956,72 @@ function hasProgressItem(progress, dayIndex, topic, part) {
   return false;
 }
 
+const refreshedPathIds = new Set();
+
+async function refreshPathCurriculum(pathRow) {
+  if (!pathRow || pathRow.isFromDocument || refreshedPathIds.has(pathRow.id)) return pathRow;
+  refreshedPathIds.add(pathRow.id);
+
+  try {
+    const generated = await generateLearningPath({
+      goal: pathRow.goal,
+      domain: pathRow.skillSlug,
+      level: String(pathRow.level || 'beginner').toLowerCase(),
+      minutesPerDay: pathRow.minutesPerDay,
+    });
+    const existingByKey = new Map();
+    for (const day of pathRow.days || []) {
+      for (const item of day.items || []) {
+        const key = `${item.kind}:${item.topic}`;
+        const items = existingByKey.get(key) || [];
+        items.push(item);
+        existingByKey.set(key, items);
+      }
+    }
+
+    const days = generated.days.map((day) => ({
+      ...day,
+      items: day.items.map((item) => {
+        const previous = existingByKey.get(`${item.kind}:${item.topic}`)?.shift();
+        return previous?.challengeId ? { ...item, challengeId: previous.challengeId } : item;
+      }),
+    }));
+    const dayByTopic = new Map();
+    for (const day of days) {
+      for (const item of day.items) dayByTopic.set(item.topic, day.index);
+    }
+    const progress = {};
+    for (const [key, value] of Object.entries(pathRow.progress || {})) {
+      const [, topic, part] = String(key).split(':');
+      const newDay = dayByTopic.get(topic);
+      if (newDay && part) progress[`${newDay}:${topic}:${part}`] = value;
+      else if (!newDay) progress[key] = value;
+    }
+
+    const patch = {
+      days,
+      progress,
+      totalXp: generated.totalXp,
+      title: generated.title,
+      description: generated.description,
+      level: generated.level,
+      engine: generated.engine,
+    };
+    const updated = await store.update('paths', pathRow.id, patch);
+    Object.assign(pathRow, updated || patch);
+    await store.save();
+  } catch (error) {
+    refreshedPathIds.delete(pathRow.id);
+    console.warn(`[PATH REFRESH] Could not refresh ${pathRow.id}:`, error.message);
+  }
+  return pathRow;
+}
+
 async function pathView(p, userId) {
+  if (!p.isFromDocument) {
+    await refreshPathCurriculum(p);
+    await repairPathChallenges(p);
+  }
   // OPTIMIZED: Fetch all user attempts once using optimized query
   const userAttempts = await store.filterOptimized('attempts', { userId: userId, submittedAt_not_null: true });
   const attemptsByChallenge = new Map(userAttempts.map(a => [a.challengeId, a]));

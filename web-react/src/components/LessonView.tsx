@@ -122,44 +122,34 @@ export function LessonView({ pathId, skill, topic }: LessonViewProps) {
 
   const loadLesson = async () => {
     console.log('[LessonView] Loading lesson:', skill, topic);
+    const cacheKey = `lesson_${language}_${skill}_${topic}`;
     try {
-      // Check cache first
-      const cacheKey = `lesson_${language}_${skill}_${topic}`;
-      const cached = sessionStorage.getItem(cacheKey);
-      
-      if (cached) {
-        console.log('[LessonView] Cache HIT:', cacheKey);
-        try {
-          const cachedLesson = normalizeLessonData(JSON.parse(cached), skill, topic);
-          console.log('[LessonView] Setting lesson from cache');
-          setLesson(cachedLesson);
-          setLoading(false);
-          console.log('[LessonView] Loading state set to false (cached)');
-          
-          if (cachedLesson.quiz) {
-            setQuizAnswers(new Array(cachedLesson.quiz.length).fill(null));
-          }
-          if (cachedLesson.practice) {
-            setPracticeAnswers(new Array(cachedLesson.practice.length).fill(null));
-          }
-          
-          // Still fetch in background to update cache (but don't show loading)
-          fetchAndCacheLesson(cacheKey, false);
-          return;
-        } catch (e) {
-          // Invalid cache, fetch normally
-          console.warn('[LessonView] Invalid cache, refetching:', e);
-        }
-      }
-      
-      console.log('[LessonView] Cache MISS, fetching:', cacheKey);
-      // No cache, fetch and update UI
+      // Always fetch the current curriculum first. The previous behavior
+      // rendered sessionStorage immediately and refreshed invisibly, which
+      // left users seeing old lessons after curriculum updates.
       await fetchAndCacheLesson(cacheKey, true);
       console.log('[LessonView] Fetch complete');
     } catch (err: any) {
-      console.error('[LessonView] Failed to load lesson:', err);
-      setError(err.message || 'Failed to load lesson');
-      setLoading(false);
+      console.warn('[LessonView] Fresh lesson fetch failed, trying cache:', err);
+      const cached = sessionStorage.getItem(cacheKey);
+      if (!cached) {
+        console.error('[LessonView] Failed to load lesson:', err);
+        setError(err.message || 'Failed to load lesson');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const cachedLesson = normalizeLessonData(JSON.parse(cached), skill, topic);
+        setLesson(cachedLesson);
+        setQuizAnswers(new Array(cachedLesson.quiz?.length || 0).fill(null));
+        setPracticeAnswers(new Array(cachedLesson.practice?.length || 0).fill(null));
+        setLoading(false);
+      } catch (cacheError) {
+        console.error('[LessonView] Cached lesson is invalid:', cacheError);
+        setError(err.message || 'Failed to load lesson');
+        setLoading(false);
+      }
     }
   };
   
@@ -185,22 +175,20 @@ export function LessonView({ pathId, skill, topic }: LessonViewProps) {
       sessionStorage.setItem(cacheKey, JSON.stringify(flatLesson));
       console.log('[LessonView] Saved to cache');
       
-      if (updateUI) {
-        console.log('[LessonView] Updating UI with lesson');
-        setLesson(flatLesson);
-        
-        if (flatLesson.quiz) {
-          setQuizAnswers(new Array(flatLesson.quiz.length).fill(null));
-        }
-        if (flatLesson.practice) {
-          setPracticeAnswers(new Array(flatLesson.practice.length).fill(null));
-        }
-        
-        setLoading(false);
-        console.log('[LessonView] Loading state set to false (fetched)');
-      } else {
-        console.log('[LessonView] Skipping UI update (background refresh)');
+      if (!updateUI) return;
+
+      console.log('[LessonView] Updating UI with lesson');
+      setLesson(flatLesson);
+
+      if (flatLesson.quiz) {
+        setQuizAnswers(new Array(flatLesson.quiz.length).fill(null));
       }
+      if (flatLesson.practice) {
+        setPracticeAnswers(new Array(flatLesson.practice.length).fill(null));
+      }
+
+      setLoading(false);
+      console.log('[LessonView] Loading state set to false (fetched)');
     } catch (error) {
       console.error('[LessonView] Fetch error:', error);
       if (updateUI) {

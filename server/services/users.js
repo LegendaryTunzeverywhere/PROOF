@@ -351,6 +351,8 @@ export class UserService {
         avatar: user.avatar,
         level: user.level,
         reputation: user.reputation,
+        xp: user.xp || 0,
+        totalXpEarned: Math.max(this.xpEarned(user), Number(user.xp) || 0),
         proofsPassed: user.proofsPassed,
         walletAddress: user.walletAddress, // Include real wallet address
         walletMode: user.walletMode, // Show wallet type (nimiqpay/demo)

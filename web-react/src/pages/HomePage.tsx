@@ -79,6 +79,7 @@ export function HomePage() {
   const xp = homeData.user.xp || 0;
   const level = homeData.user.level || 1;
   const levelProgress = xpProgress(xp, level);
+  const xpToNextLevel = Math.max(0, levelProgress.nextLevelXp - xp);
 
   return (
     <>
@@ -105,7 +106,7 @@ export function HomePage() {
           <Reveal delay={90}>
             <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
               <PanelHeader title="Your Progress" action="Details" actionTo="/profile" />
-              <div className="mt-4 flex items-center gap-4">
+              <div className="mt-4 flex items-center gap-4 sm:gap-5">
                 {/* Progress Ring */}
                 <div className="relative flex h-24 w-24 shrink-0 items-center justify-center">
                   <svg className="h-full w-full -rotate-90 transform" viewBox="0 0 100 100">
@@ -135,12 +136,15 @@ export function HomePage() {
                 </div>
 
                 {/* Level Info */}
-                <div className="flex-1">
-                  <div className="text-base font-semibold text-ink">Level {level}</div>
-                  <div className="mt-1 text-sm text-muted">
-                    Total XP earned: {lifetimeXp.toLocaleString()} · Level progress: {xp.toLocaleString()} / {levelProgress.nextLevelXp.toLocaleString()}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                    <div className="text-base font-semibold text-ink">Level {level}</div>
+                    <div className="text-sm font-semibold tabular-nums text-ink">{lifetimeXp.toLocaleString()} <span className="font-normal text-muted">total XP</span></div>
                   </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-elevated">
+                  <div className="mt-1.5 text-sm text-muted">
+                    {xpToNextLevel.toLocaleString()} XP to Level {level + 1}
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-elevated">
                     <div
                       className="h-full bg-gradient-to-r from-brand to-brand-deep transition-all duration-500"
                       style={{ width: `${levelProgress.percent}%` }}
