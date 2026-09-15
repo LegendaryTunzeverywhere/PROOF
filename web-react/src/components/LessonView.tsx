@@ -415,7 +415,7 @@ export function LessonView({ pathId, skill, topic }: LessonViewProps) {
                 lesson.sections.map((section, idx) => (
                   <div key={idx} className="rounded-2xl border border-line bg-surface p-4 sm:p-6">
                     <h3 className="mb-3 text-lg font-bold text-ink sm:text-xl">{section.h}</h3>
-                    <p className="text-sm leading-relaxed text-muted sm:text-base">{section.body}</p>
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-muted sm:text-base">{section.body}</p>
                   </div>
                 ))
               ) : (
@@ -587,16 +587,37 @@ export function LessonView({ pathId, skill, topic }: LessonViewProps) {
                 </p>
               </div>
 
-              {lesson.recall.map((prompt, idx) => (
-                <div key={idx} className="rounded-2xl border border-brand-soft bg-brand-soft/20 p-4 sm:p-6">
-                  <p className="mb-3 text-sm font-semibold text-ink sm:text-base">{prompt}</p>
-                  <textarea
-                    placeholder="Type or think through your answer..."
-                    className="w-full rounded-lg border border-line bg-surface p-3 text-sm text-ink placeholder:text-muted focus:border-brand focus:outline-none"
-                    rows={3}
-                  />
-                </div>
-              ))}
+              {skill === 'languages' ? (
+                lesson.recall.map((prompt, idx) => {
+                  const match = String(prompt).match(/[“"]([^“"]+)[”"]/);
+                  const target = match ? match[1] : String(prompt).replace(/^Say\s+/i, '').replace(/\s+aloud.*$/i, '');
+                  const meaning = String(prompt).includes(':')
+                    ? String(prompt).split(':').slice(1).join(':').trim()
+                    : undefined;
+
+                  return (
+                    <div key={idx} className="rounded-2xl border border-brand-soft bg-brand-soft/20 p-4 sm:p-6">
+                      <p className="mb-3 text-sm font-semibold text-ink sm:text-base">{prompt}</p>
+                      <LanguageSpeechPractice
+                        target={target}
+                        meaning={meaning}
+                        language={topic.split('-')[0]}
+                      />
+                    </div>
+                  );
+                })
+              ) : (
+                lesson.recall.map((prompt, idx) => (
+                  <div key={idx} className="rounded-2xl border border-brand-soft bg-brand-soft/20 p-4 sm:p-6">
+                    <p className="mb-3 text-sm font-semibold text-ink sm:text-base">{prompt}</p>
+                    <textarea
+                      placeholder="Type or think through your answer..."
+                      className="w-full rounded-lg border border-line bg-surface p-3 text-sm text-ink placeholder:text-muted focus:border-brand focus:outline-none"
+                      rows={3}
+                    />
+                  </div>
+                ))
+              )}
 
               <button
                 onClick={() => setStage('practice')}

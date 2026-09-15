@@ -41,11 +41,31 @@ export function LanguageSpeechPractice({
   const [supported, setSupported] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [localTranscript, setLocalTranscript] = useState(value);
+  const [displayedTranscript, setDisplayedTranscript] = useState(value);
   const transcript = onChange ? value : localTranscript;
 
   useEffect(() => {
     setLocalTranscript(value);
   }, [value]);
+
+  useEffect(() => {
+    if (!transcript) {
+      setDisplayedTranscript('');
+      return;
+    }
+
+    let frame = 0;
+    setDisplayedTranscript('');
+    const timeout = window.setInterval(() => {
+      frame += 1;
+      setDisplayedTranscript(transcript.slice(0, frame));
+      if (frame >= transcript.length) {
+        window.clearInterval(timeout);
+      }
+    }, 24);
+
+    return () => window.clearInterval(timeout);
+  }, [transcript]);
 
   useEffect(() => () => {
     recognitionRef.current?.stop();
@@ -105,15 +125,33 @@ export function LanguageSpeechPractice({
           <p className="mt-1 text-lg font-bold text-ink">{target}</p>
           {meaning && <p className="mt-1 text-sm text-muted">{meaning}</p>}
         </div>
-        <button type="button" onClick={listen} disabled={disabled} className="rounded-lg border border-brand/30 bg-surface px-3 py-2 text-sm font-semibold text-brand hover:bg-brand-soft disabled:opacity-50">
-          Listen
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={listen}
+            disabled={disabled}
+            aria-label="Listen to the phrase"
+            title="Listen to the phrase"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-brand/30 bg-surface text-lg text-brand transition hover:bg-brand-soft disabled:opacity-50"
+          >
+            <span aria-hidden="true">🔊</span>
+          </button>
+          <button
+            type="button"
+            onClick={speak}
+            disabled={disabled || !supported}
+            aria-label={listening ? 'Stop listening' : 'Say it aloud'}
+            title={listening ? 'Stop listening' : 'Say it aloud'}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-brand text-lg text-white transition hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span aria-hidden="true">🎤</span>
+          </button>
+        </div>
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button type="button" onClick={speak} disabled={disabled || !supported} className="rounded-lg bg-brand px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-60">
-          {listening ? 'Listening… stop' : 'Say it aloud'}
-        </button>
-        <span className="text-sm text-muted">{transcript ? `Heard: “${transcript}”` : 'Your transcript will appear here.'}</span>
+        <span className="text-sm text-muted" aria-live="polite">
+          <span className="font-medium text-ink">Heard:</span> “{displayedTranscript || (listening ? 'Listening…' : 'Your transcript will appear here.') }”
+        </span>
       </div>
       {error && <p role="alert" className="mt-3 text-sm font-medium text-bad">{error}</p>}
     </div>

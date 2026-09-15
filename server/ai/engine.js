@@ -49,14 +49,16 @@ function languageCurriculum(language) {
     lesson: {
       tldr: objective,
       sections: [
-        { h: 'What you will do', body: objective },
-        { h: 'Language you can use', body: phrases.map((item) => `${item.target} = ${item.meaning}${item.note ? ` (${item.note})` : ''}`).join('\n') },
-        { h: 'Listen, notice, say', body: `Listen to each model phrase, notice its rhythm, then say it back slowly and once at natural speed. ${language.name} rewards clear meaning before perfect accent.` },
+        { h: 'What you will do', body: `${objective}\n\nStart with the phrase, say it out loud, and use it in a short real-world moment.` },
+        { h: 'Language you can use', body: phrases.map((item) => `• ${item.target} = ${item.meaning}${item.note ? ` — ${item.note}` : ''}`).join('\n') },
+        { h: 'Listen, notice, say', body: `Listen first. Repeat each phrase slowly. Then say it once at normal speed. Clear meaning is more important than a perfect accent.` },
       ],
       example: { lang: 'text', code: phrases.map((item) => `${item.target} — ${item.meaning}`).join('\n') },
-      ask: `How would you use “${phrases[0].target}” in a real ${language.name} conversation?`,
+      ask: `In a real ${language.name} conversation, how would you greet someone, introduce yourself, and say goodbye politely?`,
       keyPoints: phrases.map((item) => `${item.target} = ${item.meaning}`),
       misconception: 'Pronunciation practice is not a one-shot accent test. Listen, try, compare, and try again.',
+      story: `A beginner-friendly situation: greeting someone, introducing yourself, and leaving politely in ${language.name}.`,
+      memoryHook: `Memorize by chunks: ${phrases.map((item) => `${item.target} → ${item.meaning}`).join('; ')}.`,
     },
     practice: phrases.slice(0, 2).map((item, index) => ({
       q: `What does “${item.target}” mean?`,
