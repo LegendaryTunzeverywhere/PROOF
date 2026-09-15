@@ -10,7 +10,7 @@ import { badgesService } from '../services/badges.service';
 import type { Skill, Badge } from '../types/api';
 
 export function ProfilePage() {
-  const { user: authUser, loading: authLoading } = useAuth();
+  const { user: authUser, loading: authLoading, updateUser } = useAuth();
   const [skills, setSkills] = useState<Skill[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [nextBadges, setNextBadges] = useState<Badge[]>([]);
@@ -38,6 +38,7 @@ export function ProfilePage() {
       if (profileResult.status === 'rejected') throw profileResult.reason;
 
       const response = profileResult.value;
+      if (response.user) updateUser(response.user);
       setSkills(Array.isArray(response.skills) ? response.skills : []);
       // The API stores badge display fields in `definition`; flatten them for rendering.
       const normalizeBadge = (badge: any, unlocked: boolean): Badge => ({

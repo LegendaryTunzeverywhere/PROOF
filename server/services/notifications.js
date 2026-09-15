@@ -20,14 +20,9 @@ export class NotificationService {
     return filtered.sort((a, b) => b.createdAt - a.createdAt).slice(0, limit);
   }
 
-  // /api/me currently builds its response synchronously after its other awaited
-  // work. Keep this accessor synchronous for the embedded Store, whose count()
-  // operation is synchronous, so unread never becomes {} after JSON.stringify.
-  // SupabaseStore is asynchronous and is handled by the route-level fallback
-  // below until the response contract is fully async.
-  unreadCount(userId) {
-    const count = this.store.count('notifications', (n) => n.userId === userId && !n.read);
-    return typeof count === 'number' ? count : 0;
+  async unreadCount(userId) {
+    const rows = await this.store.filter('notifications', (n) => n.userId === userId && !n.read);
+    return rows.length;
   }
 
   async markAllRead(userId) {

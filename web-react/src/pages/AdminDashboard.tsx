@@ -167,25 +167,6 @@ export function AdminDashboard() {
     }
   };
 
-  const deleteDemoUser = async (userId: string) => {
-    if (!window.confirm('Delete this demo wallet account?')) return;
-    try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error?.message || 'Unable to delete demo user');
-      }
-      await loadAnalytics();
-      await loadRealtime();
-    } catch (err: any) {
-      console.error('Failed to delete demo user:', err);
-      setError(err.message || 'Failed to delete demo user.');
-    }
-  };
-
   const loadRealtime = async () => {
     if (!authenticated) return;
     

@@ -11,6 +11,8 @@ export interface User {
   xp: number;
   reputation: number;
   balanceNim: number;
+  ledgerBalanceNim?: number;
+  walletBalanceNim?: number;
   earnedNim: number;
   unreadNotifications?: number;
   verifiedSkillCount?: number;

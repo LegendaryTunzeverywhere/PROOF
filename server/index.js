@@ -330,16 +330,45 @@ async function publicMe(user) {
     atRisk: false,
   };
   const unreadNotifications = await notifications.unreadCount(user.id);
+  const walletBalanceNim = await connectedWalletBalance(current);
   return {
     id: current.id, username: current.username, avatar: current.avatar,
     level: current.level, xp: current.xp, reputation: current.reputation,
-    balanceNim: toNim(current.balanceLuna), earnedNim: toNim(current.earnedLuna),
+    balanceNim: walletBalanceNim,
+    ledgerBalanceNim: toNim(current.balanceLuna),
+    walletBalanceNim,
+    earnedNim: toNim(current.earnedLuna),
     wallet: { mode: current.walletMode, address: current.walletAddress, connected: !!current.walletMode },
     streak, prefs: current.prefs,
     proofsPassed: current.proofsPassed || 0,
     walletModeIsDemo: current.walletMode === 'demo',
     unreadNotifications,
   };
+}
+
+async function connectedWalletBalance(user) {
+  const fallback = toNim(user.balanceLuna);
+  if (!user.walletAddress || user.walletMode === 'demo' || !config.nimiq.rpcUrl) return fallback;
+
+  try {
+    const response = await fetch(config.nimiq.rpcUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: `balance-${user.id}`,
+        method: 'getAccountByAddress',
+        params: [normalizeNimiqAddress(user.walletAddress)],
+      }),
+    });
+    if (!response.ok) return fallback;
+    const payload = await response.json();
+    const balanceLuna = Number(payload?.result?.balance);
+    return Number.isFinite(balanceLuna) && balanceLuna >= 0 ? toNim(balanceLuna) : fallback;
+  } catch (error) {
+    console.warn('[wallet] Could not read connected wallet balance:', error.message);
+    return fallback;
+  }
 }
 
 route('GET', '/api/me', async (ctx) => {
@@ -372,7 +401,7 @@ route('GET', '/api/me', async (ctx) => {
   json(res, 200, {
     user: await publicMe(user),
     skills: mySkills,
-    unread: notifications.unreadCount(user.id),
+    unread: await notifications.unreadCount(user.id),
     opportunities: qualification.opportunities,
   });
 });
@@ -838,6 +867,7 @@ route('POST', '/api/paths/:id/progress', async (ctx) => {
       }
     }
     if (part === 'practice') {
+      await users.touchStreak(user.id);
       await users.addXp(user.id, 10, 'Practice complete');
       await userStats.incrementPractices(user.id);
       await learningGoals.updateGoalProgress(user.id, 'weekly_practices', 1);
@@ -1265,12 +1295,28 @@ route('GET', '/api/me/proofs', async (ctx) => {
   json(res, 200, { proofs });
 });
 
+function publicChessConfig(chess) {
+  if (!chess) return null;
+  const sanitize = (entry) => {
+    if (!entry) return entry;
+    const { correctMoves, solution, ...publicEntry } = entry;
+    return publicEntry;
+  };
+  return {
+    fen: chess.fen,
+    tasks: chess.tasks,
+    scenarios: (chess.scenarios || []).map(sanitize),
+    positions: (chess.positions || []).map(sanitize),
+    puzzles: (chess.puzzles || []).map(sanitize),
+  };
+}
+
 function challengeView(ch) {
   return {
     id: ch.id, skillSlug: ch.skillSlug, kind: ch.kind, type: ch.type,
     title: ch.title, brief: ch.brief, requirements: ch.requirements,
     timeMin: ch.timeMin, passScore: ch.passScore, rewardNim: ch.rewardNim, xp: ch.xp,
-    chess: ch.type === 'chess' ? chessConfigFromChallenge(ch) : undefined,
+    chess: ch.type === 'chess' ? publicChessConfig(chessConfigFromChallenge(ch)) : undefined,
     submissionFields: ch.type === 'html' ? ['code']
       : ch.type === 'js-static' ? ['code', 'explanation'] : ch.type === 'chess' ? ['positions'] : ['text'],
   };
@@ -1526,12 +1572,16 @@ route('POST', '/api/chess/challenge/:id/submit', async (ctx) => {
 /* ── WALLET / ECONOMY ──────────────────────────────────────────────── */
 route('GET', '/api/wallet', async (ctx) => {
   const { user, res } = ctx;
+  const current = await users.get(user.id) || user;
+  const walletBalanceNim = await connectedWalletBalance(current);
   json(res, 200, {
-    mode: user.walletMode || 'disconnected',
+    mode: current.walletMode || 'disconnected',
     network: config.nimiq.rpcUrl ? 'nimiq-mainnet' : 'demo-ledger',
-    address: user.walletAddress,
-    balanceNim: toNim(user.balanceLuna),
-    earnedNim: toNim(user.earnedLuna),
+    address: current.walletAddress,
+    balanceNim: walletBalanceNim,
+    ledgerBalanceNim: toNim(current.balanceLuna),
+    walletBalanceNim,
+    earnedNim: toNim(current.earnedLuna),
     pendingPayouts: await rewards.pendingPayoutsForUser(user.id),
     txs: (await rewards.txHistory(user.id)).map((t) => ({ ...t, amountNim: toNim(t.amountLuna) })),
   });
@@ -1541,6 +1591,13 @@ route('POST', '/api/wallet/payout', async (ctx) => {
   const { user, body, res } = ctx;
   const amountNim = parseNumber(body?.amountNim, { min: 0, max: 1_000_000 });
   const tx = await rewards.requestPayout(user.id, amountNim);
+  notifications.push(user.id, {
+    type: 'payout_sent',
+    emoji: '💸',
+    title: 'NIM payout sent',
+    body: `${amountNim} NIM was sent to your connected wallet${tx.ref ? ` · transaction ${tx.ref}` : ''}.`,
+    href: '#/profile',
+  });
   json(res, 201, { tx: { ...tx, amountNim: toNim(tx.amountLuna) } });
 });
 

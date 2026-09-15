@@ -447,13 +447,30 @@ export class ChallengeService {
 
     // ── gamification & notifications ──
     const newAchievements = await this.users.checkAchievements(userId);
+    const treasuryConfigured = Boolean(this.rewards.treasury?.isConfigured?.());
+    const payoutSent = Boolean(rewardResult.payout?.ref);
     if (evaluation.pass) {
+      const rewardMessage = rewardResult.granted
+        ? payoutSent
+          ? `+${ch.xp} XP · +${rewardResult.amountNim} NIM sent to your connected wallet.`
+          : treasuryConfigured
+            ? `+${ch.xp} XP · ${rewardResult.amountNim} NIM credited; wallet payout is pending.`
+            : `+${ch.xp} XP · +${rewardResult.amountNim} NIM added to your PROOF balance.`
+        : `+${ch.xp} XP`;
       this.notify.push(userId, {
         type: 'proof_passed', emoji: '✅',
         title: `You passed: ${ch.title}`,
-        body: rewardResult.granted ? `+${ch.xp} XP · +${rewardResult.amountNim} NIM` : `+${ch.xp} XP`,
+        body: rewardMessage,
         href: proof ? `#/proof/${proof.publicId}` : '#/profile',
       });
+      if (payoutSent) {
+        this.notify.push(userId, {
+          type: 'payout_sent', emoji: '💸',
+          title: 'NIM sent to your connected wallet',
+          body: `${rewardResult.amountNim} NIM · transaction ${rewardResult.payout.ref}`,
+          href: '#/profile',
+        });
+      }
     } else {
       this.notify.push(userId, {
         type: 'proof_failed', emoji: '📝',
