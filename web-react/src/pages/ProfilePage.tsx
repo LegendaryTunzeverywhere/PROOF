@@ -4,6 +4,7 @@ import { Reveal } from '../components/Reveal';
 import { Achievements } from '../components/Achievements';
 import { TrophyIcon } from '../components/Icons';
 import { useAuth } from '../context/AuthContext';
+import { xpProgress } from '../lib/progression';
 import { userService } from '../services/user.service';
 import { badgesService } from '../services/badges.service';
 import type { Skill, Badge } from '../types/api';
@@ -102,6 +103,7 @@ export function ProfilePage() {
   const unlockedBadges = badges.filter((b) => b.unlocked);
   const upcomingBadges = nextBadges.slice(0, 3);
   const streak = user.streak || { current: 0, longest: 0, emoji: '', atRisk: false };
+  const levelProgress = xpProgress(user.xp || 0, user.level || 1);
   const formatNim = (amount?: number) => Number.isFinite(Number(amount)) ? Number(amount).toFixed(1) : '0.0';
   const skillName = (skill: Skill) => skill.name || skill.skillSlug?.replace(/[-_]/g, ' ') || 'Untitled skill';
 
@@ -133,7 +135,7 @@ export function ProfilePage() {
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20">
                 <div
                   className="h-full bg-white/90 transition-all duration-500"
-                  style={{ width: `${((user.xp % 500) / 500) * 100}%` }}
+                  style={{ width: `${levelProgress.percent}%` }}
                 />
               </div>
             </div>

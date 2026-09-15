@@ -2260,7 +2260,7 @@ export const KB = {
             { theme: 'pin', fen: '2kr3r/ppp2ppp/2n5/3Pp3/2P5/2N5/PP3PPP/R1B1K2R w KQ - 0 10', solution: ['Bg5'], hint: 'Pin the knight to the king' },
             { theme: 'fork', fen: 'r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4', solution: ['Nxe5'], hint: 'Fork two pieces' },
             { theme: 'fork', fen: 'rnbqkb1r/ppp2ppp/4pn2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 0 4', solution: ['Nxd5'], hint: 'Knight fork' },
-            { theme: 'skewer', fen: 'r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1', solution: ['Ra8+'], hint: 'Skewer king and rook' },
+            { theme: 'skewer', fen: 'r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1', solution: ['Rxa8+'], hint: 'Capture the rook with check, then win the remaining rook' },
             { theme: 'skewer', fen: '4k3/8/8/8/8/8/8/R3K2R w KQ - 0 1', solution: ['Ra8+'], hint: 'Force the king to move' }
           ],
           requirements: ['identify tactic type', 'find best move', 'explain why it works'],

@@ -12,6 +12,7 @@ import { PanelHeader } from '../components/PanelHeader';
 import { useAuth } from '../context/AuthContext';
 import { homeService } from '../services/home.service';
 import type { HomeResponse } from '../types/api';
+import { xpProgress } from '../lib/progression';
 
 export function HomePage() {
   const { user, loading: authLoading } = useAuth();
@@ -76,7 +77,7 @@ export function HomePage() {
 
   const xp = homeData.user.xp || 0;
   const level = homeData.user.level || 1;
-  const levelProgress = ((xp % 500) / 500) * 100;
+  const levelProgress = xpProgress(xp, level);
 
   return (
     <>
@@ -123,12 +124,12 @@ export function HomePage() {
                       stroke="var(--brand)"
                       strokeWidth="8"
                       strokeDasharray={`${2 * Math.PI * 42}`}
-                      strokeDashoffset={`${2 * Math.PI * 42 * (1 - levelProgress / 100)}`}
+                      strokeDashoffset={`${2 * Math.PI * 42 * (1 - levelProgress.percent / 100)}`}
                       strokeLinecap="round"
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-xl font-bold text-ink">{Math.round(levelProgress)}%</span>
+                    <span className="text-xl font-bold text-ink">{Math.round(levelProgress.percent)}%</span>
                   </div>
                 </div>
 
@@ -136,12 +137,12 @@ export function HomePage() {
                 <div className="flex-1">
                   <div className="text-base font-semibold text-ink">Level {level}</div>
                   <div className="mt-1 text-sm text-muted">
-                    {xp.toLocaleString()} / {Math.ceil((xp + 1) / 500) * 500} XP
+                    {xp.toLocaleString()} / {levelProgress.nextLevelXp.toLocaleString()} XP
                   </div>
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-elevated">
                     <div
                       className="h-full bg-gradient-to-r from-brand to-brand-deep transition-all duration-500"
-                      style={{ width: `${levelProgress}%` }}
+                      style={{ width: `${levelProgress.percent}%` }}
                     />
                   </div>
                 </div>

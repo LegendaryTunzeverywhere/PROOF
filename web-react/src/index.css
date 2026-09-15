@@ -180,8 +180,17 @@
     outline-offset: 2px;
   }
 
-  input::placeholder {
+  :where(input, textarea)::placeholder {
     color: var(--faint);
+  }
+
+  :where(input, textarea, select) {
+    color: var(--ink);
+    color-scheme: light;
+  }
+
+  .dark :where(input, textarea, select) {
+    color-scheme: dark;
   }
   
   h1, h2, h3, h4, h5, h6 {

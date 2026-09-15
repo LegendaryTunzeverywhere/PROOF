@@ -22,7 +22,7 @@ export function useInView<T extends HTMLElement>(options?: { threshold?: number;
       },
       {
         threshold: options?.threshold ?? 0.12,
-        rootMargin: options?.rootMargin ?? "0px 0px -8% 0px",
+        rootMargin: options?.rootMargin ?? "0px 0px 18% 0px",
       },
     );
     observer.observe(node);

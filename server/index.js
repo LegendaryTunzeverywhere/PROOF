@@ -319,16 +319,25 @@ route('POST', '/api/auth/logout', (ctx) => {
 });
 
 async function publicMe(user) {
-  const streak = await users.touchStreak(user.id);
-  const unreadNotifications = notifications.unreadCount(user.id);
+  const current = await users.get(user.id) || user;
+  const storedStreak = current.streak || {};
+  const currentStreak = Number(storedStreak.current) || 0;
+  const streak = {
+    current: currentStreak,
+    longest: Number(storedStreak.longest) || 0,
+    lastDay: storedStreak.lastDay || null,
+    emoji: currentStreak >= 30 ? '👑' : currentStreak >= 7 ? '⚡' : currentStreak >= 3 ? '🔥' : '📚',
+    atRisk: false,
+  };
+  const unreadNotifications = await notifications.unreadCount(user.id);
   return {
-    id: user.id, username: user.username, avatar: user.avatar,
-    level: user.level, xp: user.xp, reputation: user.reputation,
-    balanceNim: toNim(user.balanceLuna), earnedNim: toNim(user.earnedLuna),
-    wallet: { mode: user.walletMode, address: user.walletAddress, connected: !!user.walletMode },
-    streak, prefs: user.prefs,
-    proofsPassed: user.proofsPassed || 0,
-    walletModeIsDemo: user.walletMode === 'demo',
+    id: current.id, username: current.username, avatar: current.avatar,
+    level: current.level, xp: current.xp, reputation: current.reputation,
+    balanceNim: toNim(current.balanceLuna), earnedNim: toNim(current.earnedLuna),
+    wallet: { mode: current.walletMode, address: current.walletAddress, connected: !!current.walletMode },
+    streak, prefs: current.prefs,
+    proofsPassed: current.proofsPassed || 0,
+    walletModeIsDemo: current.walletMode === 'demo',
     unreadNotifications,
   };
 }
@@ -813,6 +822,7 @@ route('POST', '/api/paths/:id/progress', async (ctx) => {
     p.progress[key] = now();
     await store.update('paths', p.id, { progress: p.progress });
     if (part === 'lesson') {
+      await users.touchStreak(user.id);
       await users.addXp(user.id, 20, 'Lesson complete');
       await userStats.incrementLessons(user.id);
       await learningGoals.updateGoalProgress(user.id, 'weekly_lessons', 1);
