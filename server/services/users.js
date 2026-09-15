@@ -182,6 +182,32 @@ export class UserService {
     return Math.max(xpLedgerTotal(user.xpLedger), Number(user.xp) || 0);
   }
 
+  levelForXp(xp) {
+    let level = 1;
+    const totalXp = Math.max(0, Number(xp) || 0);
+    while (this.xpForLevel(level + 1) <= totalXp) level++;
+    return level;
+  }
+
+  async recordedXp(userId) {
+    const [attempts, challenges, paths] = await Promise.all([
+      this.store.filter('attempts', (attempt) => attempt.userId === userId && attempt.submittedAt),
+      this.store.all('challenges'),
+      this.store.filter('paths', (path) => path.userId === userId),
+    ]);
+    const challengeXp = new Map(challenges.map((challenge) => [challenge.id, Number(challenge.xp) || 0]));
+    const attemptXp = attempts.reduce((sum, attempt) => {
+      const award = attempt.status === 'passed' ? (challengeXp.get(attempt.challengeId) || 0) : 10;
+      return sum + award;
+    }, 0);
+    const pathXp = paths.reduce((sum, path) => {
+      const keys = Object.keys(path.progress || {});
+      return sum + keys.filter((key) => key.endsWith(':lesson')).length * 20
+        + keys.filter((key) => key.endsWith(':practice')).length * 10;
+    }, 0);
+    return attemptXp + pathXp;
+  }
+
   async addXp(userId, amount, reason = '', eventKey = null) {
     const user = this.get(userId);
     if (!user || !(amount > 0)) return { user, leveledUp: false };
@@ -342,18 +368,22 @@ export class UserService {
     const score = {
       proofs: async (u) => u.proofsPassed * 10 + u.xp / 50,
       score: async (u) => avgScore(this.store, u.id),
-      xp: async (u) => Math.max(this.xpEarned(u), Number(u.xp) || 0),
+      xp: async (u) => Math.max(this.xpEarned(u), await this.recordedXp(u.id)),
       helpful: async (u) => (await this.store.count('reviews', (r) => r.revieweeId === u.id && r.rating >= 4)) * 8 + u.reputation,
       teacher: async (u) => (await this.store.count('teaching_sessions', (t) => t.teacherId === u.id && t.bookings > 0)) * 12 + (await this.store.count('reviews', (r) => r.revieweeId === u.id && r.rating >= 4)) * 4,
       consistent: async (u) => (u.streak?.longest || 0) * 6 + u.proofsPassed,
       tasks: async (u) => (await this.store.count('task_applications', (a) => a.userId === u.id && a.status === 'accepted')) * 15,
       earned: async (u) => u.earnedLuna / 100000,
     }[category] || (async (u) => u.proofsPassed);
-    const scored = await Promise.all(users.map(async (u) => ({ user: u, value: Math.round((await score(u)) * 10) / 10 })));
+    const scored = await Promise.all(users.map(async (u) => ({
+      user: u,
+      value: Math.round((await score(u)) * 10) / 10,
+      totalXpEarned: Math.max(this.xpEarned(u), await this.recordedXp(u.id)),
+    })));
     return scored
       .sort((a, b) => b.value - a.value)
       .slice(0, limit)
-      .map(({ user, value }, i) => ({
+      .map(({ user, value, totalXpEarned }, i) => ({
         rank: i + 1,
         userId: user.id,
         username: user.username,
@@ -361,7 +391,7 @@ export class UserService {
         level: user.level,
         reputation: user.reputation,
         xp: user.xp || 0,
-        totalXpEarned: Math.max(this.xpEarned(user), Number(user.xp) || 0),
+        totalXpEarned,
         proofsPassed: user.proofsPassed,
         walletAddress: user.walletAddress, // Include real wallet address
         walletMode: user.walletMode, // Show wallet type (nimiqpay/demo)

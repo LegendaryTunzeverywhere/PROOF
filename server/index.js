@@ -322,7 +322,8 @@ async function publicMe(user) {
   const current = await users.get(user.id) || user;
   const storedStreak = current.streak || {};
   const currentStreak = Number(storedStreak.current) || 0;
-  const totalXpEarned = users.xpEarned ? users.xpEarned(current) : (Array.isArray(current.xpLedger) ? current.xpLedger.reduce((sum, entry) => {
+  const recordedXp = users.recordedXp ? await users.recordedXp(current.id) : 0;
+  const totalXpEarned = users.xpEarned ? Math.max(users.xpEarned(current), recordedXp) : (Array.isArray(current.xpLedger) ? current.xpLedger.reduce((sum, entry) => {
     if (!entry) return sum;
     if (typeof entry === 'object') {
       const award = Number(entry.amount ?? entry.xp ?? entry.value ?? 0);
@@ -331,6 +332,7 @@ async function publicMe(user) {
     const numeric = Number(entry);
     return Number.isFinite(numeric) ? sum + numeric : sum;
   }, 0) : Number(current.xp || 0));
+  const level = users.levelForXp ? users.levelForXp(totalXpEarned) : current.level;
   const streak = {
     current: currentStreak,
     longest: Number(storedStreak.longest) || 0,
@@ -342,7 +344,7 @@ async function publicMe(user) {
   const walletBalanceNim = await connectedWalletBalance(current);
   return {
     id: current.id, username: current.username, avatar: current.avatar,
-    level: current.level, xp: current.xp, xpEarned: totalXpEarned, totalXpEarned: totalXpEarned, reputation: current.reputation,
+    level, xp: totalXpEarned, xpEarned: totalXpEarned, totalXpEarned, reputation: current.reputation,
     balanceNim: walletBalanceNim,
     ledgerBalanceNim: toNim(current.balanceLuna),
     walletBalanceNim,

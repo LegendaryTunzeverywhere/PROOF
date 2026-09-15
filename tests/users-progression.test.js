@@ -62,6 +62,27 @@ test('user progression: total xp earned is derived from the backend ledger and s
   assert.equal(stored.xpLedger.filter((entry) => typeof entry === 'object' && entry.eventKey === 'proof:xyz').length, 1, 'duplicate evidence should only be stored once');
 });
 
+test('user progression: recorded attempts and path completions reconstruct historical xp', async (t) => {
+  const tb = await testbed();
+  const user = await tb.users.createUser({});
+  await tb.store.insert('challenges', { id: 'challenge-history', xp: 120, createdAt: Date.now() });
+  await tb.store.insert('attempts', {
+    id: 'attempt-history',
+    userId: user.id,
+    challengeId: 'challenge-history',
+    status: 'passed',
+    submittedAt: Date.now(),
+  });
+  await tb.store.insert('paths', {
+    id: 'path-history',
+    userId: user.id,
+    progress: { '1:topic:lesson': Date.now(), '1:topic:practice': Date.now() },
+    createdAt: Date.now(),
+  });
+
+  assert.equal(await tb.users.recordedXp(user.id), 150, 'historical proof, lesson, and practice XP should be reconstructable');
+});
+
 test('user progression: reputation persists via store.update(), not in-memory mutation', async (t) => {
   const tb = await testbed();
   const user = await tb.users.createUser({});
