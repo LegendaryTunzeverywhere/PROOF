@@ -620,7 +620,7 @@ route('GET', '/api/home', async (ctx) => {
 async function discoveryFeed(userId) {
   // Run all queries in parallel
   const [topProofers, allTasks, allTeachers] = await Promise.all([
-    users.leaderboard('proofs', 3),
+    users.leaderboard('xp', 3),
     market.listTasks(userId),
     teaching.list(),
   ]);

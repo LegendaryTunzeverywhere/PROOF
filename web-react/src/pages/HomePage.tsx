@@ -190,7 +190,7 @@ export function HomePage() {
               
               <div className="mt-4 space-y-3">
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted">
-                  Top Proofers
+                  Top XP earners
                 </div>
                 {homeData.discovery.topProofers.slice(0, 3).map((topUser, i) => (
                   <button
@@ -207,7 +207,7 @@ export function HomePage() {
                     <div className="flex-1 truncate">
                       <div className="truncate text-sm font-medium text-ink">{topUser.username}</div>
                     </div>
-                    <div className="text-sm font-semibold text-brand">{topUser.value}</div>
+                    <div className="text-sm font-semibold text-brand">{topUser.value.toLocaleString()} XP</div>
                   </button>
                 ))}
               </div>
