@@ -65,6 +65,7 @@ model User {
   avatar       String      @default("🙂")
   level        Int         @default(1)
   xp           Int         @default(0)
+  xpLedger     Json        @default("[]")
   reputation   Int         @default(50)
   balanceLuna  BigInt      @default(0)
   earnedLuna   BigInt      @default(0)

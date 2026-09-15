@@ -71,7 +71,6 @@ export class UserService {
       publicKey: null,
       level: 1,
       xp: 0,
-      xpLedger: [],
       reputation: 50,
       balanceLuna: 0,
       earnedLuna: 0,
@@ -180,7 +179,7 @@ export class UserService {
 
   xpEarned(user) {
     if (!user) return 0;
-    return xpLedgerTotal(user.xpLedger);
+    return Math.max(xpLedgerTotal(user.xpLedger), Number(user.xp) || 0);
   }
 
   async addXp(userId, amount, reason = '', eventKey = null) {
@@ -210,7 +209,16 @@ export class UserService {
     } else {
       ledger.push({ amount: Math.round(amount), reason: reason || 'xp-award', grantedAt: updatedAt });
     }
-    const updated = await this.store.update('users', userId, { xp, level: lvl, xpLedger: ledger, updatedAt });
+    let updated;
+    try {
+      updated = await this.store.update('users', userId, { xp, level: lvl, xpLedger: ledger, updatedAt });
+    } catch (error) {
+      // Older Supabase deployments may not have run the XP ledger migration
+      // yet. XP must still be awarded; deduplication resumes after migration.
+      if (!/xpLedger.*column|column.*xpLedger|schema cache/i.test(String(error.message || ''))) throw error;
+      console.warn('[XP] xpLedger column is unavailable; saving XP without ledger');
+      updated = await this.store.update('users', userId, { xp, level: lvl, updatedAt });
+    }
     await this.store.save();
     return { user: updated || { ...user, xp, level: lvl, xpLedger: ledger, updatedAt }, leveledUp: lvl > before, newLevel: lvl, reason, duplicated: false };
   }
