@@ -50,6 +50,7 @@ export interface Transaction {
   amountNim: number;
   status: string;
   note?: string;
+  ref?: string | null;
   createdAt: number | string;
 }
 

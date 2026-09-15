@@ -230,7 +230,19 @@ export function ProfilePage() {
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-ink">{transaction.note || `${transaction.kind} transaction`}</p>
-                        <p className="mt-0.5 text-xs text-muted">{formatTransactionDate(transaction.createdAt)} · {transaction.status}</p>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted">
+                          <span>{formatTransactionDate(transaction.createdAt)} · {transaction.status}</span>
+                          {transaction.ref && !transaction.ref.startsWith('ledger:') && (
+                            <a
+                              href={`https://nimiq.watch/transaction/${encodeURIComponent(transaction.ref)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-semibold text-brand hover:underline"
+                            >
+                              View transaction
+                            </a>
+                          )}
+                        </div>
                       </div>
                       <span className={`shrink-0 text-sm font-bold ${isCredit ? 'text-ok' : 'text-bad'}`}>
                         {isCredit ? '+' : '-'}{transaction.amountNim.toFixed(1)} NIM

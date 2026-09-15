@@ -21,6 +21,18 @@ interface Analytics {
     averageBalance: number;
     rewardsToday: number;
   };
+  recentTransactions: Array<{
+    id: string;
+    userId: string;
+    username: string;
+    kind: string;
+    direction: 'credit' | 'debit';
+    amountNim: number;
+    status: string;
+    note?: string;
+    ref?: string | null;
+    createdAt: number | string;
+  }>;
   topUsers: Array<{
     id: string;
     username: string;
@@ -403,6 +415,60 @@ export function AdminDashboard() {
             color="green"
           />
         </div>
+      </section>
+
+      {/* Recent Transactions */}
+      <section className="metrics-section">
+        <h2>🧾 Recent Transactions</h2>
+        {analytics.recentTransactions.length > 0 ? (
+          <div className="data-table-wrapper">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Type</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Time</th>
+                  <th>Reference</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analytics.recentTransactions.map((transaction) => {
+                  const isCredit = transaction.direction === 'credit';
+                  const hasOnChainRef = Boolean(transaction.ref && !transaction.ref.startsWith('ledger:'));
+                  return (
+                    <tr key={transaction.id}>
+                      <td className="username">{transaction.username}</td>
+                      <td>{transaction.note || transaction.kind}</td>
+                      <td className={isCredit ? 'earned' : 'highlight'}>
+                        {isCredit ? '+' : '-'}{transaction.amountNim.toFixed(1)} NIM
+                      </td>
+                      <td>{transaction.status}</td>
+                      <td>{new Date(transaction.createdAt).toLocaleString()}</td>
+                      <td>
+                        {hasOnChainRef ? (
+                          <a
+                            href={`https://nimiq.watch/transaction/${encodeURIComponent(transaction.ref as string)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="admin-transaction-link"
+                          >
+                            {transaction.ref!.slice(0, 12)}...
+                          </a>
+                        ) : (
+                          <span className="wallet-address">Internal ledger</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="no-data">No transactions in this period</div>
+        )}
       </section>
 
       {/* Wallet Watch */}

@@ -349,6 +349,7 @@ async function publicMe(user) {
     amountNim: toNim(transaction.amountLuna),
     status: transaction.status,
     note: transaction.note,
+    ref: transaction.ref || null,
     createdAt: transaction.createdAt,
   }));
   return {
@@ -2444,6 +2445,7 @@ route('GET', '/api/admin/analytics', async (ctx) => {
   const recentUsers = allUsers.filter(u => new Date(u.createdAt).getTime() > cutoff);
   const recentAttempts = allAttempts.filter(a => new Date(a.submittedAt || a.createdAt).getTime() > cutoff);
   const recentTxs = allTransactions.filter(t => new Date(t.createdAt).getTime() > cutoff);
+  const usernames = new Map(allUsers.map((u) => [u.id, u.username]));
   
   // Calculate metrics
   const analytics = {
@@ -2475,6 +2477,22 @@ route('GET', '/api/admin/analytics', async (ctx) => {
         .filter(t => kindIncludesReward(t.kind) && t.direction === 'credit')
         .reduce((sum, t) => sum + (Number(t.amountLuna) || 0), 0) / 100000),
     },
+
+    recentTransactions: recentTxs
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 20)
+      .map((transaction) => ({
+        id: transaction.id,
+        userId: transaction.userId,
+        username: usernames.get(transaction.userId) || 'Unknown user',
+        kind: transaction.kind,
+        direction: transaction.direction,
+        amountNim: toNim(transaction.amountLuna),
+        status: transaction.status,
+        note: transaction.note,
+        ref: transaction.ref || null,
+        createdAt: transaction.createdAt,
+      })),
     
     // Top Users
     topUsers: allUsers
