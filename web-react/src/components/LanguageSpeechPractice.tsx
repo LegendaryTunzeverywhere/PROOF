@@ -121,21 +121,43 @@ export function LanguageSpeechPractice({
     const synthesis = window.speechSynthesis;
     synthesis.cancel();
     const locale = localeFor(language);
-    const voices = synthesis.getVoices();
-    const voice = voices.find((candidate) => candidate.lang.toLowerCase() === locale.toLowerCase())
-      || voices.find((candidate) => candidate.lang.toLowerCase().startsWith(locale.slice(0, 2).toLowerCase()));
-    const utterance = new window.SpeechSynthesisUtterance(target);
-    utterance.lang = locale;
-    if (voice) utterance.voice = voice;
-    utterance.rate = 0.78;
-    utterance.pitch = 1;
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => {
-      setSpeaking(false);
-      setError('Audio playback failed in this app environment. Try the speaker button again.');
+    const speakNow = () => {
+      const voices = synthesis.getVoices();
+      const voice = voices.find((candidate) => candidate.lang.toLowerCase() === locale.toLowerCase())
+        || voices.find((candidate) => candidate.lang.toLowerCase().startsWith(locale.slice(0, 2).toLowerCase()));
+      const utterance = new window.SpeechSynthesisUtterance(target);
+      utterance.lang = locale;
+      if (voice) utterance.voice = voice;
+      utterance.rate = 0.78;
+      utterance.pitch = 1;
+      utterance.onstart = () => setSpeaking(true);
+      utterance.onend = () => setSpeaking(false);
+      utterance.onerror = (event) => {
+        setSpeaking(false);
+        if (event.error !== 'canceled' && event.error !== 'interrupted') {
+          setError('Audio playback failed. Tap the speaker button again.');
+        }
+      };
+      // Mobile Chrome/Safari can reject speak() if called in the same tick as
+      // cancel(), or while the WebView is still loading its voice list.
+      if (synthesis.paused) synthesis.resume();
+      synthesis.speak(utterance);
     };
-    synthesis.speak(utterance);
+
+    if (synthesis.getVoices().length > 0) {
+      window.setTimeout(speakNow, 50);
+    } else {
+      const loadVoices = () => {
+        synthesis.removeEventListener('voiceschanged', loadVoices);
+        window.setTimeout(speakNow, 50);
+      };
+      synthesis.addEventListener('voiceschanged', loadVoices, { once: true });
+      // Some mobile WebViews never emit voiceschanged but still become ready.
+      window.setTimeout(() => {
+        synthesis.removeEventListener('voiceschanged', loadVoices);
+        speakNow();
+      }, 500);
+    }
   };
 
   const speak = () => {
