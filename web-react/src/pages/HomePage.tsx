@@ -140,7 +140,7 @@ export function HomePage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                     <div className="text-base font-semibold text-ink">Level {level}</div>
-                    <div className="text-sm font-semibold tabular-nums text-ink">{lifetimeXp.toLocaleString()} <span className="font-normal text-muted">app-wide XP</span></div>
+                    <div className="text-sm font-semibold tabular-nums text-ink">{lifetimeXp.toLocaleString()} <span className="font-normal text-muted">XP total</span></div>
                   </div>
                   <div className="mt-1.5 text-sm text-muted">
                     {xpToNextLevel.toLocaleString()} XP to Level {level + 1}
