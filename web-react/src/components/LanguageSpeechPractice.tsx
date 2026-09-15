@@ -27,6 +27,44 @@ const localeFor = (language: string) => ({
   fr: 'fr-FR', es: 'es-ES', de: 'de-DE', pt: 'pt-PT', zh: 'zh-CN',
 }[language] || language || 'en-US');
 
+const normalizeSpeech = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[.,!?;:]/g, ' ')
+    .replace(/["“”]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const getSpeechStatus = (target: string, transcript: string) => {
+  const targetText = normalizeSpeech(target);
+  const spokenText = normalizeSpeech(transcript);
+
+  if (!spokenText) return { status: 'idle', message: 'Your transcript will appear here.' };
+  if (targetText === spokenText) {
+    return { status: 'correct', message: 'Correct — you matched the target phrase.' };
+  }
+
+  const targetWords = targetText.split(' ').filter(Boolean);
+  const spokenWords = spokenText.split(' ').filter(Boolean);
+  if (!targetWords.length || !spokenWords.length) {
+    return { status: 'incorrect', message: 'Not quite — try the phrase one more time.' };
+  }
+
+  const overlap = targetWords.filter((word) => spokenWords.includes(word)).length;
+  const score = overlap / Math.max(targetWords.length, spokenWords.length);
+
+  if (score >= 0.9) {
+    return { status: 'correct', message: 'Correct — close match.' };
+  }
+  if (score >= 0.6) {
+    return { status: 'close', message: 'Close — listen again and match the phrase more closely.' };
+  }
+
+  return { status: 'incorrect', message: 'Not quite — try the phrase one more time.' };
+};
+
 export function LanguageSpeechPractice({
   target,
   meaning,
@@ -43,6 +81,7 @@ export function LanguageSpeechPractice({
   const [localTranscript, setLocalTranscript] = useState(value);
   const [displayedTranscript, setDisplayedTranscript] = useState(value);
   const transcript = onChange ? value : localTranscript;
+  const speechFeedback = transcript ? getSpeechStatus(target, transcript) : { status: 'idle', message: 'Your transcript will appear here.' };
 
   useEffect(() => {
     setLocalTranscript(value);
@@ -148,9 +187,22 @@ export function LanguageSpeechPractice({
           </button>
         </div>
       </div>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+      <div className="mt-4 flex flex-col gap-2">
         <span className="text-sm text-muted" aria-live="polite">
           <span className="font-medium text-ink">Heard:</span> “{displayedTranscript || (listening ? 'Listening…' : 'Your transcript will appear here.') }”
+        </span>
+        <span
+          className={`text-sm font-semibold ${
+            speechFeedback.status === 'correct'
+              ? 'text-ok'
+              : speechFeedback.status === 'close'
+              ? 'text-warn'
+              : speechFeedback.status === 'incorrect'
+              ? 'text-bad'
+              : 'text-muted'
+          }`}
+        >
+          {speechFeedback.message}
         </span>
       </div>
       {error && <p role="alert" className="mt-3 text-sm font-medium text-bad">{error}</p>}
