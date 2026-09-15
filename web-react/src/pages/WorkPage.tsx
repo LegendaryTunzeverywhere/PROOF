@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PanelHeader } from '../components/PanelHeader';
 import { Reveal } from '../components/Reveal';
+import { Modal } from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
 import { marketplaceService } from '../services/marketplace.service';
 import { teachingService } from '../services/teaching.service';
@@ -21,6 +22,15 @@ export function WorkPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showPostTask, setShowPostTask] = useState(false);
+  const [escrowConfirmation, setEscrowConfirmation] = useState<{
+    budget: number;
+    title: string;
+    description: string;
+    skillSlug: string | null;
+    minScore: number;
+    tags: string[];
+    recipient: string;
+  } | null>(null);
   const [postTaskLoading, setPostTaskLoading] = useState(false);
   const [treasuryAddress, setTreasuryAddress] = useState<string>('');
   const [postForm, setPostForm] = useState({
@@ -107,7 +117,6 @@ export function WorkPage() {
   const submitTaskPost = async (event: React.FormEvent) => {
     event.preventDefault();
     try {
-      setPostTaskLoading(true);
       setError(null);
       const budget = Number(postForm.budgetNim);
       const title = postForm.title.trim();
@@ -121,33 +130,49 @@ export function WorkPage() {
       if (!WalletService.connected || !WalletService.address) {
         throw new Error('Connect a Nimiq Pay or Hub wallet before posting escrowed work.');
       }
-      if (!treasuryAddress) {
+      let recipient = treasuryAddress;
+      if (!recipient) {
         const res = await marketplaceService.getTreasuryAddress();
         if (!res.treasuryAddress) {
           throw new Error('Treasury address is not configured for marketplace escrow.');
         }
-        setTreasuryAddress(res.treasuryAddress);
+        recipient = res.treasuryAddress;
+        setTreasuryAddress(recipient);
       }
-      const ok = window.confirm(
-        `You are posting work for ${budget} NIM. The poster deposit will be sent from your connected Nimiq wallet to the treasury address ${treasuryAddress}. This NIM deposit is sent to the treasury and is not recoverable once broadcast. Continue?`
-      );
-      if (!ok) return;
-
-      await WalletService.sendNim({
-        recipient: treasuryAddress,
-        nim: budget,
-        note: `Proof task escrow: ${title}`,
-      });
-
-      await marketplaceService.postTask({
+      setEscrowConfirmation({
+        budget,
         title,
         description,
-        budgetNim: budget,
         skillSlug: postForm.skillSlug || null,
         minScore: Math.min(Math.max(Number(postForm.minScore) || 0, 0), 100),
         tags: postForm.tags.split(/[\s,]+/).map((t) => t.trim()).filter(Boolean),
+        recipient,
       });
+    } catch (err: any) {
+      console.error('Failed to post marketplace work:', err);
+      setError(err.message || 'Failed to post work.');
+    }
+  };
 
+  const confirmTaskPost = async () => {
+    if (!escrowConfirmation) return;
+    try {
+      setPostTaskLoading(true);
+      setError(null);
+      await WalletService.sendNim({
+        recipient: escrowConfirmation.recipient,
+        nim: escrowConfirmation.budget,
+        note: `Proof task escrow: ${escrowConfirmation.title}`,
+      });
+      await marketplaceService.postTask({
+        title: escrowConfirmation.title,
+        description: escrowConfirmation.description,
+        budgetNim: escrowConfirmation.budget,
+        skillSlug: escrowConfirmation.skillSlug,
+        minScore: escrowConfirmation.minScore,
+        tags: escrowConfirmation.tags,
+      });
+      setEscrowConfirmation(null);
       setShowPostTask(false);
       setPostForm({ title: '', description: '', budgetNim: '1', skillSlug: '', minScore: '0', tags: '' });
       await loadWorkData();
@@ -197,6 +222,70 @@ export function WorkPage() {
 
   return (
     <div className="space-y-6">
+      <Modal
+        isOpen={Boolean(escrowConfirmation)}
+        onClose={() => {
+          if (!postTaskLoading) setEscrowConfirmation(null);
+        }}
+        title="Review treasury deposit"
+        size="md"
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setEscrowConfirmation(null)}
+              disabled={postTaskLoading}
+              className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmTaskPost}
+              disabled={postTaskLoading}
+              className="rounded-lg bg-brand px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-deep disabled:cursor-wait disabled:opacity-60"
+            >
+              {postTaskLoading ? 'Waiting for wallet…' : 'Confirm & open wallet'}
+            </button>
+          </>
+        }
+      >
+        {escrowConfirmation && (
+          <div className="space-y-5">
+            <div className="rounded-xl border border-warn bg-warn-soft p-4">
+              <div className="flex items-start gap-3">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-warn text-lg text-white" aria-hidden="true">!</span>
+                <div>
+                  <h3 className="font-bold text-ink">This deposit cannot be recovered</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">
+                    Your wallet will ask you to approve a transfer to the treasury. The task is published only after the transfer is accepted.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <dl className="divide-y divide-line rounded-xl border border-line bg-elevated">
+              <div className="flex items-start justify-between gap-4 p-4">
+                <dt className="text-sm text-muted">Deposit</dt>
+                <dd className="text-right text-xl font-bold text-gold">{escrowConfirmation.budget.toFixed(1)} NIM</dd>
+              </div>
+              <div className="flex items-start justify-between gap-4 p-4">
+                <dt className="text-sm text-muted">Task</dt>
+                <dd className="max-w-[65%] text-right text-sm font-semibold text-ink">{escrowConfirmation.title}</dd>
+              </div>
+              <div className="p-4">
+                <dt className="text-sm text-muted">Treasury recipient</dt>
+                <dd className="mt-1 break-all font-mono text-xs leading-relaxed text-ink">{escrowConfirmation.recipient}</dd>
+              </div>
+            </dl>
+
+            <p className="text-xs leading-relaxed text-muted">
+              Review the address carefully in your wallet before approving. PROOF cannot reverse a confirmed blockchain transfer.
+            </p>
+          </div>
+        )}
+      </Modal>
+
       <Reveal>
         <div>
           <h1 className="text-3xl font-bold text-ink">Marketplace</h1>
@@ -337,13 +426,13 @@ export function WorkPage() {
                           <input className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink" placeholder="web, design" value={postForm.tags} onChange={(e) => setPostForm({ ...postForm, tags: e.target.value })} />
                         </label>
                       </div>
-                      <div className="rounded-xl border border-warn bg-warn-soft p-3 text-sm font-medium text-warn">
-                        Warning: this task poster deposit will be sent to the treasury address <span className="font-bold break-all">{treasuryAddress || 'treasury address unavailable'}</span> and the NIM is not recoverable once broadcast.
+                      <div className="rounded-xl border border-line bg-elevated p-3 text-sm text-muted">
+                        Your deposit details will be shown for review before anything is sent from your wallet.
                       </div>
                       <div className="flex gap-2">
                         <button type="button" onClick={() => setShowPostTask(false)} className="rounded-lg bg-surface-2 px-4 py-2 font-semibold text-muted">Cancel</button>
                         <button type="submit" disabled={postTaskLoading} className="rounded-lg bg-brand px-4 py-2 font-semibold text-white">
-                          {postTaskLoading ? 'Posting…' : 'Deposit to Treasury & Post'}
+                          Review Deposit
                         </button>
                       </div>
                     </form>
