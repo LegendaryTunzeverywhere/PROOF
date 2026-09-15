@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { PanelHeader } from '../components/PanelHeader';
 import { Reveal } from '../components/Reveal';
 import { Achievements } from '../components/Achievements';
-import { TrophyIcon } from '../components/Icons';
+import { HexCoinIcon, TrophyIcon } from '../components/Icons';
 import { useAuth } from '../context/AuthContext';
 import { xpProgress } from '../lib/progression';
 import { userService } from '../services/user.service';
@@ -14,6 +14,7 @@ export function ProfilePage() {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [nextBadges, setNextBadges] = useState<Badge[]>([]);
+  const [transactions, setTransactions] = useState<NonNullable<typeof authUser>['recentTransactions']>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +40,7 @@ export function ProfilePage() {
 
       const response = profileResult.value;
       if (response.user) updateUser(response.user);
+      setTransactions(response.user?.recentTransactions || []);
       setSkills(Array.isArray(response.skills) ? response.skills : []);
       // The API stores badge display fields in `definition`; flatten them for rendering.
       const normalizeBadge = (badge: any, unlocked: boolean): Badge => ({
@@ -108,6 +110,9 @@ export function ProfilePage() {
   const levelProgress = xpProgress(lifetimeXp, user.level || 1);
   const formatNim = (amount?: number) => Number.isFinite(Number(amount)) ? Number(amount).toFixed(1) : '0.0';
   const skillName = (skill: Skill) => skill.name || skill.skillSlug?.replace(/[-_]/g, ' ') || 'Untitled skill';
+  const formatTransactionDate = (value: number | string) => new Intl.DateTimeFormat(undefined, {
+    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  }).format(new Date(value));
 
   return (
     <div className="space-y-6">
@@ -208,6 +213,41 @@ export function ProfilePage() {
           </div>
         </Reveal>
       )}
+
+      {/* Recent Transactions */}
+      <Reveal delay={0.08}>
+        <div className="space-y-4">
+          <PanelHeader title="Recent transactions" subtitle="Your latest NIM activity" />
+          <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
+            {transactions && transactions.length > 0 ? (
+              <ul className="divide-y divide-line">
+                {transactions.map((transaction) => {
+                  const isCredit = transaction.direction === 'credit';
+                  return (
+                    <li key={transaction.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${isCredit ? 'bg-gold-soft text-gold' : 'bg-elevated text-muted'}`}>
+                        <HexCoinIcon className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-ink">{transaction.note || `${transaction.kind} transaction`}</p>
+                        <p className="mt-0.5 text-xs text-muted">{formatTransactionDate(transaction.createdAt)} · {transaction.status}</p>
+                      </div>
+                      <span className={`shrink-0 text-sm font-bold ${isCredit ? 'text-ok' : 'text-bad'}`}>
+                        {isCredit ? '+' : '-'}{transaction.amountNim.toFixed(1)} NIM
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="py-6 text-center">
+                <HexCoinIcon className="mx-auto mb-2 h-8 w-8 text-muted" />
+                <p className="text-sm text-muted">Your NIM transactions will appear here.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </Reveal>
 
       {/* Mastery Badges */}
       <Reveal delay={0.1}>

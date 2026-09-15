@@ -342,6 +342,15 @@ async function publicMe(user) {
   };
   const unreadNotifications = await notifications.unreadCount(user.id);
   const walletBalanceNim = await connectedWalletBalance(current);
+  const recentTransactions = (await rewards.txHistory(current.id, 8)).map((transaction) => ({
+    id: transaction.id,
+    kind: transaction.kind,
+    direction: transaction.direction,
+    amountNim: toNim(transaction.amountLuna),
+    status: transaction.status,
+    note: transaction.note,
+    createdAt: transaction.createdAt,
+  }));
   return {
     id: current.id, username: current.username, avatar: current.avatar,
     level, xp: totalXpEarned, xpEarned: totalXpEarned, totalXpEarned, reputation: current.reputation,
@@ -349,6 +358,7 @@ async function publicMe(user) {
     ledgerBalanceNim: toNim(current.balanceLuna),
     walletBalanceNim,
     earnedNim: toNim(current.earnedLuna),
+    recentTransactions,
     wallet: { mode: current.walletMode, address: current.walletAddress, connected: !!current.walletMode },
     streak, prefs: current.prefs,
     proofsPassed: current.proofsPassed || 0,

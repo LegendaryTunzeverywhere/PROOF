@@ -40,6 +40,17 @@ export interface User {
   };
   proofsPassed?: number;
   walletModeIsDemo: boolean;
+  recentTransactions?: Transaction[];
+}
+
+export interface Transaction {
+  id: string;
+  kind: string;
+  direction: 'credit' | 'debit';
+  amountNim: number;
+  status: string;
+  note?: string;
+  createdAt: number | string;
 }
 
 export interface Skill {
