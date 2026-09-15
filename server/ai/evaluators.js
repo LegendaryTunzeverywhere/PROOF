@@ -363,6 +363,44 @@ function evalConversation(payload, challenge, cfg, ctx) {
   return finish(criteria, { passScore: challenge.passScore, meta: { hash, type: 'conversation', lines: lines.length } });
 }
 
+function speechTokens(value) {
+  return low(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function evalSpeech(payload, challenge, cfg) {
+  const transcript = C(payload.transcript);
+  const targets = Array.isArray(cfg.targets) ? cfg.targets.map(C).filter(Boolean) : [];
+  const heard = speechTokens(transcript);
+  const target = targets[0] || '';
+  const expected = speechTokens(target);
+  const heardSet = new Set(heard);
+  const matched = expected.filter((token) => heardSet.has(token)).length;
+  const coverage = expected.length ? matched / expected.length : 0;
+  const lengthFit = expected.length ? Math.min(1, heard.length / expected.length) : 0;
+  const hash = sha256(`speech:${transcript.replace(/\s+/g, ' ').toLowerCase()}`);
+  const criteria = [
+    crit('target-words', 'Target words recognized', 70, coverage, {
+      improve: `Recognized ${matched}/${expected.length} target word(s).`,
+      next: 'Listen again, slow down, and repeat the complete phrase clearly.',
+    }),
+    crit('complete-phrase', 'Complete spoken phrase', 20, lengthFit, {
+      improve: 'The transcript was shorter than the model phrase.',
+      next: 'Say the whole phrase, including the small connecting words.',
+    }),
+    crit('original-speech', 'Speech captured', 10, transcript.trim() ? 1 : 0, {
+      improve: 'No speech transcript was captured.',
+      next: 'Allow microphone access and try the phrase again.',
+    }),
+  ];
+  if (!transcript.trim()) return finish(criteria, { passScore: challenge.passScore, meta: { hash, type: 'speech', matched, expected: expected.length } });
+  return finish(criteria, { passScore: challenge.passScore, meta: { hash, type: 'speech', matched, expected: expected.length, targetLanguage: cfg.language } });
+}
+
 /* ───────────────────────────── CHESS ──────────────────────────────── */
 function evalChess(payload, challenge, cfg, ctx) {
   const mode = cfg.mode || 'puzzle';
@@ -859,6 +897,7 @@ const REGISTRY = {
   business: evalBusiness,
   design: evalDesign,
   conversation: evalConversation,
+  speech: evalSpeech,
   explain: (p, ch, cfg, ctx) => evalText(p, ch, { ...cfg, keyConceptRatio: (cfg.keyConceptRatio ?? 0.4) }, ctx),
   chess: evalChess,
 };
@@ -902,6 +941,8 @@ export function generateContentHash(payload, type) {
       return sha256('design:' + C(payload.text).replace(/\s+/g, ' ').toLowerCase());
     case 'conversation':
       return sha256('conv:' + C(payload.text).replace(/\s+/g, ' ').toLowerCase());
+    case 'speech':
+      return sha256('speech:' + C(payload.transcript).replace(/\s+/g, ' ').toLowerCase());
     case 'chess':
       return sha256('chess:' + JSON.stringify(payload));
     default:

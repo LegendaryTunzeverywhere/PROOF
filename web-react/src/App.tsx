@@ -30,7 +30,6 @@ const ReviewsPage = lazy(() => import("@/pages/ReviewsPage").then(m => ({ defaul
 const ReviewDetailPage = lazy(() => import("@/pages/ReviewDetailPage").then(m => ({ default: m.ReviewDetailPage })));
 const ProvePage = lazy(() => import("@/pages/ProvePage").then(m => ({ default: m.ProvePage })));
 const WorkPage = lazy(() => import("@/pages/WorkPage").then(m => ({ default: m.WorkPage })));
-const TeachPage = lazy(() => import("@/pages/TeachPage").then(m => ({ default: m.TeachPage })));
 const LeaderboardPage = lazy(() => import("@/pages/LeaderboardPage").then(m => ({ default: m.LeaderboardPage })));
 const NotificationsPage = lazy(() => import("@/pages/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
 const SearchPage = lazy(() => import("@/pages/SearchPage").then(m => ({ default: m.SearchPage })));
@@ -120,7 +119,7 @@ function ProtectedRoutes() {
                   <Route path="/daily" element={<ProvePage />} />
                   <Route path="/work" element={<WorkPage />} />
                   <Route path="/work/:tab" element={<WorkPage />} />
-                  <Route path="/work/teach" element={<TeachPage />} />
+                  <Route path="/work/teach" element={<WorkPage initialTab="teach" />} />
                   <Route path="/leaderboard" element={<LeaderboardPage />} />
                   <Route path="/notifications" element={<NotificationsPage />} />
                   <Route path="/search" element={<SearchPage />} />

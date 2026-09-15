@@ -1312,13 +1312,18 @@ function publicChessConfig(chess) {
 }
 
 function challengeView(ch) {
+  const speechConfig = ch.type === 'speech' ? (ch.evaluator?.config || {}) : null;
   return {
     id: ch.id, skillSlug: ch.skillSlug, kind: ch.kind, type: ch.type,
     title: ch.title, brief: ch.brief, requirements: ch.requirements,
     timeMin: ch.timeMin, passScore: ch.passScore, rewardNim: ch.rewardNim, xp: ch.xp,
     chess: ch.type === 'chess' ? publicChessConfig(chessConfigFromChallenge(ch)) : undefined,
+    speech: speechConfig ? { target: speechConfig.targets?.[0] || '', language: speechConfig.language || 'en' } : undefined,
     submissionFields: ch.type === 'html' ? ['code']
-      : ch.type === 'js-static' ? ['code', 'explanation'] : ch.type === 'chess' ? ['positions'] : ['text'],
+      : ch.type === 'js-static' ? ['code', 'explanation']
+      : ch.type === 'chess' ? ['positions']
+      : ch.type === 'speech' ? ['transcript']
+      : ['text'],
   };
 }
 

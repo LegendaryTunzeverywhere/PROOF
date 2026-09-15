@@ -20,7 +20,7 @@ export function ReviewsPage() {
     }
     
     loadReviews();
-  }, [user, authLoading]);
+  }, [user?.id, authLoading]);
 
   const loadReviews = async () => {
     try {

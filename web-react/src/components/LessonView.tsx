@@ -7,6 +7,7 @@ import { TutorModal } from './TutorModal';
 import { ChatBubbleLeftRightIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import { ChessBoard } from './chess/ChessBoard';
 import { ChessLessonReplay } from './chess/ChessLessonReplay';
+import { LanguageSpeechPractice } from './LanguageSpeechPractice';
 
 interface LessonViewProps {
   pathId: string;
@@ -30,6 +31,7 @@ interface LessonData {
   quiz?: Array<{ q: string; choices: string[]; answerIdx: number; why?: string }>;
   practice?: Array<{ q: string; choices: string[]; answerIdx: number; why?: string }>;
   recall?: string[];
+  challenge?: { type?: string; speechTarget?: string | null; speechMeaning?: string | null };
 }
 
 type Stage = 'hook' | 'learn' | 'quiz' | 'recall' | 'practice' | 'complete';
@@ -60,6 +62,7 @@ function normalizeLessonData(data: any, skill: string, topic: string): LessonDat
     quiz: Array.isArray(raw.quiz) ? raw.quiz.map(normalizeQuestion).filter((question: any) => question.choices.length > 0) : [],
     practice: Array.isArray(raw.practice) ? raw.practice.map(normalizeQuestion).filter((question: any) => question.choices.length > 0) : [],
     recall: Array.isArray(raw.recall) ? raw.recall : [],
+    challenge: raw.challenge,
   };
 }
 
@@ -461,6 +464,14 @@ export function LessonView({ pathId, skill, topic }: LessonViewProps) {
                     </div>
                   ) : null}
                 </div>
+              )}
+
+              {skill === 'languages' && lesson.challenge?.type === 'speech' && lesson.challenge.speechTarget && (
+                <LanguageSpeechPractice
+                  target={lesson.challenge.speechTarget}
+                  meaning={lesson.challenge.speechMeaning || undefined}
+                  language={topic.split('-')[0]}
+                />
               )}
 
               {lesson.misconception && (

@@ -8,6 +8,7 @@ import { ArrowRightIcon, CheckIcon, ProveIcon, TrophyIcon } from '../components/
 import { ChessProofBoard, type ChessProofPayload } from '../components/chess/ChessProofBoard';
 import { CodeEditor } from '../components/CodeEditor';
 import { TypeOnlyInput } from '../components/TypeOnlyInput';
+import { LanguageSpeechPractice } from '../components/LanguageSpeechPractice';
 import { useAuth } from '../context/AuthContext';
 import { pathsService } from '../services/paths.service';
 import { challengesService } from '../services/challenges.service';
@@ -26,6 +27,8 @@ export function ProvePage() {
   return <ProveHubView />;
 }
 
+export default ProvePage;
+
 function ChallengeDetailView({ challengeId }: { challengeId: string }) {
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [attemptId, setAttemptId] = useState<string | null>(null);
@@ -34,6 +37,7 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Attempt | null>(null);
   const [code, setCode] = useState('');
+  const [speechTranscript, setSpeechTranscript] = useState('');
   const proofStartedAt = useRef(Date.now());
   const typingEffort = useRef(0);
   const pasteAttempts = useRef(0);
@@ -41,7 +45,8 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
   const { refreshUser } = useAuth();
   const isCodeProof = challenge?.type === 'html' || challenge?.type === 'js-static';
   const isChessProof = challenge?.type === 'chess';
-  const responseLabel = isChessProof ? 'Chess proof board' : isCodeProof ? 'Your solution' : 'Your response';
+  const isSpeechProof = challenge?.type === 'speech';
+  const responseLabel = isChessProof ? 'Chess proof board' : isSpeechProof ? 'Listen and speak proof' : isCodeProof ? 'Your solution' : 'Your response';
   const requirements = Array.isArray(challenge?.requirements)
     ? challenge.requirements
     : String(challenge?.requirements || '').split(/\r?\n|\s*â€¢\s*/).map((item) => item.trim()).filter(Boolean);
@@ -111,8 +116,8 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!attemptId || (isChessProof ? !chessPayload.positions.length : !code.trim())) {
-      setError(isChessProof ? 'Make at least one legal move on the board before submitting.' : `Write your ${isCodeProof ? 'solution' : 'response'} before submitting`);
+    if (!attemptId || (isChessProof ? !chessPayload.positions.length : isSpeechProof ? !speechTranscript.trim() : !code.trim())) {
+      setError(isChessProof ? 'Make at least one legal move on the board before submitting.' : isSpeechProof ? 'Say the target phrase before submitting.' : `Write your ${isCodeProof ? 'solution' : 'response'} before submitting`);
       return;
     }
 
@@ -120,9 +125,9 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
       setSubmitting(true);
       setError(null);
       
-      const payload: Record<string, unknown> = isChessProof ? chessPayload : isCodeProof ? { code } : { text: code };
+      const payload: Record<string, unknown> = isChessProof ? chessPayload : isSpeechProof ? { transcript: speechTranscript } : isCodeProof ? { code } : { text: code };
 
-      if (!isChessProof) {
+      if (!isChessProof && !isSpeechProof) {
         payload.meta = {
           effort: typingEffort.current,
           pastes: pasteAttempts.current,
@@ -134,7 +139,7 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
       if (challenge?.submissionFields?.includes('explanation')) {
         payload.explanation = 'Solution explanation'; // Could add another textarea
       }
-      if (challenge?.submissionFields?.includes('text')) {
+      if (!isSpeechProof && challenge?.submissionFields?.includes('text')) {
         payload.text = code;
       }
       
@@ -227,6 +232,7 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
                 onClick={() => {
                   setResult(null);
                   setCode('');
+                  setSpeechTranscript('');
                     resetTypingTelemetry();
                   setChessPayload({ positions: [] });
                   handleStartAttempt();
@@ -350,6 +356,8 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
               <p className="mt-1 text-sm text-muted">
                 {isChessProof
                   ? 'Use the FEN board to make a real legal line. The AI coach evaluates the board after every move.'
+                  : isSpeechProof
+                  ? 'Listen to the model phrase, say it aloud, and submit the transcript for server-side pronunciation practice.'
                   : isCodeProof
                   ? 'Write your work directly here. Your proof is evaluated against the task requirements.'
                   : 'Write a complete response that addresses each requirement above.'}
@@ -357,7 +365,16 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
               {isChessProof ? (
                 <ChessProofBoard challenge={challenge} disabled={submitting} onChange={onChessChange} />
               ) : (
-                isCodeProof ? (
+                isSpeechProof ? (
+                  <LanguageSpeechPractice
+                    target={challenge.speech?.target || ''}
+                    language={challenge.speech?.language || 'en'}
+                    value={speechTranscript}
+                    onChange={setSpeechTranscript}
+                    disabled={submitting}
+                    compact
+                  />
+                ) : isCodeProof ? (
                   <CodeEditor
                     value={code}
                     onChange={handleProofTextChange}
@@ -389,7 +406,7 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
               <div className="mt-4 flex gap-3">
                 <button
                   type="submit"
-                  disabled={submitting || (isChessProof ? !chessPayload.positions.length : !code.trim())}
+                  disabled={submitting || (isChessProof ? !chessPayload.positions.length : isSpeechProof ? !speechTranscript.trim() : !code.trim())}
                   className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-ink px-6 text-sm font-bold text-surface shadow-[0_10px_22px_-14px_rgba(3,2,2,.65)] transition-all hover:-translate-y-0.5 hover:bg-brand active:translate-y-0 disabled:opacity-60 disabled:hover:translate-y-0"
                 >
                   {submitting ? (
@@ -425,7 +442,7 @@ function ProveHubView() {
     }
     
     loadProveData();
-  }, [user, authLoading]);
+  }, [user?.id, authLoading]);
 
   const loadProveData = async () => {
     try {
@@ -486,7 +503,7 @@ function ProveHubView() {
         .filter((item) => item.kind !== 'study')
         .map((item) => ({
           ...item,
-          dayIndex: day.day,
+          dayIndex: day.index,
           skillEmoji: path.skillEmoji,
           pathId: path.id,
         }))

@@ -7,6 +7,7 @@ import { store } from '../index.js';
 import { uid, now } from '../util.js';
 import { generateLearningPath, generateLesson } from '../ai/service.js';
 import { llmEnabled, llmJson } from '../ai/providers.js';
+import { checkLearningPath } from '../ai/curriculum-quality.js';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
@@ -236,6 +237,65 @@ function localDocumentCurriculum(text, userGoal = '') {
   };
 }
 
+function normalizeDocumentCurriculum(curriculum, userGoal = '') {
+  const normalized = {
+    ...curriculum,
+    skillSlug: curriculum.skillSlug || 'document-study',
+    skillName: curriculum.skillName || userGoal || 'Document study',
+    skillEmoji: curriculum.skillEmoji || '📚',
+    title: curriculum.title || `${userGoal || 'Document study'} — Document Path`,
+    description: curriculum.description || 'A structured path built from your uploaded document.',
+    level: curriculum.level || 'beginner',
+    minutesPerDay: Number(curriculum.minutesPerDay) || 30,
+    days: Array.isArray(curriculum.days) ? curriculum.days.slice(0, 14) : [],
+  };
+
+  normalized.days = normalized.days.map((day, dayIndex) => {
+    const sourceItems = Array.isArray(day.items) ? day.items.slice(0, 3) : [];
+    const items = sourceItems.map((item, itemIndex) => ({
+      ...item,
+      topic: item.topic || slugify(`${dayIndex + 1}-${item.title || `document-concept-${itemIndex + 1}`}`),
+      title: item.title || `Document concept ${dayIndex + 1}.${itemIndex + 1}`,
+      kind: itemIndex === sourceItems.length - 1 ? 'proof' : 'study',
+      estMin: Number(item.estMin) || (itemIndex === sourceItems.length - 1 ? 18 : 15),
+      xp: Number(item.xp) || (itemIndex === sourceItems.length - 1 ? 50 : 20),
+    }));
+
+    if (items.length < 3) {
+      items.push({
+        topic: slugify(`${dayIndex + 1}-document-proof`),
+        title: `Day ${dayIndex + 1} document proof`,
+        kind: 'proof', estMin: 18, xp: 50,
+      });
+    }
+
+    const proof = items.at(-1);
+    proof.kind = 'proof';
+    proof.challengeTemplate = proof.challengeTemplate || {
+      title: `Prove: ${proof.title}`,
+      brief: `Explain ${proof.title} in your own words, connect it to the uploaded document, and give one concrete example.`,
+      requirements: ['summarize the idea in plain language', 'connect it to the document', 'give one concrete example'],
+      timeMin: 18, passScore: 70, rewardNim: 1, xp: 50, type: 'text', submissionFields: ['text'],
+    };
+
+    const studyItems = items.slice(0, -1).map(({ challengeTemplate, ...item }) => item);
+    return {
+      ...day,
+      index: dayIndex + 1,
+      kind: 'proof',
+      title: day.title || `Day ${dayIndex + 1}: Document study`,
+      items: [...studyItems, proof],
+      estMin: studyItems.reduce((sum, item) => sum + item.estMin, 0) + proof.estMin,
+      xp: studyItems.reduce((sum, item) => sum + item.xp, 0) + proof.xp,
+      rewardNim: Number(day.rewardNim) || proof.challengeTemplate.rewardNim || 1,
+    };
+  });
+
+  normalized.totalXp = normalized.days.reduce((sum, day) => sum + day.xp, 0);
+  normalized.engine = curriculum.engine || 'document-ai';
+  return normalized;
+}
+
 async function analyzeDocumentWithAI(text, userGoal = '') {
   if (!llmEnabled()) return localDocumentCurriculum(text, userGoal);
 
@@ -290,7 +350,10 @@ Keep it complete and valid. 7 days exactly.`;
       throw new Error('Curriculum has no days');
     }
     
-    return curriculum;
+    const normalized = normalizeDocumentCurriculum(curriculum, userGoal);
+    const qualityErrors = checkLearningPath(normalized);
+    if (qualityErrors.length) throw new Error(`CURRICULUM_QUALITY: ${qualityErrors.join('; ')}`);
+    return normalized;
   } catch (e) {
     console.error('[DocumentCurriculum] AI generation failed:', e);
     console.error('[DocumentCurriculum] Error details:', {
@@ -304,7 +367,9 @@ Keep it complete and valid. 7 days exactly.`;
 
 async function createCurriculumFromDocument(userId, file, userGoal = '') {
   const text = await parseDocument(file);
-  const curriculum = await analyzeDocumentWithAI(text, userGoal);
+  const curriculum = normalizeDocumentCurriculum(await analyzeDocumentWithAI(text, userGoal), userGoal);
+  const qualityErrors = checkLearningPath(curriculum);
+  if (qualityErrors.length) throw new Error(`CURRICULUM_QUALITY: ${qualityErrors.join('; ')}`);
 
   const pathId = uid('docpath');
   const pathRecord = {

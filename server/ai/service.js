@@ -13,14 +13,20 @@ import * as engine from './engine.js';
 import { llmEnabled, llmJson } from './providers.js';
 import { validate } from '../util.js';
 import { KB, SKILLS, suggestDomain } from './kb.js';
+import { checkLearningPath } from './curriculum-quality.js';
 
 const log = (...a) => console.log('[ai]', ...a);
 
 /* ────────────────────────── learning paths ────────────────────────── */
 export async function generateLearningPath(input) {
   const base = engine.generateLearningPath(input);
+  const qualityErrors = checkLearningPath(base);
+  if (qualityErrors.length) {
+    log('path quality check failed:', qualityErrors.join(' | '));
+    return { ...base, engine: 'proof-engine', quality: { passed: false, errors: qualityErrors } };
+  }
 
-  if (!llmEnabled()) return { ...base, engine: 'proof-engine' };
+  if (!llmEnabled()) return { ...base, engine: 'proof-engine', quality: { passed: true, errors: [] } };
 
   // LLM refinement of titles/copy only — topic sequence stays engine-driven
   // (auditable + guardable). If anything fails, engine output ships as-is.
@@ -47,16 +53,19 @@ export async function generateLearningPath(input) {
       },
     });
     if (errs.length) throw new Error('SCHEMA: ' + errs.join('; '));
-    return {
+    const refined = {
       ...base,
       title: out.title,
       description: out.description,
       days: base.days.map((d, i) => ({ ...d, title: out.dayTitles[i] || d.title })),
       engine: 'llm+proof-engine',
     };
+    const refinedErrors = checkLearningPath(refined);
+    if (refinedErrors.length) throw new Error('REFINED_PATH_SCHEMA: ' + refinedErrors.join('; '));
+    return { ...refined, quality: { passed: true, errors: [] } };
   } catch (e) {
     log('path LLM fallback:', e.message);
-    return { ...base, engine: 'proof-engine' };
+    return { ...base, engine: 'proof-engine', quality: { passed: true, errors: [] } };
   }
 }
 

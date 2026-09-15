@@ -28,7 +28,7 @@ export function HomePage() {
     }
     
     loadHomeData();
-  }, [user, authLoading]);
+  }, [user?.id, authLoading]);
 
   const loadHomeData = async () => {
     try {

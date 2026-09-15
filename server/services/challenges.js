@@ -24,6 +24,7 @@ const PAYLOAD_SHAPES = {
   business: ['text'],
   design: ['text'],
   conversation: ['text'],
+  speech: ['transcript'],
   chess: ['positions'],
 };
 
@@ -346,7 +347,7 @@ export class ChallengeService {
     // A chess proof is live interaction: every move is already replayed and
     // legality-checked on the server. Typing telemetry is for written proofs,
     // not for a FEN board with no text field to type into.
-    if (this.config.economy.typingVerification && ch.type !== 'chess') {
+    if (this.config.economy.typingVerification && ch.type !== 'chess' && ch.type !== 'speech') {
       typingMeta = this.#typingMeta(rawPayload.meta);
       if (!typingMeta)
         throw Object.assign(new Error('Typing verification required: proofs must be typed live in the PROOF app. Reload the app and type your submission.'), { code: 'TYPING_REQUIRED', status: 400 });

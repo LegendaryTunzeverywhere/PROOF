@@ -26,6 +26,7 @@ function SidebarBody({ isDark, onToggleTheme }: Common) {
               <li key={item.id}>
                 <NavLink
                   to={item.path}
+                  end={item.id === "work"}
                   className={({ isActive }) =>
                     cn(
                       "group relative flex w-full items-center gap-3 rounded-[11px] px-3 py-[11px] text-[13.5px] transition-all duration-200",

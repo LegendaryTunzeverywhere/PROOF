@@ -12,9 +12,9 @@ import type { MarketplaceTask, TeachingSession, SponsoredChallenge, Skill } from
 
 type Tab = 'work' | 'teach' | 'sponsored';
 
-export function WorkPage() {
+export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
   const { user, loading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('work');
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [tasks, setTasks] = useState<MarketplaceTask[]>([]);
   const [sessions, setSessions] = useState<TeachingSession[]>([]);
   const [sponsoredChallenges, setSponsoredChallenges] = useState<SponsoredChallenge[]>([]);
@@ -50,7 +50,11 @@ export function WorkPage() {
     }
     
     loadWorkData();
-  }, [user, authLoading, activeTab]);
+  }, [user?.id, authLoading, activeTab]);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   const loadWorkData = async () => {
     try {

@@ -24,7 +24,7 @@ export function GlossaryPage() {
     }
     
     loadTerms();
-  }, [user, authLoading]);
+  }, [user?.id, authLoading]);
 
   const loadTerms = async () => {
     try {

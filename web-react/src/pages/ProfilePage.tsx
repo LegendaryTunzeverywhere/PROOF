@@ -25,7 +25,7 @@ export function ProfilePage() {
     }
     
     loadProfileData();
-  }, [authUser, authLoading]);
+  }, [authUser?.id, authLoading]);
 
   const loadProfileData = async () => {
     try {

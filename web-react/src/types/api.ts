@@ -126,6 +126,10 @@ export interface Challenge {
     positions?: ChessChallengePosition[];
     puzzles?: ChessChallengePosition[];
   } | null;
+  speech?: {
+    target: string;
+    language: string;
+  };
 }
 
 export interface ChessChallengePosition {

@@ -60,7 +60,7 @@ function LearnHubView() {
     }
     
     loadData();
-  }, [user, authLoading]);
+  }, [user?.id, authLoading]);
   
   // Timeout for path creation (30 seconds)
   useEffect(() => {
@@ -108,6 +108,7 @@ function LearnHubView() {
       setCreateError(null);
       
       const result = await pathsService.createPath({
+          style: user?.prefs?.style || 'practical',
         goal,
         level: user?.prefs?.level || 'beginner',
         minutesPerDay: user?.prefs?.minutesPerDay || 30,
@@ -146,6 +147,7 @@ function LearnHubView() {
       
       const result = await pathsService.createPath({
         goal,
+          style: user?.prefs?.style || 'practical',
         domain: skill.slug,
         level: user?.prefs?.level || 'beginner',
         minutesPerDay: user?.prefs?.minutesPerDay || 30,
@@ -169,6 +171,7 @@ function LearnHubView() {
       setCreateError(null);
       const result = await pathsService.createPath({
         goal: `I want to learn ${language.name}`,
+          style: user?.prefs?.style || 'practical',
         domain: 'languages',
         level: user?.prefs?.level || 'beginner',
         minutesPerDay: user?.prefs?.minutesPerDay || 30,

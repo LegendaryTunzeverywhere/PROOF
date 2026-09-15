@@ -7,15 +7,16 @@
  */
 import { KB, SKILLS, suggestDomain, topicBySlug, skillKb } from './kb.js';
 import { clamp, seededPick } from '../util.js';
+import { learningDesign } from './curriculum-quality.js';
 
 const STUDY_MIN = 25;
 
 const LANGUAGE_OPTIONS = {
-  french: { code: 'fr', name: 'French', emoji: '🇫🇷', hello: 'Bonjour', goodbye: 'Au revoir', namePhrase: 'Je m’appelle', request: 'Je voudrais', thanks: 'Merci' },
-  spanish: { code: 'es', name: 'Spanish', emoji: '🇪🇸', hello: 'Hola', goodbye: 'Adiós', namePhrase: 'Me llamo', request: 'Quisiera', thanks: 'Gracias' },
-  german: { code: 'de', name: 'German', emoji: '🇩🇪', hello: 'Hallo', goodbye: 'Auf Wiedersehen', namePhrase: 'Ich heiße', request: 'Ich hätte gern', thanks: 'Danke' },
-  portuguese: { code: 'pt', name: 'Portuguese', emoji: '🇵🇹', hello: 'Olá', goodbye: 'Até logo', namePhrase: 'Eu me chamo', request: 'Eu gostaria de', thanks: 'Obrigado/a' },
-  mandarin: { code: 'zh', name: 'Mandarin', emoji: '🇨🇳', hello: '你好 (nǐ hǎo)', goodbye: '再见 (zài jiàn)', namePhrase: '我叫 (wǒ jiào)', request: '我想要 (wǒ xiǎng yào)', thanks: '谢谢 (xièxie)' },
+  french: { code: 'fr', name: 'French', emoji: '🇫🇷', hello: 'Bonjour', goodbye: 'Au revoir', namePhrase: 'Je m’appelle', request: 'Je voudrais', thanks: 'Merci', please: 's’il vous plaît', yes: 'Oui', no: 'Non', where: 'Où est', past: 'J’ai', future: 'Je vais', opinion: 'À mon avis', connector: 'parce que', formal: 'vous' },
+  spanish: { code: 'es', name: 'Spanish', emoji: '🇪🇸', hello: 'Hola', goodbye: 'Adiós', namePhrase: 'Me llamo', request: 'Quisiera', thanks: 'Gracias', please: 'por favor', yes: 'Sí', no: 'No', where: 'Dónde está', past: 'He', future: 'Voy a', opinion: 'En mi opinión', connector: 'porque', formal: 'usted' },
+  german: { code: 'de', name: 'German', emoji: '🇩🇪', hello: 'Hallo', goodbye: 'Auf Wiedersehen', namePhrase: 'Ich heiße', request: 'Ich hätte gern', thanks: 'Danke', please: 'bitte', yes: 'Ja', no: 'Nein', where: 'Wo ist', past: 'Ich habe', future: 'Ich werde', opinion: 'Meiner Meinung nach', connector: 'weil', formal: 'Sie' },
+  portuguese: { code: 'pt', name: 'Portuguese', emoji: '🇵🇹', hello: 'Olá', goodbye: 'Até logo', namePhrase: 'Eu me chamo', request: 'Eu gostaria de', thanks: 'Obrigado/a', please: 'por favor', yes: 'Sim', no: 'Não', where: 'Onde fica', past: 'Eu tenho', future: 'Eu vou', opinion: 'Na minha opinião', connector: 'porque', formal: 'você' },
+  mandarin: { code: 'zh', name: 'Mandarin', emoji: '🇨🇳', hello: '你好 (nǐ hǎo)', goodbye: '再见 (zài jiàn)', namePhrase: '我叫 (wǒ jiào)', request: '我想要 (wǒ xiǎng yào)', thanks: '谢谢 (xièxie)', please: '请 (qǐng)', yes: '是 (shì)', no: '不 (bù)', where: '在哪里 (zài nǎlǐ)', past: '我已经 (wǒ yǐjīng)', future: '我会 (wǒ huì)', opinion: '我认为 (wǒ rènwéi)', connector: '因为 (yīnwèi)', formal: '您 (nín)' },
 };
 
 function languageForGoal(goal = '') {
@@ -27,61 +28,83 @@ function languageForGoal(goal = '') {
 
 function languageCurriculum(language) {
   const prefix = language.code;
+  const phrase = (target, meaning, note = '') => ({ target, meaning, note });
+  const speechChallenge = (title, target, meaning, xp = 90) => ({
+    type: 'speech', kind: 'checkpoint', title, timeMin: 12,
+    brief: `Listen to the model, then say “${target}” aloud in ${language.name}. The app compares your spoken transcript with the target phrase.`,
+    requirements: ['listen to the model phrase', 'speak the phrase aloud', 'match the target words clearly'],
+    passScore: 70, rewardNim: 1, xp,
+    evaluator: { type: 'speech', config: { language: prefix, targets: [target], minWords: Math.max(1, target.split(/\s+/).length), similarity: 0.72 } },
+  });
   const conversationChallenge = (title, brief, minTurns, rewardNim, xp) => ({
     type: 'conversation', kind: 'checkpoint', title, timeMin: 25, brief,
-    requirements: [`at least ${minTurns} dialogue turns`, 'greeting and goodbye', 'an introduction or request', 'English glosses included'],
+    requirements: [`at least ${minTurns} dialogue turns`, 'use the target language throughout', 'respond naturally to the situation', 'include a clear meaning or gloss'],
     passScore: 70, rewardNim, xp,
-    evaluator: { type: 'conversation', config: { lang: prefix, minTurns, minWords: minTurns * 10, lexicon: [language.hello.toLowerCase().split(' ')[0], language.thanks.toLowerCase().split(' ')[0], language.goodbye.toLowerCase().split(' ')[0]] } },
+    evaluator: { type: 'conversation', config: { lang: prefix, minTurns, minWords: minTurns * 8, lexicon: [language.hello, language.thanks, language.goodbye, language.connector] } },
   });
+  const topic = (level, slug, title, objective, phrases, challenge) => ({
+    slug: `${prefix}-${slug}`, title: `${level} · ${title}`, estMin: level === 'C1' ? 45 : 30,
+    difficulty: ['A1', 'A2', 'B1', 'B2', 'C1'].indexOf(level) + 1,
+    cefr: level,
+    lesson: {
+      tldr: objective,
+      sections: [
+        { h: 'What you will do', body: objective },
+        { h: 'Language you can use', body: phrases.map((item) => `${item.target} = ${item.meaning}${item.note ? ` (${item.note})` : ''}`).join('\n') },
+        { h: 'Listen, notice, say', body: `Listen to each model phrase, notice its rhythm, then say it back slowly and once at natural speed. ${language.name} rewards clear meaning before perfect accent.` },
+      ],
+      example: { lang: 'text', code: phrases.map((item) => `${item.target} — ${item.meaning}`).join('\n') },
+      ask: `How would you use “${phrases[0].target}” in a real ${language.name} conversation?`,
+      keyPoints: phrases.map((item) => `${item.target} = ${item.meaning}`),
+      misconception: 'Pronunciation practice is not a one-shot accent test. Listen, try, compare, and try again.',
+    },
+    practice: phrases.slice(0, 2).map((item, index) => ({
+      q: `What does “${item.target}” mean?`,
+      choices: [item.meaning, phrases[(index + 1) % phrases.length].meaning, 'A question about spelling', 'A goodbye only'],
+      answerIdx: 0,
+      why: `“${item.target}” is used to mean ${item.meaning}.`,
+    })),
+    quiz: phrases.slice(0, 2).map((item, index) => ({
+      q: `Choose the ${language.name} phrase for “${item.meaning}”.`,
+      choices: [item.target, phrases[(index + 1) % phrases.length].target, language.yes, language.no],
+      answerIdx: 0,
+      why: `The correct phrase is “${item.target}”.`,
+    })),
+    recall: phrases.map((item) => `Say “${item.target}” aloud, then explain: ${item.meaning}.`),
+    challenge,
+  });
+
+  const topics = [
+    topic('A1', 'survival', 'Greetings, names, and sounds', 'Handle the first thirty seconds of a conversation and build confidence with the sound system.', [phrase(language.hello, 'hello'), phrase(language.namePhrase, 'my name is'), phrase(language.goodbye, 'goodbye')], null),
+    topic('A1', 'everyday-needs', 'Numbers, time, and simple requests', 'Ask for a basic item, understand a number, and use polite language in a short exchange.', [phrase(language.request, 'I would like'), phrase(language.please, 'please'), phrase(language.thanks, 'thank you')], speechChallenge(`Say essential ${language.name} phrases`, `${language.request} ${language.please}`, 'I would like … please')),
+    topic('A1', 'places-and-directions', 'Places and directions', 'Ask where something is and follow a short, practical direction.', [phrase(language.where, 'where is'), phrase(language.yes, 'yes'), phrase(language.no, 'no')], null),
+    topic('A1', 'listen-and-repeat', 'Listening loop: hear, copy, improve', 'Use a three-pass listening routine: hear the phrase, repeat it, then produce it without looking.', [phrase(language.hello, 'hello'), phrase(language.request, 'I would like'), phrase(language.goodbye, 'goodbye')], speechChallenge(`Listen and speak: ${language.name} basics`, language.hello, 'hello', 100)),
+    topic('A2', 'daily-life', 'Daily routines and descriptions', 'Describe your day, your home, and familiar people with connected sentences.', [phrase(language.past, 'I have / I did'), phrase(language.future, 'I am going to / I will'), phrase(language.connector, 'because')], null),
+    topic('A2', 'travel', 'Travel, food, and problem solving', 'Navigate a trip, order food, and explain a simple problem politely.', [phrase(language.where, 'where is'), phrase(language.request, 'I would like'), phrase(language.please, 'please')], speechChallenge(`Speak through a ${language.name} travel moment`, `${language.where} la station`, 'Where is the station?')),
+    topic('A2', 'social-talk', 'Plans, invitations, and preferences', 'Invite someone, accept or decline, and give a simple reason.', [phrase(language.future, 'I will / I am going to'), phrase(language.yes, 'yes'), phrase(language.no, 'no'), phrase(language.connector, 'because')], null),
+    topic('A2', 'pronunciation', 'Pronunciation clinic and connected speech', 'Shadow short phrases, link sounds naturally, and make yourself easy to understand.', [phrase(language.hello, 'hello'), phrase(language.thanks, 'thank you'), phrase(language.goodbye, 'goodbye')], speechChallenge(`Pronunciation clinic: ${language.name}`, `${language.thanks} ${language.please}`, 'Thank you, please', 110)),
+    topic('B1', 'stories', 'Past experiences and stories', 'Tell a short story with a clear beginning, sequence, and ending.', [phrase(language.past, 'I did / I have'), phrase(language.connector, 'because'), phrase(language.opinion, 'in my opinion')], null),
+    topic('B1', 'work-and-study', 'Work, study, and practical conversations', 'Explain your responsibilities, ask for clarification, and keep a conversation moving.', [phrase(language.formal, 'formal you'), phrase(language.connector, 'because'), phrase(language.opinion, 'in my opinion')], speechChallenge(`Speak about your day in ${language.name}`, `${language.opinion} ${language.connector}`, 'In my opinion … because …', 120)),
+    topic('B1', 'opinions', 'Opinions, comparisons, and reasons', 'Give an opinion, compare alternatives, and support your view with a concrete reason.', [phrase(language.opinion, 'in my opinion'), phrase(language.connector, 'because'), phrase(language.future, 'I will / I am going to')], null),
+    topic('B1', 'conversation', 'Conversation repair and fluency', 'Ask someone to repeat, reformulate an idea, and recover when you do not know a word.', [phrase(language.formal, 'formal you'), phrase(language.please, 'please'), phrase(language.connector, 'because')], speechChallenge(`Repair a conversation in ${language.name}`, language.please, 'please / a polite repair phrase', 125)),
+    topic('B2', 'nuance', 'Nuance, register, and politeness', 'Shift between informal and formal language and choose a phrase that fits the relationship.', [phrase(language.formal, 'formal you'), phrase(language.opinion, 'in my opinion'), phrase(language.connector, 'because')], null),
+    topic('B2', 'media', 'News, media, and abstract topics', 'Summarize a viewpoint, distinguish fact from opinion, and discuss an unfamiliar topic.', [phrase(language.opinion, 'in my opinion'), phrase(language.past, 'I have / I did'), phrase(language.future, 'I will / I am going to')], speechChallenge(`Summarize an idea in ${language.name}`, language.opinion, 'In my opinion', 135)),
+    topic('B2', 'debate', 'Discussion, disagreement, and negotiation', 'Disagree respectfully, qualify a claim, and negotiate a practical outcome.', [phrase(language.opinion, 'in my opinion'), phrase(language.connector, 'because'), phrase(language.formal, 'formal you')], null),
+    topic('B2', 'presentation', 'Presentations and persuasive speaking', 'Deliver a structured explanation with signposting, emphasis, and a clear conclusion.', [phrase(language.opinion, 'in my opinion'), phrase(language.connector, 'because'), phrase(language.future, 'I will / I am going to')], speechChallenge(`Deliver a clear ${language.name} opening`, `${language.opinion} ${language.connector}`, 'In my opinion … because …', 145)),
+    topic('C1', 'precision', 'Precision, idiom, and implied meaning', 'Choose exact language, interpret what is implied, and avoid false friends or literal translations.', [phrase(language.opinion, 'in my opinion'), phrase(language.connector, 'because'), phrase(language.formal, 'formal you')], null),
+    topic('C1', 'professional', 'Professional and academic communication', 'Write and speak with an appropriate register in a complex professional or academic situation.', [phrase(language.formal, 'formal you'), phrase(language.opinion, 'in my opinion'), phrase(language.future, 'I will / I am going to')], speechChallenge(`Professional speaking in ${language.name}`, language.formal, 'formal you', 155)),
+    topic('C1', 'critical-thinking', 'Critical discussion and synthesis', 'Synthesize multiple viewpoints, qualify evidence, and defend a nuanced position.', [phrase(language.opinion, 'in my opinion'), phrase(language.connector, 'because'), phrase(language.past, 'I have / I did')], null),
+    topic('C1', 'mastery', 'C1 conversation mastery', 'Sustain an unprepared conversation, handle ambiguity, and make your meaning precise without translating in your head.', [phrase(language.hello, 'hello'), phrase(language.opinion, 'in my opinion'), phrase(language.goodbye, 'goodbye')], conversationChallenge(`Sustain a nuanced ${language.name} conversation`, `Hold a ${minTurnsLabel(12)} conversation in ${language.name} about a complex real-world issue. Ask follow-up questions, give reasons, reformulate once, and close naturally.`, 12, 4, 220)),
+  ];
+
   return {
-    topics: [
-      {
-        slug: `${prefix}-greetings`, title: `${language.name} Greetings & Introductions`, estMin: 25, difficulty: 1,
-        lesson: {
-          tldr: `Start a real ${language.name} conversation with a greeting, your name, and a friendly goodbye.`,
-          sections: [
-            { h: 'Start warmly', body: `${language.hello} means hello. Open with it before asking for anything.` },
-            { h: 'Say your name', body: `${language.namePhrase} … means “my name is …”. Say it slowly, then invite the other person to respond.` },
-            { h: 'Close the exchange', body: `${language.thanks} and ${language.goodbye} make a short exchange feel complete and polite.` },
-          ],
-          example: { lang: 'text', code: `— ${language.hello}! ${language.namePhrase} Ada.\n— ${language.hello}, Ada!\n— ${language.thanks}. ${language.goodbye}!` },
-          ask: `How would you greet someone and introduce yourself in ${language.name}?`,
-          keyPoints: [language.hello, `${language.namePhrase} … = my name is …`, language.thanks, language.goodbye],
-          misconception: 'You do not need perfect grammar before speaking. A short, clear exchange is a real win.',
-        },
-        practice: [
-          { q: `Which phrase means “hello” in ${language.name}?`, choices: [language.hello, language.goodbye, language.thanks, language.request], answerIdx: 0, why: `${language.hello} is the standard greeting.` },
-          { q: `Which phrase introduces your name?`, choices: [language.thanks, language.namePhrase, language.goodbye, language.hello], answerIdx: 1, why: `${language.namePhrase} is used before your name.` },
-        ],
-        challenge: conversationChallenge(`Have your first ${language.name} conversation`, `Write a ${minTurnsLabel(6)} dialogue in ${language.name}: greet, introduce yourself, ask one simple question, say thanks, and say goodbye. Add an English gloss after each line.`, 6, 2, 100),
-      },
-      {
-        slug: `${prefix}-daily`, title: `${language.name} Daily Requests`, estMin: 30, difficulty: 2,
-        lesson: {
-          tldr: `Use one polite request to order, ask, and respond in everyday ${language.name}.`,
-          sections: [
-            { h: 'Make a polite request', body: `${language.request} … is a useful starting phrase when you want something.` },
-            { h: 'Keep the exchange human', body: `Open with ${language.hello}, use ${language.thanks}, and close with ${language.goodbye}. These small signals matter.` },
-            { h: 'Practice aloud', body: 'Choose one everyday item—a drink, ticket, or meal—and replace the blank in the request with it.' },
-          ],
-          example: { lang: 'text', code: `— ${language.hello}! ${language.request} a coffee, please.\n— Of course.\n— ${language.thanks}! ${language.goodbye}!` },
-          ask: `What would you politely request in a café in ${language.name}?`,
-          keyPoints: [`${language.request} … for a polite request`, 'Start with a greeting', 'Thank the other person', 'Practice phrases aloud'],
-          misconception: 'Memorizing one useful phrase is not “too basic.” It is how practical conversations start.',
-        },
-        practice: [
-          { q: `Which phrase starts a polite request in ${language.name}?`, choices: [language.request, language.goodbye, language.thanks, language.namePhrase], answerIdx: 0, why: `${language.request} is the useful request starter.` },
-          { q: 'What makes a short request more polite?', choices: ['A greeting and thanks', 'Speaking faster', 'Using English only', 'Skipping a goodbye'], answerIdx: 0, why: 'A greeting and thanks make an exchange respectful.' },
-        ],
-        challenge: conversationChallenge(`Handle a simple ${language.name} café request`, `Write an 8-turn café dialogue in ${language.name}: greet, order two items, respond to the price, thank the server, and say goodbye. Add English glosses.`, 8, 2, 110),
-      },
-    ],
+    topics,
     finalAssessment: {
-      type: 'conversation', kind: 'final', title: `Final Skill Assessment: ${language.name} Conversation`, timeMin: 40,
-      brief: `Write a 12-turn ${language.name} conversation about a real situation (travel, work, or food). Include greetings, an introduction, a request, a question, thanks, and a goodbye. Add English glosses.`,
-      requirements: ['at least 12 dialogue turns', 'a greeting and goodbye', 'an introduction', 'a request and question', 'English glosses included'],
-      passScore: 75, rewardNim: 5, xp: 250,
-      evaluator: { type: 'conversation', config: { lang: prefix, minTurns: 12, minWords: 120, lexicon: [language.hello.toLowerCase().split(' ')[0], language.thanks.toLowerCase().split(' ')[0], language.goodbye.toLowerCase().split(' ')[0]] } },
+      type: 'conversation', kind: 'final', title: `C1 Final Assessment: ${language.name} Fluency`, timeMin: 55,
+      brief: `Complete a ${minTurnsLabel(16)} ${language.name} conversation and a short written reflection about a complex real-world topic. Defend a position, ask follow-up questions, reformulate an idea, and close naturally.`,
+      requirements: ['at least 16 dialogue turns', 'clear argument and counterpoint', 'follow-up questions', 'natural register and connectors'],
+      passScore: 75, rewardNim: 6, xp: 300,
+      evaluator: { type: 'conversation', config: { lang: prefix, minTurns: 16, minWords: 180, lexicon: [language.hello, language.thanks, language.goodbye, language.opinion, language.connector] } },
     },
   };
 }
@@ -104,10 +127,13 @@ export function generateLearningPath(input) {
     : SKILLS.find((s) => s.slug === suggestion.domain);
   const minutesPerDay = clamp(parseInt(input.minutesPerDay, 10) || 30, 15, 120);
   const level = ['novice', 'beginner', 'intermediate', 'advanced'].includes(String(input.level)) ? input.level : null;
+  const design = learningDesign(input.style || 'practical');
 
   let topics = [...kb.topics].sort((a, b) => a.difficulty - b.difficulty);
-  if (level === 'intermediate' && topics.length > 4) topics = topics.slice(1);
-  if (level === 'advanced' && topics.length > 4) topics = topics.slice(2);
+  if (suggestion.domain !== 'languages') {
+    if (level === 'intermediate' && topics.length > 4) topics = topics.slice(1);
+    if (level === 'advanced' && topics.length > 4) topics = topics.slice(2);
+  }
 
   const unitsPerDay = clamp(Math.round(minutesPerDay / 20), 1, 3);
 
@@ -156,10 +182,10 @@ export function generateLearningPath(input) {
     skillEmoji: skill?.emoji || '📚',
     confidentMatch: suggestion.confident,
     title: `${skill?.name || 'Skill'} — ${levelLabel} Path`,
-    description: `A ${days.length}-day practical path built from your goal: “${goal}”. Study, practice, and prove with real challenges worth up to ${rewardPool} NIM.`,
+    description: `A ${days.length}-day ${design.label.toLowerCase()} path built from your goal: “${goal}”. The rhythm is ${design.cadence}; ${design.focus}. Earn up to ${rewardPool} NIM through real challenges.`,
     minutesPerDay,
     level: levelLabel,
-    style: input.style || 'practical',
+    style: design.label.toLowerCase(),
     days: days.map((d, i) => {
       const mainItem = d.items.find((x) => x.kind !== 'study') || d.items[0];
       const proofItem = d.items.find((x) => x.kind === 'proof' || x.kind === 'project' || x.kind === 'final');
@@ -175,7 +201,10 @@ export function generateLearningPath(input) {
     }),
     totalXp: seq.reduce((a, x) => a + x.xp, 0),
     rewardNim: rewardPool,
-    meta: { engine: 'proof-engine', generatedAt: Date.now() },
+    meta: {
+      engine: 'proof-engine', generatedAt: Date.now(),
+      learningDesign: { label: design.label, focus: design.focus, cadence: design.cadence },
+    },
   };
 }
 
@@ -203,7 +232,16 @@ export function lessonFor(domain, topicSlug) {
     memoryHook: topic.memoryHook || '',
     quiz: topic.quiz || [],
     recall: topic.recall || [],
-    challenge: topic.challenge ? { title: topic.challenge.title, kind: topic.challenge.kind, rewardNim: topic.challenge.rewardNim, xp: topic.challenge.xp, timeMin: topic.challenge.timeMin } : null,
+    challenge: topic.challenge ? {
+      title: topic.challenge.title,
+      kind: topic.challenge.kind,
+      type: topic.challenge.type,
+      rewardNim: topic.challenge.rewardNim,
+      xp: topic.challenge.xp,
+      timeMin: topic.challenge.timeMin,
+      speechTarget: topic.challenge.evaluator?.config?.targets?.[0] || null,
+      speechMeaning: topic.challenge.type === 'speech' ? topic.challenge.requirements?.[0] || '' : null,
+    } : null,
   };
 }
 

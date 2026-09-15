@@ -272,7 +272,7 @@ function SocraticListView() {
     }
     
     loadSessions();
-  }, [user, authLoading]);
+  }, [user?.id, authLoading]);
 
   const loadSessions = async () => {
     try {
