@@ -194,13 +194,24 @@ export function LanguageSpeechPractice({
             disabled={disabled || !supported}
             aria-label={listening ? 'Stop listening' : 'Say it aloud'}
             title={listening ? 'Stop listening' : 'Say it aloud'}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-brand text-lg text-white transition hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-60"
+            className={`relative inline-flex h-11 w-11 items-center justify-center rounded-lg text-lg text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${
+              listening
+                ? 'bg-bad shadow-[0_0_0_4px_rgba(239,68,68,0.16)]'
+                : 'bg-brand hover:bg-brand-deep'
+            }`}
           >
-            <span aria-hidden="true">🎤</span>
+            {listening && <span className="absolute inset-0 animate-ping rounded-lg bg-bad/50" aria-hidden="true" />}
+            <span className="relative" aria-hidden="true">{listening ? '⏹' : '🎤'}</span>
           </button>
         </div>
       </div>
       <div className="mt-4 flex flex-col gap-2">
+        {listening && (
+          <span className="inline-flex items-center gap-2 text-sm font-semibold text-bad" role="status">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-bad" aria-hidden="true" />
+            Recording… tap the microphone to stop
+          </span>
+        )}
         <span className="text-sm text-muted" aria-live="polite">
           <span className="font-medium text-ink">Heard:</span> “{displayedTranscript || (listening ? 'Listening…' : 'Your transcript will appear here.') }”
         </span>
