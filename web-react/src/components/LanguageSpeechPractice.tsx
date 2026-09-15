@@ -76,6 +76,7 @@ export function LanguageSpeechPractice({
 }: LanguageSpeechPracticeProps) {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const [listening, setListening] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   const [supported, setSupported] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [localTranscript, setLocalTranscript] = useState(value);
@@ -113,16 +114,28 @@ export function LanguageSpeechPractice({
 
   const listen = () => {
     setError(null);
-    if (!('speechSynthesis' in window)) {
+    if (!('speechSynthesis' in window) || typeof window.SpeechSynthesisUtterance !== 'function') {
       setError('Audio playback is not available in this browser.');
       return;
     }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(target);
-    utterance.lang = localeFor(language);
+    const synthesis = window.speechSynthesis;
+    synthesis.cancel();
+    const locale = localeFor(language);
+    const voices = synthesis.getVoices();
+    const voice = voices.find((candidate) => candidate.lang.toLowerCase() === locale.toLowerCase())
+      || voices.find((candidate) => candidate.lang.toLowerCase().startsWith(locale.slice(0, 2).toLowerCase()));
+    const utterance = new window.SpeechSynthesisUtterance(target);
+    utterance.lang = locale;
+    if (voice) utterance.voice = voice;
     utterance.rate = 0.78;
     utterance.pitch = 1;
-    window.speechSynthesis.speak(utterance);
+    utterance.onstart = () => setSpeaking(true);
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => {
+      setSpeaking(false);
+      setError('Audio playback failed in this app environment. Try the speaker button again.');
+    };
+    synthesis.speak(utterance);
   };
 
   const speak = () => {
@@ -169,11 +182,11 @@ export function LanguageSpeechPractice({
             type="button"
             onClick={listen}
             disabled={disabled}
-            aria-label="Listen to the phrase"
-            title="Listen to the phrase"
+            aria-label={speaking ? 'Stop audio' : 'Listen to the phrase'}
+            title={speaking ? 'Stop audio' : 'Listen to the phrase'}
             className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-brand/30 bg-surface text-lg text-brand transition hover:bg-brand-soft disabled:opacity-50"
           >
-            <span aria-hidden="true">🔊</span>
+            <span aria-hidden="true">{speaking ? '⏹' : '🔊'}</span>
           </button>
           <button
             type="button"
