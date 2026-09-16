@@ -80,7 +80,8 @@ export class RewardService {
   }
 
   async txHistory(userId, limit = 30) {
-    const filtered = await this.store.filter('wallet_txs', (t) => t.userId === userId);
+    const ownerId = String(userId);
+    const filtered = await this.store.filter('wallet_txs', (t) => String(t.userId) === ownerId);
     return filtered.sort((a, b) => b.createdAt - a.createdAt).slice(0, limit);
   }
 
@@ -122,7 +123,17 @@ export class RewardService {
       `Daily learning claim: ${amountNim} NIM`, { rewardId: reward.id, streak: activeStreak });
     await this.store.update('rewards', reward.id, { transactionId: tx.id });
     await this.store.save();
-    return { granted: true, amountNim, streak: activeStreak, reward, tx };
+    let payout = null;
+    if (this.treasury.isConfigured()) {
+      try {
+        payout = await this.requestPayout(userId, amountNim, { automatic: true, rewardId: reward.id });
+        await this.store.update('rewards', reward.id, { status: 'paid' });
+      } catch (error) {
+        await this.store.update('rewards', reward.id, { status: 'pending_payout' });
+        console.error('[rewards] automatic daily treasury payout failed:', error.message);
+      }
+    }
+    return { granted: true, amountNim, streak: activeStreak, reward, tx, payout };
   }
 
   /**
@@ -190,7 +201,7 @@ export class RewardService {
     if (user.isDemo || user.walletMode === 'demo') {
       throw new EconomyError('DEMO_WALLET_REQUIRED', 'Demo wallets cannot receive or withdraw real NIM. Connect Nimiq Pay to continue.');
     }
-    if (amount < luna(1)) throw new EconomyError('MIN_PAYOUT', 'Minimum payout is 1 NIM.');
+    if (!automatic && amount < luna(1)) throw new EconomyError('MIN_PAYOUT', 'Minimum payout is 1 NIM.');
     if (user.balanceLuna < amount) throw new EconomyError('INSUFFICIENT_NIM', 'Not enough NIM for that payout.');
     if (this.treasury.isConfigured() && !rewardId && (await this.pendingPayoutsForUser(userId)).length) {
       throw new EconomyError('PENDING_PAYOUT', 'A previous reward is waiting for treasury funds. It will be retried automatically.');

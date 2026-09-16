@@ -5,6 +5,15 @@ const NETWORK_NUMBERS = {
   testnet: 5,
 };
 
+function transactionHash(value) {
+  const raw = value?.toHex?.() || value?.toString?.() || value;
+  const hash = raw instanceof Uint8Array
+    ? Buffer.from(raw).toString('hex')
+    : String(raw || '').replace(/^0x/, '');
+  if (!/^[0-9a-f]{64}$/i.test(hash)) throw new Error('Nimiq RPC returned an invalid transaction hash.');
+  return hash.toLowerCase();
+}
+
 export class NimiqTreasury {
   constructor(config) {
     this.config = config.nimiq;
@@ -76,6 +85,6 @@ export class NimiqTreasury {
     );
     transaction.sign(keyPair);
     const result = await this.#rpc('pushTransaction', [transaction.toHex()]);
-    return { hash: result?.transactionHash || transaction.hash() };
+    return { hash: transactionHash(result?.transactionHash || transaction.hash()) };
   }
 }

@@ -465,11 +465,12 @@ export class ChallengeService {
         href: proof ? `#/proof/${proof.publicId}` : '#/profile',
       });
       if (payoutSent) {
+        const ref = rewardResult.payout.ref;
         this.notify.push(userId, {
           type: 'payout_sent', emoji: '💸',
           title: 'NIM sent to your connected wallet',
-          body: `${rewardResult.amountNim} NIM · transaction ${rewardResult.payout.ref}`,
-          href: '#/profile',
+          body: `${rewardResult.amountNim} NIM sent · transaction ${ref.slice(0, 8)}…${ref.slice(-8)}`,
+          href: `https://nimiq.watch/#${ref}`,
         });
       }
     } else {

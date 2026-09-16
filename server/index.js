@@ -352,6 +352,7 @@ async function publicMe(user) {
     ref: transaction.ref || null,
     createdAt: transaction.createdAt,
   }));
+  const verifiedSkillCount = (await skills.userSkills(current.id)).filter((skill) => skill.verified === true).length;
   return {
     id: current.id, username: current.username, avatar: current.avatar,
     level, xp: totalXpEarned, xpEarned: totalXpEarned, totalXpEarned, reputation: current.reputation,
@@ -360,6 +361,7 @@ async function publicMe(user) {
     walletBalanceNim,
     earnedNim: toNim(current.earnedLuna),
     recentTransactions,
+    verifiedSkillCount,
     wallet: { mode: current.walletMode, address: current.walletAddress, connected: !!current.walletMode },
     streak, prefs: current.prefs,
     proofsPassed: current.proofsPassed || 0,
@@ -467,7 +469,7 @@ route('GET', '/api/home', async (ctx) => {
   // All queries run concurrently
   const daily = await challenges.todayDaily();
 
-  const [myPaths, mySkills, catalog, sponsored, discovery, dailyDone, allTasks, userAttempts] = await Promise.all([
+  const [myPaths, userSkillRows, catalog, sponsored, discovery, dailyDone, allTasks, userAttempts] = await Promise.all([
     store.filter('paths', (p) => p.userId === user.id),
     skills.userSkills(user.id),
     skills.catalog(),
@@ -493,7 +495,19 @@ route('GET', '/api/home', async (ctx) => {
   const continueLearning = mostRecentPath ? await pathView(mostRecentPath.path, user.id) : null;
 
   // Skills You're Building: Top 4 skills based on actual activity (progress + recent work)
-  const skillActivity = myPaths.reduce((acc, path) => {
+  const skillActivity = userSkillRows.reduce((acc, userSkill) => {
+    if (!userSkill.skillSlug) return acc;
+    acc[userSkill.skillSlug] = {
+      skillSlug: userSkill.skillSlug,
+      pathCount: 1,
+      totalProgress: Number(userSkill.score) || 0,
+      recentActivity: Number(userSkill.updatedScoreAt) || 0,
+      lessonsCompleted: 0,
+    };
+    return acc;
+  }, {});
+
+  myPaths.reduce((acc, path) => {
     const skill = path.skillSlug;
     if (!skill) return acc;
     
@@ -525,7 +539,7 @@ route('GET', '/api/home', async (ctx) => {
     }
     
     return acc;
-  }, {});
+  }, skillActivity);
 
   const topSkills = Object.values(skillActivity)
     .sort((a, b) => {
@@ -537,13 +551,15 @@ route('GET', '/api/home', async (ctx) => {
     .slice(0, 4)
     .map(s => {
       const skillInfo = catalog.find(c => c.slug === s.skillSlug);
-      const avgProgress = s.totalProgress / s.pathCount;
+      const userSkill = userSkillRows.find((skill) => skill.skillSlug === s.skillSlug);
+      const avgProgress = userSkill ? userSkill.score : s.totalProgress / s.pathCount;
       return {
         skillSlug: s.skillSlug,
         name: skillInfo?.name || s.skillSlug,
         progress: Math.round(avgProgress),
-        verified: false,
-        score: Math.round(avgProgress)
+        verified: !!userSkill?.verified,
+        score: userSkill?.score ?? Math.round(avgProgress),
+        tier: userSkill?.tier || 'Learning',
       };
     });
 
@@ -622,7 +638,7 @@ route('GET', '/api/home', async (ctx) => {
     sponsored: await Promise.all(sponsored.slice().sort((a, b) => b.poolLuna - a.poolLuna).slice(0, 3)
       .map((s) => sponsoredView(s, user.id))),
     recommendedTasks: tasks,
-    recommendedSkills: recommendNextSkill(mySkills.map((s) => s.skillSlug)),
+    recommendedSkills: recommendNextSkill(userSkillRows.map((s) => s.skillSlug)),
     recentAchievements: achievements.slice(0, 3),
     discovery,
   });
@@ -1634,45 +1650,6 @@ route('POST', '/api/wallet/payout', async (ctx) => {
   json(res, 201, { tx: { ...tx, amountNim: toNim(tx.amountLuna) } });
 });
 
-/* ── HOME FEED ─────────────────────────────────────────────────────── */
-route('GET', '/api/home', async (ctx) => {
-  const { user, res } = ctx;
-  // Get daily challenge
-  const daily = await challenges.todayDaily();
-  
-  // Get trending challenges (exclude daily)
-  const allChallenges = await store.all('challenges');
-  const trending = allChallenges
-    .filter((c) => c.kind !== 'daily')
-    .slice(0, 10)
-    .map(challengeView);
-  
-  // Get sponsored marketplace tasks (highest budget)
-  const allTasks = await store.all('marketplace_tasks');
-  console.log(`[home] Total tasks from store.all(): ${allTasks.length}`);
-  if (allTasks.length === 0) {
-    console.warn('[home] WARNING: No tasks found in database - check if Supabase has marketplace tasks seeded');
-  }
-  const sponsored = allTasks
-    .sort((a, b) => (b.budgetLuna || 0) - (a.budgetLuna || 0))
-    .slice(0, 5)
-    .map((t) => ({
-      id: t.id,
-      title: t.title,
-      description: t.description,
-      budgetNim: toNim(t.budgetLuna || 0),
-      skillRequired: t.skillRequired,
-      minScore: t.minScore,
-      status: t.status,
-    }));
-  
-  json(res, 200, {
-    daily: dailyView(daily),
-    trending,
-    sponsored,
-  });
-});
-
 route('POST', '/api/tips', async (ctx) => {
   const { user, body, res } = ctx;
   const to = await users.get(String(body?.toUserId || ''));
@@ -1746,6 +1723,14 @@ route('POST', '/api/rewards/daily/claim', async (ctx) => {
   });
   if (!result.granted && result.reason === 'ALREADY_CLAIMED') {
     throw httpError(409, 'ALREADY_CLAIMED', 'Today\'s NIM has already been claimed.');
+  }
+  if (result.payout?.ref) {
+    const ref = result.payout.ref;
+    notifications.push(user.id, {
+      type: 'payout_sent', emoji: '💸', title: 'Daily NIM sent to your connected wallet',
+      body: `${result.amountNim} NIM sent · transaction ${ref.slice(0, 8)}…${ref.slice(-8)}`,
+      href: `https://nimiq.watch/#${ref}`,
+    });
   }
   json(res, 201, { ...result, amountNim: result.amountNim });
 });

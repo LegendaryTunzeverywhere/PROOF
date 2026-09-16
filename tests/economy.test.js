@@ -43,6 +43,26 @@ test('rewards: daily learning claim grants 0.1 NIM once per day', async (t) => {
   assert.equal(tb.store.get('users', u.id).balanceLuna, 10000, 'duplicate daily claims must not add balance');
 });
 
+test('rewards: configured treasury receives the daily claim, including sub-1 NIM amounts', async () => {
+  const tb = await testbed();
+  const user = await tb.users.createUser({ walletAddress: 'NQ18 TAQ8 CL7P K505 LE2M C78A 1YQC 1CH1 6Y4G' });
+  let sent = null;
+  const treasury = {
+    isConfigured: () => true,
+    send: async (request) => {
+      sent = request;
+      return { hash: 'a'.repeat(64) };
+    },
+  };
+  const rewards = new (Object.getPrototypeOf(tb.rewards).constructor)(tb.store, tb.config, { treasury });
+
+  const result = await rewards.claimDaily({ userId: user.id, challengeId: 'daily-test', streak: 1 });
+
+  assert.equal(result.payout.ref, 'a'.repeat(64));
+  assert.equal(sent.amountLuna, 10000);
+  assert.equal(tb.store.get('users', user.id).balanceLuna, 0);
+});
+
 test('economy: tips and payments move through transaction states', async (t) => {
   const tb = await testbed();
   const a = await tb.users.createUser({});
@@ -54,6 +74,21 @@ test('economy: tips and payments move through transaction states', async (t) => 
   assert.equal(tb.users.get(b.id).balanceLuna, 200000);
   const history = await tb.rewards.txHistory(a.id);
   assert.ok(history.every((t2) => ['pending', 'confirmed', 'failed', 'cancelled'].includes(t2.status)));
+});
+
+test('economy: transaction history is isolated per user', async () => {
+  const tb = await testbed();
+  const first = await tb.users.createUser({});
+  const second = await tb.users.createUser({});
+  await tb.rewards.credit(first.id, 10000, 'reward', 'first user');
+  await tb.rewards.credit(second.id, 20000, 'reward', 'second user');
+
+  const firstHistory = await tb.rewards.txHistory(first.id);
+  const secondHistory = await tb.rewards.txHistory(second.id);
+  assert.ok(firstHistory.every((tx) => tx.userId === first.id));
+  assert.ok(secondHistory.every((tx) => tx.userId === second.id));
+  assert.equal(firstHistory.length, 1);
+  assert.equal(secondHistory.length, 1);
 });
 
 test('economy: task payment applies the platform fee', async (t) => {
