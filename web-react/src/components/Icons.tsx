@@ -174,6 +174,13 @@ export const CloseIcon = (p: IconProps) => (
   </Line>
 );
 
+export const XIcon = (p: IconProps) => (
+  <Line strokeWidth={1.9} {...p}>
+    <path d="M5 4.5 19 19.5" />
+    <path d="M19 4.5 5 19.5" />
+  </Line>
+);
+
 export const ChevronRightIcon = (p: IconProps) => (
   <Line strokeWidth={1.9} {...p}>
     <path d="m9.5 5.8 6.2 6.2-6.2 6.2" />

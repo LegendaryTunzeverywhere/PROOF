@@ -31,7 +31,7 @@ function mergeDayItems(existingItems, candidateItems) {
 }
 
 export async function cleanupDuplicateSkillPaths(store, userId = null) {
-  const rows = store.filter('paths', (p) => (!userId || p.userId === userId));
+  const rows = await store.filter('paths', (p) => (!userId || p.userId === userId));
   const groups = new Map();
 
   for (const path of rows) {
@@ -73,12 +73,15 @@ export async function cleanupDuplicateSkillPaths(store, userId = null) {
     await store.update('paths', canonical.id, {
       progress: mergedProgress,
       days: mergedDays,
-      updatedAt: Date.now(),
       title: canonical.title || 'Learning path',
       description: canonical.description || '',
     });
 
     for (const path of sorted.slice(1)) {
+      const challenges = await store.filter('challenges', (challenge) => challenge.pathId === path.id);
+      for (const challenge of challenges) {
+        await store.update('challenges', challenge.id, { pathId: canonical.id });
+      }
       await store.remove('paths', path.id);
       removedCount += 1;
     }

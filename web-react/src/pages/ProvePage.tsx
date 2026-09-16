@@ -9,6 +9,7 @@ import { ChessProofBoard, type ChessProofPayload } from '../components/chess/Che
 import { CodeEditor } from '../components/CodeEditor';
 import { TypeOnlyInput } from '../components/TypeOnlyInput';
 import { LanguageSpeechPractice } from '../components/LanguageSpeechPractice';
+import { ShareOnXButton } from '../components/ShareOnXButton';
 import { useAuth } from '../context/AuthContext';
 import { pathsService } from '../services/paths.service';
 import { challengesService } from '../services/challenges.service';
@@ -180,6 +181,9 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
   // Show result if submission was successful
   if (result) {
     const passed = result.status === 'passed';
+    const shareText = passed
+      ? `I proved I can ${challenge.title} on PROOF${result.score ? ` with a ${result.score}% score` : ''}${result.reward?.granted ? ` and earned ${result.reward.amountNim} NIM` : ''}${challenge.xp ? ` (+${challenge.xp} XP)` : ''}.`
+      : `I took on ${challenge.title} on PROOF and scored ${result.score}%. Back to practice.`;
     
     return (
       <div className="space-y-6">
@@ -221,6 +225,7 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
           )}
 
           <div className="mt-6 flex gap-3 justify-center">
+            {passed && <ShareOnXButton text={shareText} />}
             <Link
               to="/prove"
               className="rounded-lg border border-line bg-surface px-6 py-3 font-semibold text-ink transition-colors hover:bg-elevated"

@@ -30,6 +30,12 @@ test('path dedupe: same-skill duplicates are pruned and progress is merged', asy
     progress: { '1:css.practice': 2000 },
     days: [{ index: 0, items: [{ topic: 'css', practice: true }] }],
   });
+  await tb.store.insert('challenges', {
+    id: 'old-challenge',
+    pathId: oldPath.id,
+    skillSlug: 'web-development',
+    type: 'explain',
+  });
 
   const result = await cleanupDuplicateSkillPaths(tb.store, user.id);
 
@@ -42,4 +48,5 @@ test('path dedupe: same-skill duplicates are pruned and progress is merged', asy
   assert.equal(kept.progress['1:html.lesson'], 1000);
   assert.equal(kept.progress['1:css.practice'], 2000);
   assert.equal(tb.store.get('paths', oldPath.id), null);
+  assert.equal(tb.store.get('challenges', 'old-challenge').pathId, newPath.id);
 });
