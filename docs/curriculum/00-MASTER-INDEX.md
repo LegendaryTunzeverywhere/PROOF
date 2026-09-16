@@ -31,19 +31,19 @@
 
 Every skill follows the same proven structure:
 
-### **Level 1: Absolute Beginner** (7-9 lessons, ~3.5 hours)
+### **Level 1: Absolute Beginner** (7 lessons, ~3.5 hours)
 - Assumes ZERO prior knowledge
 - One concept per lesson
 - Heavy scaffolding and examples
 - Basic challenges (20-30 min each)
 
-### **Level 2: Beginner** (8-9 lessons, ~4 hours)
+### **Level 2: Beginner** (8 lessons, ~4 hours)
 - Builds on Level 1 foundations
 - Combines multiple concepts
 - Real-world applications
 - Intermediate challenges (30-40 min each)
 
-### **Level 3: Intermediate** (7-9 lessons, ~4.5 hours)
+### **Level 3: Intermediate** (7 lessons, ~3.8 hours)
 - Professional-level application
 - Complex problem-solving
 - Industry-standard practices

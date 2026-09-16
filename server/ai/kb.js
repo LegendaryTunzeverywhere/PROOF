@@ -344,6 +344,110 @@ export const KB = {
           evaluator: { type: 'html', config: { required: ['nav', 'article', 'footer', 'h1', 'img'], needViewport: true, needLang: true, needAlt: true, minNavLinks: 3, minMediaQueries: 1, wantFluidUnits: true, minCards: 3, minCssProps: 12 } },
         },
       },
+      {
+        slug: 'forms-and-validation', title: 'Forms & Validation', estMin: 30, difficulty: 2,
+        lesson: {
+          tldr: 'Forms are how users send information. Clear labels, sensible validation, and helpful error states make them usable instead of frustrating.',
+          sections: [
+            { h: 'Inputs & labels', body: 'Every field should have a label and a clear name. input types (text, email, password, number) tell the browser the right keyboard and validation rules.' },
+            { h: 'Validation', body: 'Use required, pattern, minLength, and input types to catch common errors before submission. Good validation is early and specific.' },
+            { h: 'Error states', body: 'A user should know what went wrong and how to fix it. Error copy should say what is missing rather than only saying “invalid.”' },
+          ],
+          example: { lang: 'html', code: '<form novalidate>\n  <label for="email">Email</label>\n  <input id="email" type="email" required>\n  <button type="submit">Join</button>\n</form>' },
+          ask: 'What is the difference between a placeholder and a label in a form?',
+          keyPoints: ['Labels are for accessibility and clarity', 'Validation should be proactive and specific', 'Good forms reduce friction instead of adding surprise', 'Error copy should guide the fix'],
+          misconception: '“If the input works, the form is done.” Real forms fail gracefully when data is missing or misformatted.',
+        },
+        practice: [
+          { q: 'What does the email input type do automatically?', choices: ['Only changes color', 'Shows a numeric keypad', 'Provides email validation and keyboard hints', 'Disables submission forever'], answerIdx: 2, hint: 'Browser-level rules.', why: 'type="email" encourages valid input and helps browsers validate it.' },
+          { q: 'A label should be…', choices: ['hidden with CSS', 'visible and associated with the field', 'a placeholder only', 'omitted for accessibility'], answerIdx: 1, hint: 'Think usability.', why: 'Visible labels are essential for accessibility and clarity.' },
+        ],
+        challenge: {
+          type: 'html', kind: 'checkpoint', title: 'Build a validated contact form', timeMin: 30,
+          brief: 'Create a simple contact form with name, email, and message fields. Add clear labels, required validation, and one helpful error or empty-state message. Keep the layout clean and mobile-friendly.',
+          requirements: ['label for every field', 'required validation', 'email field with proper type', 'clear error/empty-state copy', 'mobile layout'],
+          passScore: 70, rewardNim: 2, xp: 110,
+          evaluator: { type: 'html', config: { required: ['label', 'input', 'button', 'form'], needLang: true, needViewport: true, minInputs: 3, minNavLinks: 1 } },
+        },
+      },
+      {
+        slug: 'css-grid-layout', title: 'CSS Grid Layout', estMin: 35, difficulty: 2,
+        lesson: {
+          tldr: 'CSS Grid is the modern tool for two-dimensional layouts: rows and columns, predictable spacing, and flexible content areas.',
+          sections: [
+            { h: 'Grid basics', body: 'display: grid creates a 2D layout. grid-template-columns and grid-template-rows decide the structure; gap controls spacing between cells.' },
+            { h: 'Placement', body: 'Items can span multiple columns or rows with grid-column and grid-row, which makes header, sidebar, and content layouts easy to reason about.' },
+            { h: 'Responsive by design', body: 'Grid works beautifully with media queries: one column on mobile, multiple on larger screens, while the content order stays logical.' },
+          ],
+          example: { lang: 'css', code: '.layout {\n  display: grid;\n  grid-template-columns: 1fr;\n  gap: 1rem;\n}\n\n@media (min-width: 700px) {\n  .layout {\n    grid-template-columns: 240px 1fr;\n  }\n}' },
+          ask: 'When do you choose Grid instead of Flexbox?',
+          keyPoints: ['Grid handles 2D layout', 'Flexbox is best for one axis', 'Responsive layouts become easier to reason about', 'Spacing and alignment are predictable'],
+          misconception: '“Grid replaces Flexbox.” They solve different problems: Grid for layouts, Flexbox for spacing and alignment inside a region.',
+        },
+        practice: [
+          { q: 'What type of layout is Grid best at?', choices: ['One-dimensional lists only', 'Two-dimensional page structure', 'Text color only', 'Form field layout only'], answerIdx: 1, hint: 'Rows + columns.', why: 'Grid handles both axes at once.' },
+          { q: 'Which property defines columns?', choices: ['justify-content', 'grid-template-columns', 'padding', 'margin'], answerIdx: 1, hint: 'Think structure.', why: 'grid-template-columns controls the number and size of columns.' },
+        ],
+        challenge: {
+          type: 'html', kind: 'checkpoint', title: 'Make a responsive grid landing page', timeMin: 35,
+          brief: 'Design a small landing page using CSS Grid for the main page structure and card layout. It should collapse to one column on mobile and expand to a richer multi-column layout on larger screens.',
+          requirements: ['grid-based main layout', 'at least 3 cards or content blocks', 'mobile-first responsive behavior', 'clear spacing and alignment'],
+          passScore: 70, rewardNim: 2, xp: 120,
+          evaluator: { type: 'html', config: { required: ['grid', 'card', 'header', 'main'], needViewport: true, wantFlexOrGrid: true, minCards: 3 } },
+        },
+      },
+      {
+        slug: 'accessibility-essentials', title: 'Accessibility Essentials', estMin: 30, difficulty: 2,
+        lesson: {
+          tldr: 'Accessible design is not a bonus layer — it is part of good product quality. Clear structure, contrast, and keyboard support help everyone.',
+          sections: [
+            { h: 'Semantics', body: 'Use semantic HTML like header, main, nav, button, and label. Screen readers rely on those meanings much more than on visual style.' },
+            { h: 'Focus & keyboard', body: 'Every interactive element should be usable without a mouse. Focus rings and logical tab order are part of accessibility, not decoration.' },
+            { h: 'Contrast & language', body: 'Readable contrast and clear language matter. Use color thoughtfully, provide alt text, and write instructions unambiguously.' },
+          ],
+          example: { lang: 'html', code: '<button aria-label="Close dialog">✕</button>\n<nav aria-label="Main navigation">...</nav>' },
+          ask: 'Why is a button element better than a div with a click handler?',
+          keyPoints: ['Semantic HTML improves screen reader support', 'Keyboard access is essential', 'Good contrast and labels are part of quality', 'Accessible design is easier for everyone'],
+          misconception: '“Accessibility is for edge cases.” It matters on the everyday path, not only for special situations.',
+        },
+        practice: [
+          { q: 'Why is alt text important?', choices: ['It is only for SEO', 'It helps screen-reader users understand images', 'It makes all images larger', 'It is optional'], answerIdx: 1, hint: 'Think access.', why: 'Alt text conveys the meaning of informative images to non-visual users.' },
+          { q: 'A focus ring is…', choices: ['purely decorative', 'a keyboard navigation aid', 'not relevant to web design', 'a color-only cue'], answerIdx: 1, hint: 'Keyboard users need it.', why: 'Visible focus helps keyboard users know where they are.' },
+        ],
+        challenge: {
+          type: 'html', kind: 'checkpoint', title: 'Audit an accessible page', timeMin: 30,
+          brief: 'Review a small page and explain how it could be improved for accessibility. Identify at least 3 issues and propose concrete fixes using semantic HTML, focus styling, and better labels or contrast. ',
+          requirements: ['at least 3 accessibility issues', 'concrete fixes', 'mentions keyboard access or labels', 'clear rationale'],
+          passScore: 70, rewardNim: 2, xp: 120,
+          evaluator: { type: 'text', config: { minWords: 120, keyConcepts: ['alt', 'label', 'focus', 'contrast', 'keyboard', 'semantic', 'screen reader'], keyConceptRatio: 0.5 } },
+        },
+      },
+      {
+        slug: 'debugging-devtools', title: 'Debugging with DevTools', estMin: 35, difficulty: 3,
+        lesson: {
+          tldr: 'Browsers expose the debugging toolkit you need: the Elements panel, console, and network tab. Learn to read them and most bugs become obvious.',
+          sections: [
+            { h: 'Console & errors', body: 'The console shows runtime errors, warnings, and values. reading the stack trace usually points to the exact statement that failed.' },
+            { h: 'Elements & computed styles', body: 'Inspect HTML and CSS live. A wrong margin, missing class, or collapsed layout often shows up instantly in the Elements panel.' },
+            { h: 'Network & performance', body: 'Check if API requests fail, slow down, or return unexpected data. The network tab is where broken frontends often reveal their truth.' },
+          ],
+          example: { lang: 'text', code: 'Open DevTools → Console: look for TypeError or Uncaught ReferenceError. Then inspect the element and see if the class or CSS selector actually exists.' },
+          ask: 'When a button does nothing, what is the first debugging tool you open?',
+          keyPoints: ['Read the console before guessing', 'Inspect the DOM and styles live', 'Use the network tab for broken requests', 'A small reproducible bug is easier to fix'],
+          misconception: '“It must be the browser.” More often it is a selector mismatch, a missing class, or a failed fetch.',
+        },
+        practice: [
+          { q: 'Which panel usually reveals a failed API request?', choices: ['Memory', 'Network', 'Application', 'Search'], answerIdx: 1, hint: 'Requests and responses.', why: 'The Network tab shows what was requested and what came back.' },
+          { q: 'If a script throws a TypeError, where do you look first?', choices: ['Console', 'Theme editor', 'CSS reset', 'Server logs only'], answerIdx: 0, hint: 'Errors appear there.', why: 'The Console usually contains the exact message and stack trace.' },
+        ],
+        challenge: {
+          type: 'text', kind: 'checkpoint', title: 'Diagnose a broken web page', timeMin: 35,
+          brief: 'Describe a realistic debugging workflow for a page that loads but has a button that does nothing. State what you would check in the console, Elements panel, and Network tab, and how you would verify the fix.',
+          requirements: ['console check named', 'elements/style check named', 'network request check named', 'verification steps included'],
+          passScore: 70, rewardNim: 3, xp: 140,
+          evaluator: { type: 'text', config: { minWords: 120, keyConcepts: ['console', 'element', 'network', 'error', 'selector', 'request', 'debug'], keyConceptRatio: 0.5 } },
+        },
+      },
     ],
     finalAssessment: {
       type: 'html', kind: 'final', title: 'Final Skill Assessment: Full Landing Experience', timeMin: 45,

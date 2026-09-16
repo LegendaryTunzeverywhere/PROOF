@@ -1,10 +1,9 @@
 /**
- * Chess Curriculum - Complete skill with 22 topics
- * 
- * Comprehensive chess training from absolute beginner to intermediate level,
- * covering fundamentals, tactics, openings, endgames, and strategic play.
- * 
- * Integration: Import and merge into KB in kb.js
+ * DEPRECATED: This file is not the source of truth for chess.
+ *
+ * The live curriculum lives in server/ai/kb.js under the 'chess' skill entry.
+ * This duplicate is intentionally unreferenced and should not be edited or used
+ * for new curriculum work. It remains only as a historical artifact.
  */
 
 export const CHESS_SKILL = {

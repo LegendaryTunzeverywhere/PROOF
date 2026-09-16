@@ -427,61 +427,62 @@ rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 ```
 
 ### Backend Integration Points
-- `server/ai/kb.js` - Curriculum content
-- `server/ai/evaluators/chess.js` - Challenge evaluation (to be implemented)
-- `server/ai/engine.js` - Skill recommendations
-- `server/seed.js` - Popularity weighting
+- `server/ai/kb.js` - Live curriculum content and skill entry
+- `server/ai/evaluators.js` - Live chess grading logic (`evalChess`, `evalChessBoardProof`, etc.)
+- `server/ai/utils/chess.js` - FEN/PGN parsing and move validation
+- `server/ai/services/stockfish.js` - Stockfish verification for puzzle and analysis flows
+- `web-react/src/components/chess/` - Interactive board UI components
+- `database/chess-tables.sql` and `database/chess-seed-puzzles.sql` - schema and puzzle data
 
 ---
 
 ## Status & Roadmap
 
-### ✅ Phase 1: Complete (Current)
-- [x] All 22 topics with comprehensive content
-- [x] 44 practice questions
-- [x] 66 quiz questions  
-- [x] 22 challenge specifications
-- [x] Final assessment
-- [x] Integration with kb.js
-- [x] Popularity and demand ranking
-- [x] Documentation
+### ✅ Production Status: Live and Wired End-to-End
+- [x] All 22 topics with comprehensive content in `server/ai/kb.js`
+- [x] 44 practice questions and 66 quiz questions
+- [x] 22 challenge specifications with evaluator configs
+- [x] Final assessment and reward structure
+- [x] Chess evaluator implementation in `server/ai/evaluators.js`
+- [x] FEN/PGN utilities in `server/ai/utils/chess.js`
+- [x] Stockfish verification integration in `server/ai/services/stockfish.js`
+- [x] Interactive board UI in `web-react/src/components/chess/`
+- [x] Board-proof replay validation, server-side anti-cheat grading
+- [x] Documentation and curriculum indexing
 
-### 🔄 Phase 2: In Development
-- [ ] Chess evaluator implementation (`server/ai/evaluators/chess.js`)
-- [ ] Chess King component integration
-- [ ] Stockfish engine connection
-- [ ] FEN/PGN parser utilities
-- [ ] Interactive board UI components
-- [ ] Puzzle database seeding
+### 📌 Implementation Notes
+- The source of truth is the live chess entry in `server/ai/kb.js`; the stale duplicate at `server/ai/curriculum/chess.js` is not imported or used.
+- This curriculum is already complete for beginner-to-intermediate chess instruction and is not awaiting a new backend implementation.
+- Future enhancements remain optional, but they are not required to make the curriculum functional.
 
-### 📋 Phase 3: Planned
-- [ ] AI coaching integration (move suggestions, pattern recognition)
-- [ ] Live game analysis
-- [ ] Opening repertoire builder
-- [ ] Spaced repetition system
-- [ ] Multiplayer functionality
-- [ ] Tournament system
+### 🧭 Future Enhancements (Optional)
+- [ ] AI coaching refinements (move suggestions, pattern recognition)
+- [ ] Expanded opening repertoires and deeper advanced lines
+- [ ] More tournament and analysis scenarios
+- [ ] Additional puzzle packs and spaced-repetition practice
+- [ ] Multiplayer or leaderboard extensions
 
 ---
 
 ## Maintenance
 
-**Last Updated:** 2026-09-11  
-**Content Version:** 1.0.0  
-**Status:** Complete - Ready for Phase 2 Implementation
+**Last Updated:** 2026-09-16  
+**Content Version:** 1.1.0  
+**Status:** Complete - Live and wired in production
 
 **Key Files:**
-- Content: `server/ai/kb.js` (lines ~1900-3800)
+- Content: `server/ai/kb.js` (chess skill block)
+- Evaluator: `server/ai/evaluators.js`
+- Move/board utilities: `server/ai/utils/chess.js`
+- Engine verification: `server/ai/services/stockfish.js`
+- UI: `web-react/src/components/chess/`
 - Documentation: `docs/curriculum/14-CHESS.md`
 - Master Index: `docs/curriculum/00-MASTER-INDEX.md`
 
-**Next Steps:**
-1. Implement chess evaluator backend
-2. Integrate Chess King UI components
-3. Connect Stockfish for position analysis
-4. Test end-to-end user flow
-5. Seed initial puzzle database
-6. Launch Phase 2 features
+**Operational Note:**
+1. Keep `server/ai/kb.js` as the only authoritative source for chess lessons.
+2. Treat any duplicate curriculum file under `server/ai/curriculum/` as deprecated unless explicitly reintroduced.
+3. Continue to validate challenge flows server-side using the board-proof replay evaluators.
 
 ---
 

@@ -5,7 +5,7 @@
 ### ✅ **Fully Developed Courses**
 
 #### 1. **Web Development** 💻
-**Status**: Complete Basic → Intermediate
+**Status**: Partial — live starter course, not yet complete to 25-lesson target
 - ✅ HTML Fundamentals (25 min) - Semantic structure, tags, accessibility
 - ✅ CSS Fundamentals (30 min) - Selectors, box model, flex/grid
 - ✅ Responsive Layout (30 min) - Mobile-first, media queries, fluid units
@@ -13,8 +13,9 @@
 - ✅ The DOM & Events (30 min) - querySelector, addEventListener, forms
 - ✅ Working with APIs (30 min) - fetch, async/await, JSON
 - ✅ Final Assessment - Full landing page with interactive features
+- ⚠️ Missing core expansion topics: forms + validation, CSS Grid, accessibility audit, browser DevTools debugging
 
-**Progression**: Basic → Intermediate → Final Project
+**Progression**: Basic → Intermediate → Final Project (still missing the full expansion tier)
 
 #### 2. **Python** 🐍
 **Status**: Complete Basic → Intermediate
