@@ -297,6 +297,51 @@
   }
 }
 
+@keyframes proof-card-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+    filter: blur(3px);
+  }
+  65% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.01);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes proof-icon-bump {
+  0% {
+    transform: scale(0.8) rotate(-8deg);
+  }
+  55% {
+    transform: scale(1.12) rotate(4deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.proof-result-card {
+  animation: proof-card-pop 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.proof-result-icon {
+  animation: proof-icon-bump 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .proof-result-card,
+  .proof-result-icon {
+    animation: none !important;
+  }
+}
+
 @keyframes bell-ring {
   0%, 100% {
     transform: rotate(0deg);

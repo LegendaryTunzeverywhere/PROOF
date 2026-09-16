@@ -10,7 +10,7 @@
  *  - duplicate-content hash check per user+challenge
  *  - daily rewarded-attempt / reward-amount caps (RewardService)
  */
-import { uid, now, clamp } from '../util.js';
+import { uid, now, clamp, shortTxRef } from '../util.js';
 import { EvaluationService } from './evaluation.js';
 import { dailyChallengeFor } from '../ai/engine.js';
 import { Chess } from 'chess.js';
@@ -469,7 +469,7 @@ export class ChallengeService {
         this.notify.push(userId, {
           type: 'payout_sent', emoji: '💸',
           title: 'NIM sent to your connected wallet',
-          body: `${rewardResult.amountNim} NIM sent · transaction ${ref.slice(0, 8)}…${ref.slice(-8)}`,
+          body: `${rewardResult.amountNim} NIM sent · ${shortTxRef(ref)}`,
           href: `https://nimiq.watch/#${ref}`,
         });
       }

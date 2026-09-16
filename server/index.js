@@ -19,7 +19,8 @@ import { MarketplaceService } from './services/marketplace.js';
 import { TeachingService } from './services/teaching.js';
 import { generateLearningPath, generateLesson, recommendNextSkill, tutorReply, detectDomain } from './ai/service.js';
 import { createCurriculumFromDocument, getUserDocumentCurricula, getDocumentCurriculum, documentTutorReply } from './services/document-curriculum.js';
-import { uid, now, toNim, escapeHtml, RateLimiter, looksLikeNimiqAddress, normalizeNimiqAddress, nimiqAddressFromPublicKey, validate, parseNumber, hmac, kindIncludesReward } from './util.js';
+import { cleanupDuplicateSkillPaths } from './services/path-dedupe.js';
+import { uid, now, toNim, escapeHtml, RateLimiter, looksLikeNimiqAddress, normalizeNimiqAddress, nimiqAddressFromPublicKey, validate, parseNumber, hmac, kindIncludesReward, shortTxRef } from './util.js';
 import * as stockfish from './ai/services/stockfish.js';
 import multer from 'multer';
 
@@ -76,6 +77,8 @@ const payoutRetryTimer = setInterval(() => {
   rewards.retryPendingPayouts().catch((error) => console.error('[rewards] retry worker failed:', error.message));
 }, 60_000);
 payoutRetryTimer.unref?.();
+
+await cleanupDuplicateSkillPaths(store).catch((error) => console.error('[paths] cleanup failed at startup:', error.message));
 
 /* ── Multer setup for document uploads ── */
 const upload = multer({
@@ -342,16 +345,18 @@ async function publicMe(user) {
   };
   const unreadNotifications = await notifications.unreadCount(user.id);
   const walletBalanceNim = await connectedWalletBalance(current);
-  const recentTransactions = (await rewards.txHistory(current.id, 8)).map((transaction) => ({
-    id: transaction.id,
-    kind: transaction.kind,
-    direction: transaction.direction,
-    amountNim: toNim(transaction.amountLuna),
-    status: transaction.status,
-    note: transaction.note,
-    ref: transaction.ref || null,
-    createdAt: transaction.createdAt,
-  }));
+  const recentTransactions = (await rewards.txHistory(current.id, 8))
+    .filter((transaction) => !(transaction.kind === 'payout' && transaction.direction === 'debit'))
+    .map((transaction) => ({
+      id: transaction.id,
+      kind: transaction.kind,
+      direction: transaction.direction,
+      amountNim: toNim(transaction.amountLuna),
+      status: transaction.status,
+      note: transaction.note || (transaction.kind === 'payout' ? 'Wallet payout' : 'Transaction'),
+      ref: transaction.ref || null,
+      createdAt: transaction.createdAt,
+    }));
   const verifiedSkillCount = (await skills.userSkills(current.id)).filter((skill) => skill.verified === true).length;
   return {
     id: current.id, username: current.username, avatar: current.avatar,
@@ -693,6 +698,8 @@ route('POST', '/api/paths', async (ctx) => {
     return json(res, 200, { path: await pathView(existingPath, user.id), generatedBy: 'cached', isDuplicate: true });
   }
 
+  await cleanupDuplicateSkillPaths(store, user.id).catch((error) => console.error('[paths] cleanup failed during create check:', error.message));
+
   // Rate limit only requests that will actually invoke path generation.
   if (limiter.allow('paths:' + user.id, 5, 300_000) !== true)
     throw httpError(429, 'RATE_LIMITED', 'Path generation limit reached. Wait 5 minutes before creating another path.');
@@ -763,9 +770,8 @@ route('POST', '/api/paths', async (ctx) => {
 
 route('GET', '/api/paths', async (ctx) => {
   const { user, res } = ctx;
+  await cleanupDuplicateSkillPaths(store, user.id).catch((error) => console.error('[paths] cleanup failed during list load:', error.message));
   const filtered = await store.filter('paths', (p) => p.userId === user.id);
-  // Keep every path. A user can intentionally have multiple paths for one
-  // skill, and loading the list must never delete older learning history.
   const sorted = filtered.sort((a, b) => b.createdAt - a.createdAt);
   const mine = await Promise.all(sorted.map((p) => pathView(p, user.id)));
   json(res, 200, { paths: mine });
@@ -1647,7 +1653,7 @@ route('POST', '/api/wallet/payout', async (ctx) => {
     type: 'payout_sent',
     emoji: '💸',
     title: 'NIM payout sent',
-    body: `${amountNim} NIM was sent to your connected wallet${tx.ref ? ` · transaction ${tx.ref}` : ''}.`,
+    body: `${amountNim} NIM was sent to your wallet${tx.ref ? ` · ${shortTxRef(tx.ref)}` : ''}.`,
     href: '#/profile',
   });
   json(res, 201, { tx: { ...tx, amountNim: toNim(tx.amountLuna) } });
@@ -1731,7 +1737,7 @@ route('POST', '/api/rewards/daily/claim', async (ctx) => {
     const ref = result.payout.ref;
     notifications.push(user.id, {
       type: 'payout_sent', emoji: '💸', title: 'Daily NIM sent to your connected wallet',
-      body: `${result.amountNim} NIM sent · transaction ${ref.slice(0, 8)}…${ref.slice(-8)}`,
+      body: `${result.amountNim} NIM sent · ${shortTxRef(ref)}`,
       href: `https://nimiq.watch/#${ref}`,
     });
   }

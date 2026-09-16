@@ -192,8 +192,8 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
           </Link>
         </div>
 
-        <div className={`rounded-2xl border p-8 text-center ${passed ? 'border-ok bg-ok-soft' : 'border-warn bg-warn-soft'}`}>
-          <div className={`mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl ${passed ? 'bg-ok/15 text-ok' : 'bg-warn/15 text-warn'}`}>
+        <div className={`proof-result-card rounded-2xl border p-8 text-center ${passed ? 'border-ok bg-ok-soft' : 'border-warn bg-warn-soft'}`}>
+          <div className={`proof-result-icon mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl ${passed ? 'bg-ok/15 text-ok' : 'bg-warn/15 text-warn'}`}>
             {passed ? <CheckIcon className="h-8 w-8" /> : <ProveIcon className="h-8 w-8" />}
           </div>
           <h2 className={`text-2xl font-bold ${passed ? 'text-ok' : 'text-warn'}`}>
