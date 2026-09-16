@@ -40,6 +40,7 @@ const SettingsPage = lazy(() => import("@/pages/SettingsPage").then(m => ({ defa
 const OnboardingPage = lazy(() => import("@/pages/OnboardingPage").then(m => ({ default: m.OnboardingPage })));
 const PrivacyPage = lazy(() => import("@/pages/PrivacyPage").then(m => ({ default: m.PrivacyPage })));
 const TermsPage = lazy(() => import("@/pages/TermsPage").then(m => ({ default: m.TermsPage })));
+const RewardsPage = lazy(() => import("@/pages/RewardsPage").then(m => ({ default: m.RewardsPage })));
 const AdminDashboard = lazy(() => import("@/pages/AdminDashboard").then(m => ({ default: m.AdminDashboard })));
 
 function ProtectedRoutes() {
@@ -131,6 +132,7 @@ function ProtectedRoutes() {
                   <Route path="/admin" element={<AdminDashboard />} />
                   <Route path="/privacy" element={<PrivacyPage />} />
                   <Route path="/terms" element={<TermsPage />} />
+                  <Route path="/rewards" element={<RewardsPage />} />
                   <Route path="*" element={<Navigate to="/home" replace />} />
                 </Routes>
               </Suspense>
@@ -141,13 +143,23 @@ function ProtectedRoutes() {
             <p>© {new Date().getFullYear()} Proof Labs — learn, prove, earn.</p>
             <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-5 gap-y-2">
               {[
-                { label: "Docs", to: "#" },
-                { label: "Community", to: "#" },
-                { label: "Rewards", to: "#" },
+                { label: "Docs", to: "https://github.com/LegendaryTunzeverywhere/PROOF#readme", external: true },
+                { label: "Community", to: "https://t.me/Proof_on_nimiq", external: true },
+                { label: "Rewards", to: "/rewards" },
                 { label: "Privacy", to: "/privacy" },
                 { label: "Terms", to: "/terms" },
               ].map((link) => (
-                link.to.startsWith('#') ? (
+                link.external ? (
+                  <a
+                    key={link.label}
+                    href={link.to}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-muted transition-colors hover:text-ink"
+                  >
+                    {link.label}
+                  </a>
+                ) : link.to.startsWith('#') ? (
                   <button
                     key={link.label}
                     onClick={(e) => { e.preventDefault(); }}

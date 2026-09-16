@@ -105,8 +105,8 @@ export function PrivacyPage() {
             <h2 className="mb-3 text-2xl font-bold text-ink">Contact Us</h2>
             <p className="text-base leading-relaxed text-muted">
               If you have questions about this Privacy Policy or how we handle your data, please contact us at:{' '}
-              <a href="mailto:legendarytunz@gmail.com" className="font-semibold text-brand hover:underline">
-                legendarytunz@gmail.com
+              <a href="mailto:registration@nimagent.online?subject=PROOF%20privacy%20question" className="font-semibold text-brand hover:underline">
+                registration@nimagent.online
               </a>
             </p>
           </section>

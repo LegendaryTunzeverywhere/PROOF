@@ -309,11 +309,16 @@ export function SettingsPage() {
             <div className="border-t border-line pt-4">
               <p className="text-sm text-muted">
                 {t.settings.help}{' '}
-                <a href="#" className="font-medium text-brand hover:underline">
+                <a
+                  href="https://github.com/LegendaryTunzeverywhere/PROOF#documentation"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-brand hover:underline"
+                >
                   {t.settings.documentation}
                 </a>{' '}
                 {t.settings.or}{' '}
-                <a href="#" className="font-medium text-brand hover:underline">
+                <a href="mailto:registration@nimagent.online?subject=PROOF%20support%20request" className="font-medium text-brand hover:underline">
                   {t.settings.contactSupport}
                 </a>
                 .
@@ -345,7 +350,7 @@ export function SettingsPage() {
                 {t.settings.terms}
               </Link>
               <span>·</span>
-              <a href="mailto:legendarytunz@gmail.com" className="font-medium text-brand hover:underline">
+              <a href="mailto:registration@nimagent.online" className="font-medium text-brand hover:underline">
                 {t.settings.dataExport}
               </a>
             </div>
