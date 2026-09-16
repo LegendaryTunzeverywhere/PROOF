@@ -662,10 +662,6 @@ async function discoveryFeed(userId) {
 /* ── PATHS ─────────────────────────────────────────────────────────── */
 route('POST', '/api/paths', async (ctx) => {
   const { user, body, req, res } = ctx;
-  // Rate limit: path generation is AI-expensive
-  if (limiter.allow('paths:' + user.id, 5, 300_000) !== true)
-    throw httpError(429, 'RATE_LIMITED', 'Path generation limit reached. Wait 5 minutes before creating another path.');
-  
   // Validate goal
   const goalErrs = validate(body, { type: 'object', required: ['goal'], props: { goal: { type: 'string', min: 3, max: 240 } } });
   if (goalErrs.length) throw httpError(400, 'BAD_INPUT', 'Tell us what you want to learn (at least 3 characters).');
@@ -682,25 +678,24 @@ route('POST', '/api/paths', async (ctx) => {
     throw httpError(400, 'BAD_INPUT', 'Invalid skill domain format');
   }
   
-  // Check for duplicate: if a path with the same goal was created in the last 2 minutes, return it
-  const twoMinutesAgo = now() - 120_000;
-  const recentPaths = await store.filter('paths', (p) => 
+  // One active path per skill keeps progress and history in one place. Return
+  // the existing path so the client can open it and continue learning.
+  const existingPaths = await store.filter('paths', (p) =>
     p.userId === user.id && 
-    p.createdAt > twoMinutesAgo &&
     (
-      // Exact goal match
       p.goal === goal ||
-      // Or same domain/skill
       (domain && p.skillSlug === domain)
     )
   );
-  
-  if (recentPaths.length > 0) {
-    // Sort by creation time, return the most recent
-    const existingPath = recentPaths.sort((a, b) => b.createdAt - a.createdAt)[0];
-    console.log(`[DEDUP] Returning existing path ${existingPath.id} created ${Math.round((now() - existingPath.createdAt) / 1000)}s ago for user ${user.id}`);
+  if (existingPaths.length > 0) {
+    const existingPath = existingPaths.sort((a, b) => b.createdAt - a.createdAt)[0];
+    console.log(`[DEDUP] Returning existing path ${existingPath.id} for user ${user.id}`);
     return json(res, 200, { path: await pathView(existingPath, user.id), generatedBy: 'cached', isDuplicate: true });
   }
+
+  // Rate limit only requests that will actually invoke path generation.
+  if (limiter.allow('paths:' + user.id, 5, 300_000) !== true)
+    throw httpError(429, 'RATE_LIMITED', 'Path generation limit reached. Wait 5 minutes before creating another path.');
   
   const gen = await generateLearningPath({
     goal: goal,
@@ -715,6 +710,14 @@ route('POST', '/api/paths', async (ctx) => {
   // crash the route with a cryptic TypeError after we already inserted a row.
   if (!gen.days.every((d) => d && Array.isArray(d.items) && d.items.every((i) => i && i.topic)))
     throw httpError(502, 'PATH_GENERATION_FAILED', 'Generated path was malformed — try again in a minute.');
+
+  const generatedSkillPath = (await store.filter('paths', (p) =>
+    p.userId === user.id && p.skillSlug === gen.skillSlug
+  )).sort((a, b) => b.createdAt - a.createdAt)[0];
+  if (generatedSkillPath) {
+    console.log(`[DEDUP] Returning existing generated-skill path ${generatedSkillPath.id} for user ${user.id}`);
+    return json(res, 200, { path: await pathView(generatedSkillPath, user.id), generatedBy: 'cached', isDuplicate: true });
+  }
 
   // persist path + create its proof challenges
   let pathRow;
