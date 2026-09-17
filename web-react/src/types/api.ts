@@ -273,6 +273,7 @@ export interface Badge {
 }
 
 export interface LeaderboardEntry {
+  userId?: string;
   rank: number;
   username: string;
   avatar: string;

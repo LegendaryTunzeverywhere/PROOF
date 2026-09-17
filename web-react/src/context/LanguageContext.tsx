@@ -3,6 +3,7 @@ import { translations, Language, languages } from '../i18n/translations';
 
 interface LanguageContextType {
   language: Language;
+  locale: string;
   setLanguage: (lang: Language) => void;
   t: typeof translations.en;
   flag: string;
@@ -33,6 +34,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const value: LanguageContextType = {
     language,
+    locale: `${language}-` + (language === 'en' ? 'US' : language === 'es' ? 'ES' : language === 'fr' ? 'FR' : language === 'de' ? 'DE' : language === 'pt' ? 'PT' : 'CN'),
     setLanguage,
     t: translations[language],
     flag: languages[language].flag,

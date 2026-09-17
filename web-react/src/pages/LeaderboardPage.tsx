@@ -3,10 +3,12 @@ import { Reveal } from '../components/Reveal';
 import { TrophyIcon } from '../components/Icons';
 import { leaderboardService } from '../services/leaderboard.service';
 import type { LeaderboardEntry } from '../types/api';
+import { useLanguage } from '../context/LanguageContext';
 
 const PAGE_SIZE = 10;
 
 export function LeaderboardPage() {
+  const { t } = useLanguage();
   const [category, setCategory] = useState('xp');
   const [page, setPage] = useState(1);
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
@@ -46,7 +48,7 @@ export function LeaderboardPage() {
     <div className="space-y-6">
       <Reveal>
         <div>
-          <h1 className="text-3xl font-bold text-ink">Leaderboard</h1>
+          <h1 className="text-3xl font-bold text-ink">{t.common.leaderboard}</h1>
           <p className="mt-2 text-base text-muted">See the community’s top proofers</p>
         </div>
       </Reveal>

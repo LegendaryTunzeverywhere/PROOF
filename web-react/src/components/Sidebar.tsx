@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { CloseIcon, LeafIcon } from "./Icons";
 import { useNavItems } from "@/hooks/useNavItems";
+import { useLanguage } from "@/context/LanguageContext";
 
 type Common = {
   isDark: boolean;
@@ -10,6 +11,7 @@ type Common = {
 
 function SidebarBody({ isDark, onToggleTheme }: Common) {
   const navItems = useNavItems();
+  const { t } = useLanguage();
 
   return (
     <>
@@ -79,13 +81,13 @@ function SidebarBody({ isDark, onToggleTheme }: Common) {
         <div className="flex items-center justify-between gap-3">
           <span className="flex items-center gap-2 text-[13px] font-medium text-ink-soft">
             <LeafIcon className="h-[15px] w-[15px] text-faint" />
-            Theme
+            {t.common.theme}
           </span>
           <button
             type="button"
             role="switch"
             aria-checked={isDark}
-            aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+            aria-label={isDark ? t.common.switchThemeToLight : t.common.switchThemeToDark}
             onClick={onToggleTheme}
             className={cn(
               "relative h-5 w-9 shrink-0 rounded-full transition-all duration-300",
