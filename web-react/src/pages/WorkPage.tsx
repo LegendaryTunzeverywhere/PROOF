@@ -3,6 +3,8 @@ import { PanelHeader } from '../components/PanelHeader';
 import { Reveal } from '../components/Reveal';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { getPageCopy } from '../i18n/pageCopy';
 import { marketplaceService } from '../services/marketplace.service';
 import { teachingService } from '../services/teaching.service';
 import { challengesService } from '../services/challenges.service';
@@ -14,6 +16,8 @@ type Tab = 'work' | 'teach' | 'sponsored';
 
 export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
   const { user, loading: authLoading } = useAuth();
+  const { language } = useLanguage();
+  const copy = getPageCopy(language).work;
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [tasks, setTasks] = useState<MarketplaceTask[]>([]);
   const [sessions, setSessions] = useState<TeachingSession[]>([]);
@@ -98,7 +102,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
   if (!user) {
     return (
       <div className="rounded-2xl border border-line bg-surface p-8 text-center">
-        <p className="text-muted">Please log in to access the marketplace</p>
+        <p className="text-muted">{copy.login}</p>
       </div>
     );
   }
@@ -292,9 +296,9 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
 
       <Reveal>
         <div>
-          <h1 className="text-3xl font-bold text-ink">Marketplace</h1>
+          <h1 className="text-3xl font-bold text-ink">{copy.title}</h1>
           <p className="mt-2 text-base text-muted">
-            Find work, teach sessions, or join sponsored challenges
+            {copy.subtitle}
           </p>
         </div>
       </Reveal>
@@ -311,7 +315,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                 : 'bg-surface text-muted hover:bg-elevated hover:text-ink'
             }`}
           >
-            💼 Find Work
+            💼 {copy.findWork}
           </button>
           <button
             type="button"
@@ -322,7 +326,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                 : 'bg-surface text-muted hover:bg-elevated hover:text-ink'
             }`}
           >
-            🎓 Teach
+            🎓 {copy.teach}
           </button>
           <button
             type="button"
@@ -333,7 +337,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                 : 'bg-surface text-muted hover:bg-elevated hover:text-ink'
             }`}
           >
-            🏆 Sponsored
+            🏆 {copy.sponsored}
           </button>
         </div>
       </Reveal>
@@ -447,7 +451,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
               {/* Recommended Tasks */}
               <Reveal delay={0.15}>
                 <div className="space-y-4">
-                  <PanelHeader title="Recommended Tasks" subtitle="Based on your verified skills" />
+                  <PanelHeader title={copy.recommended} subtitle={copy.subtitle} />
 
                   {tasks.length > 0 ? (
                     <div className="space-y-3">
@@ -561,8 +565,8 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
               ) : (
                 <div className="rounded-2xl border border-line bg-surface p-8 text-center shadow-sm">
                   <div className="mb-2 text-4xl">💼</div>
-                  <h3 className="text-base font-semibold text-ink">No open tasks right now</h3>
-                  <p className="mt-1 text-sm text-muted">Check back soon for new opportunities</p>
+                  <h3 className="text-base font-semibold text-ink">{copy.noTasks}</h3>
+                  <p className="mt-1 text-sm text-muted">{copy.noTasksBody}</p>
                 </div>
               )}
             </div>

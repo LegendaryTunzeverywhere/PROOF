@@ -3,11 +3,15 @@ import { Link } from 'react-router-dom';
 import { PanelHeader } from '../components/PanelHeader';
 import { Reveal } from '../components/Reveal';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { getPageCopy } from '../i18n/pageCopy';
 import { reviewsService } from '../services/reviews.service';
 import type { Review } from '../types/api';
 
 export function ReviewsPage() {
   const { user, loading: authLoading } = useAuth();
+  const { language, t } = useLanguage();
+  const copy = getPageCopy(language).reviews;
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +51,7 @@ export function ReviewsPage() {
   if (!user) {
     return (
       <div className="rounded-2xl border border-line bg-surface p-8 text-center">
-        <p className="text-muted">Please log in to view your reviews</p>
+        <p className="text-muted">{copy.login}</p>
       </div>
     );
   }
@@ -55,13 +59,13 @@ export function ReviewsPage() {
   if (error) {
     return (
       <div className="rounded-2xl border border-bad bg-bad-soft p-8 text-center">
-        <p className="font-semibold text-bad">Failed to load reviews</p>
+        <p className="font-semibold text-bad">{copy.failed}</p>
         <p className="mt-2 text-sm text-bad">{error}</p>
         <button
           onClick={loadReviews}
           className="mt-4 rounded-lg bg-bad px-4 py-2 text-sm font-semibold text-white"
         >
-          Retry
+          {t.common.retry}
         </button>
       </div>
     );
@@ -78,9 +82,9 @@ export function ReviewsPage() {
     <div className="space-y-6">
       <Reveal>
         <div>
-          <h1 className="text-3xl font-bold text-ink">Reviews</h1>
+          <h1 className="text-3xl font-bold text-ink">{copy.title}</h1>
           <p className="mt-2 text-base text-muted">
-            Reinforce your knowledge with spaced repetition
+            {copy.subtitle}
           </p>
         </div>
       </Reveal>
@@ -93,23 +97,23 @@ export function ReviewsPage() {
               📚
             </div>
             <div className="flex-1">
-              <h2 className="text-lg font-bold text-ink">Your Review Queue</h2>
+              <h2 className="text-lg font-bold text-ink">{copy.queue}</h2>
               <p className="mt-1 text-sm text-muted">
-                {dueToday.length} due today · {reviews.length} total reviews
+                {dueToday.length} {copy.due} · {reviews.length} {copy.total}
               </p>
 
               <div className="mt-4 grid grid-cols-3 gap-3">
                 <div className="rounded-lg bg-ok-soft p-3 text-center">
                   <div className="text-xl font-bold text-ok">{masteredCount}</div>
-                  <div className="text-xs text-ok">Mastered</div>
+                  <div className="text-xs text-ok">{copy.mastered}</div>
                 </div>
                 <div className="rounded-lg bg-brand-soft p-3 text-center">
                   <div className="text-xl font-bold text-brand">{learningCount}</div>
-                  <div className="text-xs text-brand">Learning</div>
+                  <div className="text-xs text-brand">{copy.learning}</div>
                 </div>
                 <div className="rounded-lg bg-warn-soft p-3 text-center">
                   <div className="text-xl font-bold text-warn">{strugglingCount}</div>
-                  <div className="text-xs text-warn">Struggling</div>
+                  <div className="text-xs text-warn">{copy.struggling}</div>
                 </div>
               </div>
             </div>
@@ -121,7 +125,7 @@ export function ReviewsPage() {
       {dueToday.length > 0 ? (
         <Reveal delay={0.1}>
           <div className="space-y-4">
-            <PanelHeader title="Due Today" subtitle={`${dueToday.length} review${dueToday.length !== 1 ? 's' : ''} waiting`} />
+            <PanelHeader title={copy.dueToday} subtitle={`${dueToday.length} ${copy.review.toLowerCase()}`} />
 
             <div className="space-y-3">
               {dueToday.map((review) => {
@@ -153,7 +157,7 @@ export function ReviewsPage() {
                           <div className="mt-2 text-sm font-medium text-warn">⚠️ {daysOverdue}d overdue</div>
                         )}
                       </div>
-                      <div className="shrink-0 text-sm font-medium text-brand">Review →</div>
+                      <div className="shrink-0 text-sm font-medium text-brand">{copy.review} →</div>
                     </div>
                   </Link>
                 );
@@ -165,15 +169,15 @@ export function ReviewsPage() {
         <Reveal delay={0.1}>
           <div className="rounded-2xl border border-line bg-surface p-8 text-center shadow-sm">
             <div className="mb-3 text-4xl">✨</div>
-            <h3 className="text-lg font-semibold text-ink">All caught up!</h3>
+            <h3 className="text-lg font-semibold text-ink">{copy.allCaughtUp}</h3>
             <p className="mt-2 text-sm text-muted">
-              No reviews due today. Keep learning to add more topics to your review queue.
+              {copy.noDue}
             </p>
             <Link
               to="/learn"
               className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-deep"
             >
-              Continue Learning
+              {copy.continueLearning}
             </Link>
           </div>
         </Reveal>

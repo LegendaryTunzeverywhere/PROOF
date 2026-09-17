@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Reveal } from '../components/Reveal';
 import { searchService, type SearchResult } from '../services/search.service';
+import { useLanguage } from '../context/LanguageContext';
 
 const labels: Record<SearchResult['type'], string> = {
   skill: 'Skill',
@@ -11,6 +12,7 @@ const labels: Record<SearchResult['type'], string> = {
 };
 
 export function SearchPage() {
+  const { t } = useLanguage();
   const [params] = useSearchParams();
   const query = (params.get('q') || '').trim();
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -37,8 +39,8 @@ export function SearchPage() {
     <div className="mx-auto max-w-4xl space-y-6 py-2">
       <Reveal>
         <div>
-          <h1 className="text-3xl font-bold text-ink">Search</h1>
-          <p className="mt-2 text-base text-muted">{query ? <>Results for <span className="font-semibold text-ink">“{query}”</span></> : 'Search skills, your learning paths, and your proof history.'}</p>
+          <h1 className="text-3xl font-bold text-ink">{t.common.searchAria.split(',')[0]}</h1>
+          <p className="mt-2 text-base text-muted">{query ? <>Results for <span className="font-semibold text-ink">“{query}”</span></> : t.common.searchPlaceholder}</p>
         </div>
       </Reveal>
 
@@ -47,7 +49,7 @@ export function SearchPage() {
           {loading ? (
             <div className="flex items-center justify-center gap-3 p-10 text-sm text-muted"><span className="h-5 w-5 animate-spin rounded-full border-2 border-brand border-t-transparent" /> Searching…</div>
           ) : error ? (
-            <div className="p-8 text-center"><p className="text-bad">{error}</p><Link to="/home" className="mt-4 inline-flex text-sm font-semibold text-brand hover:text-brand-deep">Return home</Link></div>
+            <div className="p-8 text-center"><p className="text-bad">{error}</p><Link to="/home" className="mt-4 inline-flex text-sm font-semibold text-brand hover:text-brand-deep">{t.nav.home}</Link></div>
           ) : results.length ? (
             <ul className="divide-y divide-line">
               {results.map((result, index) => (

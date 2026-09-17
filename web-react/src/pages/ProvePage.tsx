@@ -11,6 +11,8 @@ import { TypeOnlyInput } from '../components/TypeOnlyInput';
 import { LanguageSpeechPractice } from '../components/LanguageSpeechPractice';
 import { ShareOnXButton } from '../components/ShareOnXButton';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { getPageCopy } from '../i18n/pageCopy';
 import { pathsService } from '../services/paths.service';
 import { challengesService } from '../services/challenges.service';
 import type { LearningPath, SponsoredChallenge, Challenge, Attempt } from '../types/api';
@@ -434,6 +436,8 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
 
 function ProveHubView() {
   const { user, loading: authLoading } = useAuth();
+  const { language, t } = useLanguage();
+  const copy = getPageCopy(language).prove;
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [sponsoredChallenges, setSponsoredChallenges] = useState<SponsoredChallenge[]>([]);
   const [loading, setLoading] = useState(true);
@@ -479,7 +483,7 @@ function ProveHubView() {
   if (!user) {
     return (
       <div className="rounded-2xl border border-line bg-surface p-8 text-center">
-        <p className="text-muted">Please log in to view proof challenges</p>
+        <p className="text-muted">{copy.login}</p>
       </div>
     );
   }
@@ -487,13 +491,13 @@ function ProveHubView() {
   if (error) {
     return (
       <div className="rounded-2xl border border-bad bg-bad-soft p-8 text-center">
-        <p className="font-semibold text-bad">Failed to load challenges</p>
+        <p className="font-semibold text-bad">{copy.failed}</p>
         <p className="mt-2 text-sm text-bad">{error}</p>
         <button
           onClick={loadProveData}
           className="mt-4 rounded-lg bg-bad px-4 py-2 text-sm font-semibold text-white"
         >
-          Retry
+          {t.common.retry}
         </button>
       </div>
     );
@@ -521,9 +525,9 @@ function ProveHubView() {
     <div className="space-y-6">
       <Reveal>
         <div>
-          <h1 className="text-3xl font-bold text-ink">Prove Your Skills</h1>
+          <h1 className="text-3xl font-bold text-ink">{copy.title}</h1>
           <p className="mt-2 text-base text-muted">
-            Complete proof challenges to verify your knowledge and earn NIM rewards
+            {copy.subtitle}
           </p>
         </div>
       </Reveal>
@@ -538,7 +542,7 @@ function ProveHubView() {
         <Reveal delay={0.1}>
           <div className="space-y-4">
             <PanelHeader 
-              title="Your Proof Checkpoints"
+              title={copy.checkpoints}
             />
 
             <div className="space-y-3">
@@ -593,7 +597,7 @@ function ProveHubView() {
                                   : 'bg-bad-soft text-bad'
                               }`}
                             >
-                            {isPassed ? 'Passed' : 'Scored'} {attempt.score}
+                            {isPassed ? copy.passed : copy.scored} {attempt.score}
                             </span>
                           )}
                         </div>
@@ -608,11 +612,11 @@ function ProveHubView() {
                                   : 'bg-ink text-surface shadow-[0_8px_18px_-12px_rgba(3,2,2,.62)] hover:-translate-y-0.5 hover:bg-brand active:translate-y-0'
                               }`}
                             >
-                              {isPassed ? 'Review proof' : isFailed ? 'Try again' : 'Begin proof'}
+                              {isPassed ? copy.review : isFailed ? copy.tryAgain : copy.begin}
                               {!isPassed && <ArrowRightIcon className="h-4 w-4" />}
                             </Link>
                           ) : (
-                            <span className="inline-flex h-10 items-center rounded-lg bg-elevated px-4 text-sm font-medium text-muted">Preparing proof…</span>
+                            <span className="inline-flex h-10 items-center rounded-lg bg-elevated px-4 text-sm font-medium text-muted">{copy.preparing}</span>
                           )}
                         </div>
                       </div>
@@ -630,15 +634,15 @@ function ProveHubView() {
         <Reveal delay={0.1}>
           <div className="rounded-2xl border border-line bg-surface p-8 text-center shadow-sm">
             <ProveIcon className="mx-auto mb-3 h-10 w-10 text-brand" />
-            <h3 className="text-lg font-semibold text-ink">No proofs queued yet</h3>
+            <h3 className="text-lg font-semibold text-ink">{copy.emptyTitle}</h3>
             <p className="mt-2 text-sm text-muted">
-              Start a learning path to unlock proof checkpoints
+              {copy.emptyBody}
             </p>
             <Link
               to="/learn"
               className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-deep"
             >
-              Browse Learning Paths
+              {copy.browse}
             </Link>
           </div>
         </Reveal>
@@ -648,8 +652,8 @@ function ProveHubView() {
       <Reveal delay={0.15}>
         <div className="space-y-4">
           <PanelHeader 
-            title="Sponsored Challenges"
-            action="View All"
+            title={copy.sponsored}
+            action={copy.viewAll}
           />
 
           {sponsoredChallenges.length > 0 ? (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Reveal } from '../components/Reveal';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { glossaryService } from '../services/glossary.service';
 import type { GlossaryTerm } from '../types/api';
 
@@ -8,6 +9,7 @@ type Level = 'all' | 'beginner' | 'intermediate' | 'expert';
 
 export function GlossaryPage() {
   const { user, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const [activeLevel, setActiveLevel] = useState<Level>('all');
   const [terms, setTerms] = useState<GlossaryTerm[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +81,7 @@ export function GlossaryPage() {
   if (!user) {
     return (
       <div className="rounded-2xl border border-line bg-surface p-8 text-center">
-        <p className="text-muted">Please log in to view your glossary</p>
+        <p className="text-muted">{t.nav.glossary}</p>
       </div>
     );
   }
@@ -87,7 +89,7 @@ export function GlossaryPage() {
   if (error) {
     return (
       <div className="rounded-2xl border border-bad bg-bad-soft p-8 text-center">
-        <p className="font-semibold text-bad">Failed to load glossary</p>
+        <p className="font-semibold text-bad">{t.common.error}</p>
         <p className="mt-2 text-sm text-bad">{error}</p>
         <button
           onClick={loadTerms}
@@ -132,7 +134,7 @@ export function GlossaryPage() {
       <Reveal>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-ink">Glossary</h1>
+            <h1 className="text-3xl font-bold text-ink">{t.nav.glossary}</h1>
             <p className="mt-2 text-base text-muted">
               Your personal vocabulary · {terms.length} terms
             </p>

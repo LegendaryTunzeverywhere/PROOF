@@ -11,12 +11,14 @@ import { DailyNimClaim } from '../components/DailyNimClaim';
 import { Reveal } from '../components/Reveal';
 import { PanelHeader } from '../components/PanelHeader';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { homeService } from '../services/home.service';
 import type { HomeResponse } from '../types/api';
 import { xpProgress } from '../lib/progression';
 
 export function HomePage() {
   const { user, loading: authLoading, updateUser } = useAuth();
+  const { t } = useLanguage();
   const [homeData, setHomeData] = useState<HomeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +59,7 @@ export function HomePage() {
   if (!user) {
     return (
       <div className="rounded-2xl border border-line bg-surface p-8 text-center">
-        <p className="text-muted">Please log in to view your dashboard</p>
+        <p className="text-muted">{t.home.pleaseLogin}</p>
       </div>
     );
   }
@@ -65,13 +67,13 @@ export function HomePage() {
   if (error || !homeData) {
     return (
       <div className="rounded-2xl border border-bad bg-bad-soft p-8 text-center">
-        <p className="font-semibold text-bad">Failed to load dashboard</p>
+        <p className="font-semibold text-bad">{t.home.failedToLoadDashboard}</p>
         <p className="mt-2 text-sm text-bad">{error}</p>
         <button
           onClick={loadHomeData}
           className="mt-4 rounded-lg bg-bad px-4 py-2 text-sm font-semibold text-white"
         >
-          Retry
+          {t.home.retry}
         </button>
       </div>
     );
@@ -107,7 +109,7 @@ export function HomePage() {
           {/* Your Progress Panel */}
           <Reveal delay={90}>
             <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
-              <PanelHeader title="Your Progress" action="Details" actionTo="/profile" />
+              <PanelHeader title={t.home.yourProgress} action={t.home.details} actionTo="/profile" />
               <div className="mt-4 flex items-center gap-4 sm:gap-5">
                 {/* Progress Ring */}
                 <div className="relative flex h-24 w-24 shrink-0 items-center justify-center">
@@ -141,7 +143,7 @@ export function HomePage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                     <div className="text-base font-semibold text-ink">Level {level}</div>
-                    <div className="text-sm font-semibold tabular-nums text-ink">{lifetimeXp.toLocaleString()} <span className="font-normal text-muted">XP total</span></div>
+                    <div className="text-sm font-semibold tabular-nums text-ink">{lifetimeXp.toLocaleString()} <span className="font-normal text-muted">{t.home.xpTotal}</span></div>
                   </div>
                   <div className="mt-1.5 text-sm text-muted">
                     {xpToNextLevel.toLocaleString()} XP to Level {level + 1}
@@ -186,11 +188,11 @@ export function HomePage() {
           {/* Community Discovery Panel */}
           <Reveal delay={140}>
             <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
-              <PanelHeader title="Alive on PROOF" action="Leaderboard" actionTo="/leaderboard" />
+              <PanelHeader title={t.home.aliveOnProof} action={t.home.leaderboard} actionTo="/leaderboard" />
               
               <div className="mt-4 space-y-3">
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted">
-                  Top XP earners
+                  {t.home.topXpEarners}
                 </div>
                 {homeData.discovery.topProofers.slice(0, 3).map((topUser, i) => (
                   <button

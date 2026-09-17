@@ -4,6 +4,7 @@ import { Reveal } from '../components/Reveal';
 import { Achievements } from '../components/Achievements';
 import { HexCoinIcon, TrophyIcon } from '../components/Icons';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { xpProgress } from '../lib/progression';
 import { userService } from '../services/user.service';
 import { badgesService } from '../services/badges.service';
@@ -11,6 +12,7 @@ import type { Skill, Badge } from '../types/api';
 
 export function ProfilePage() {
   const { user: authUser, loading: authLoading, updateUser } = useAuth();
+  const { t } = useLanguage();
   const [skills, setSkills] = useState<Skill[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [nextBadges, setNextBadges] = useState<Badge[]>([]);
@@ -80,7 +82,7 @@ export function ProfilePage() {
   if (!authUser) {
     return (
       <div className="rounded-2xl border border-line bg-surface p-8 text-center">
-        <p className="text-muted">Please log in to view your profile</p>
+        <p className="text-muted">{t.common.profile}</p>
       </div>
     );
   }
@@ -88,7 +90,7 @@ export function ProfilePage() {
   if (error) {
     return (
       <div className="rounded-2xl border border-bad bg-bad-soft p-8 text-center">
-        <p className="font-semibold text-bad">Failed to load profile</p>
+        <p className="font-semibold text-bad">{t.common.error}</p>
         <p className="mt-2 text-sm text-bad">{error}</p>
         <button
           onClick={loadProfileData}

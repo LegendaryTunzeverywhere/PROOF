@@ -4,6 +4,7 @@ import { Reveal } from '../components/Reveal';
 import { PathDetailView } from '../components/PathDetailView';
 import { LessonView } from '../components/LessonView';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { pathsService } from '../services/paths.service';
 import { skillsService } from '../services/skills.service';
 import type { LearningPath, SkillCatalog } from '../types/api';
@@ -41,6 +42,7 @@ export function LearnPage() {
 function LearnHubView() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [catalog, setCatalog] = useState<SkillCatalog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -195,7 +197,7 @@ function LearnHubView() {
   if (!user) {
     return (
       <div className="rounded-2xl border border-line bg-surface p-8 text-center">
-        <p className="text-muted">Please log in to view learning paths</p>
+        <p className="text-muted">{t.learn.pleaseLogin}</p>
       </div>
     );
   }
@@ -203,13 +205,13 @@ function LearnHubView() {
   if (error) {
     return (
       <div className="rounded-2xl border border-bad bg-bad-soft p-8 text-center">
-        <p className="font-semibold text-bad">Failed to load learning data</p>
+        <p className="font-semibold text-bad">{t.learn.failedToLoad}</p>
         <p className="mt-2 text-sm text-bad">{error}</p>
         <button
           onClick={loadData}
           className="mt-4 rounded-lg bg-bad px-4 py-2 text-sm font-semibold text-white"
         >
-          Retry
+          {t.learn.retry}
         </button>
       </div>
     );
@@ -222,7 +224,7 @@ function LearnHubView() {
     <div className="space-y-6">
       <Reveal>
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-ink">Learning</h1>
+          <h1 className="text-3xl font-bold text-ink">{t.learn.learning}</h1>
         </div>
       </Reveal>
 
@@ -240,17 +242,17 @@ function LearnHubView() {
               <span className="text-3xl">{streak.emoji}</span>
               <div className="flex-1">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-base font-semibold text-ink">{streak.current}-day streak</span>
+                    <span className="text-base font-semibold text-ink">{t.learn.streakCurrent.replace('{count}', String(streak.current))}</span>
                   {streak.atRisk && (
                     <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs font-bold text-warn">
-                      AT RISK
+                        {t.learn.atRisk}
                     </span>
                   )}
                 </div>
                 <div className="mt-0.5 text-sm text-muted">
                   {streak.atRisk
-                    ? 'Complete a lesson today to keep your streak alive!'
-                    : `${streak.current} days strong! Keep learning to maintain your streak.`}
+                    ? t.learn.streakAlive
+                    : t.learn.streakStrong.replace('{count}', String(streak.current))}
                 </div>
               </div>
               <div className="text-center">
@@ -260,7 +262,7 @@ function LearnHubView() {
                 >
                   {streak.current}
                 </div>
-                <div className="text-xs text-muted">DAYS</div>
+                <div className="text-xs text-muted">{t.learn.days}</div>
               </div>
             </div>
           </div>
@@ -272,19 +274,19 @@ function LearnHubView() {
         <Reveal delay={0.1}>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted">Your Paths</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted">{t.learn.yourPaths}</span>
               <div className="flex gap-2">
                 <button 
                   onClick={() => navigate('/learn/upload')}
                   className="rounded-lg bg-teal-500 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-teal-600"
                 >
-                  📄 Upload
+                  📄 {t.learn.upload}
                 </button>
                 <button 
                   onClick={() => setShowCreateModal(true)}
                   className="rounded-lg bg-brand-soft px-3 py-1.5 text-sm font-medium text-brand transition-colors hover:bg-brand-soft/80"
                 >
-                  ✨ New
+                  ✨ {t.learn.new}
                 </button>
               </div>
             </div>
@@ -331,22 +333,22 @@ function LearnHubView() {
             }}
           >
             <div className="mb-2.5 text-4xl leading-none">✨</div>
-            <h2 className="text-xl font-bold text-white">Start your learning journey</h2>
+            <h2 className="text-xl font-bold text-white">{t.learn.startJourney}</h2>
             <p className="mt-2.5 max-w-2xl text-[15px] leading-relaxed text-white/90">
-              Tell PROOF what you want to learn — get a personalized path with proof checkpoints and NIM rewards.
+              {t.learn.startJourneyBody}
             </p>
             <div className="mt-5 flex flex-col gap-3 sm:flex-row">
               <button 
                 className="flex w-full flex-1 items-center justify-center gap-2 rounded-xl bg-gold px-5 py-3 font-semibold text-ink shadow-lg transition-transform hover:scale-[1.02] sm:w-auto"
                 onClick={() => setShowCreateModal(true)}
               >
-                <span className="text-lg">✨</span> Create Path
+                <span className="text-lg">✨</span> {t.learn.createPath}
               </button>
               <button 
                 className="flex w-full flex-1 items-center justify-center gap-2 rounded-xl bg-brand px-5 py-3 font-semibold text-white shadow-lg transition-transform hover:scale-[1.02] hover:bg-brand-hover sm:w-auto"
                 onClick={() => navigate('/learn/upload')}
               >
-                <span className="text-lg">📄</span> Upload Document
+                <span className="text-lg">📄</span> {t.learn.uploadDocument}
               </button>
             </div>
           </div>
@@ -358,7 +360,7 @@ function LearnHubView() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-              {paths.length > 0 ? 'Explore Skills' : 'Or Pick a Skill'}
+              {paths.length > 0 ? t.learn.exploreSkills : t.learn.orPickSkill}
             </span>
           </div>
 
@@ -386,8 +388,8 @@ function LearnHubView() {
           <div className="w-full max-w-lg rounded-2xl border border-line bg-surface p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 id="language-picker-title" className="text-xl font-bold text-ink">Choose a language</h2>
-                <p className="mt-1 text-sm leading-relaxed text-muted">Your path, lessons, and proof prompts will match this language.</p>
+                <h2 id="language-picker-title" className="text-xl font-bold text-ink">{t.learn.chooseLanguage}</h2>
+                <p className="mt-1 text-sm leading-relaxed text-muted">{t.learn.languagePrompt}</p>
               </div>
               <button
                 type="button"
@@ -425,7 +427,7 @@ function LearnHubView() {
           <Reveal>
             <div className="w-full max-w-lg rounded-2xl border border-line bg-surface p-6 shadow-2xl">
               <div className="mb-6 flex items-center justify-between">
-                <h3 className="text-xl font-bold text-ink">Create Learning Path</h3>
+                <h3 className="text-xl font-bold text-ink">{t.learn.createLearningPath}</h3>
                 <button
                   onClick={() => {
                     setShowCreateModal(false);
@@ -445,7 +447,7 @@ function LearnHubView() {
               <form onSubmit={handleCreatePath}>
                 <label className="block">
                   <span className="block text-sm font-semibold text-ink mb-2">
-                    What do you want to learn?
+                    {t.learn.whatLearn}
                   </span>
                   <input
                     type="text"
@@ -462,7 +464,7 @@ function LearnHubView() {
                 </label>
 
                 <div className="mt-4">
-                  <p className="text-xs font-semibold text-muted mb-2">QUICK PICKS:</p>
+                  <p className="text-xs font-semibold text-muted mb-2">{t.learn.quickPicks}</p>
                   <div className="flex flex-wrap gap-2">
                     {catalog.slice(0, 6).map((skill) => (
                       <button
@@ -495,7 +497,7 @@ function LearnHubView() {
                     disabled={creating}
                     className="flex-1 rounded-xl border-2 border-line bg-surface px-4 py-3 text-sm font-semibold text-ink transition-all hover:border-brand hover:bg-elevated disabled:opacity-60"
                   >
-                    Cancel
+                    {t.learn.cancel}
                   </button>
                   <button
                     type="submit"
@@ -505,16 +507,16 @@ function LearnHubView() {
                     {creating ? (
                       <>
                         <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent mr-2" />
-                        Creating...
+                        {t.learn.creating}
                       </>
                     ) : (
-                      '✨ Create Path'
+                      `✨ ${t.learn.createPath}`
                     )}
                   </button>
                 </div>
 
                 <p className="mt-4 text-center text-xs text-muted">
-                  AI will generate a personalized learning path with daily lessons and proof challenges
+                  {t.learn.aiWillGenerate}
                 </p>
               </form>
             </div>
@@ -527,8 +529,8 @@ function LearnHubView() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="rounded-2xl border border-line bg-surface p-8 text-center shadow-2xl max-w-md mx-4">
             <div className="h-12 w-12 mx-auto animate-spin rounded-full border-4 border-brand border-t-transparent" />
-            <p className="mt-4 text-lg font-semibold text-ink">Creating your learning path...</p>
-            <p className="mt-2 text-sm text-muted">AI is generating personalized lessons for you</p>
+            <p className="mt-4 text-lg font-semibold text-ink">{t.learn.creatingYourPath}</p>
+            <p className="mt-2 text-sm text-muted">{t.learn.creatingYourPathBody}</p>
             
             {!createTimeout ? (
               <>
@@ -542,8 +544,8 @@ function LearnHubView() {
             ) : (
               <>
                 <div className="mt-4 rounded-lg bg-warning-soft p-3 text-sm text-warning">
-                  <p className="font-semibold">⏱️ Taking longer than expected</p>
-                  <p className="mt-1 text-xs">The AI is still working. You can wait or refresh to try again.</p>
+                  <p className="font-semibold">⏱️ {t.learn.takingLonger}</p>
+                  <p className="mt-1 text-xs">{t.learn.stillWorking}</p>
                 </div>
                 <button
                   onClick={() => {
@@ -552,7 +554,7 @@ function LearnHubView() {
                   }}
                   className="mt-4 rounded-lg bg-surface-2 px-4 py-2 text-sm font-medium text-ink hover:bg-elevated"
                 >
-                  Cancel
+                  {t.learn.cancel}
                 </button>
               </>
             )}
