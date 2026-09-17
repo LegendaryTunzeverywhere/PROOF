@@ -1392,6 +1392,11 @@ function dailyView(ch) {
   return { ...v, kind: 'daily' };
 }
 
+async function chessPuzzleView(puzzle) {
+  const position = puzzle.position || await store.get('ChessPosition', puzzle.positionId);
+  return { ...puzzle, position };
+}
+
 /* ── CHESS ─────────────────────────────────────────────────────────── */
 // Puzzles
 route('GET', '/api/chess/puzzles/random', async (ctx) => {
@@ -1400,14 +1405,14 @@ route('GET', '/api/chess/puzzles/random', async (ctx) => {
   const theme = query.get('theme') || null;
   const limit = parseInt(query.get('limit')) || 5;
   
-  const puzzles = await store.randomChessPuzzles({ difficulty, theme, limit });
+  const puzzles = await Promise.all((await store.randomChessPuzzles({ difficulty, theme, limit })).map(chessPuzzleView));
   
   json(res, 200, { puzzles });
 });
 
 route('GET', '/api/chess/puzzles/:topicSlug', async (ctx) => {
   const { user, params, res } = ctx;
-  const puzzles = await store.filter('ChessPuzzle', (p) => p.topicSlug === params.topicSlug);
+  const puzzles = await Promise.all((await store.filter('ChessPuzzle', (p) => p.topicSlug === params.topicSlug)).map(chessPuzzleView));
   json(res, 200, { puzzles });
 });
 

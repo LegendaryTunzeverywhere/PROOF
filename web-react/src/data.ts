@@ -4,6 +4,7 @@ import {
   BookOpenIcon,
   BoltIcon,
   ChatIcon,
+  LogoChess,
   CleanStarIcon,
   FlameIcon,
   GlossaryIcon,
@@ -35,6 +36,7 @@ export type NavItem = { id: string; label: string; icon: Icon; badge?: number; p
 export const NAV_ITEMS: NavItem[] = [
   { id: "home", label: "Home", icon: HomeIcon, path: "/home" },
   { id: "learn", label: "Learn", icon: BookOpenIcon, path: "/learn" },
+  { id: "chess", label: "Chess practice", icon: LogoChess, path: "/learn/chess" },
   { id: "review", label: "Review", icon: ReviewIcon, path: "/reviews" },
   { id: "prove", label: "Prove", icon: ProveIcon, path: "/prove" },
   { id: "work", label: "Work", icon: WorkIcon, path: "/work" },

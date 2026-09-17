@@ -25,6 +25,7 @@ import { useTheme } from "./context/ThemeContext";
 // Lazy load pages for code splitting
 const HomePage = lazy(() => import("@/pages/HomePage").then(m => ({ default: m.HomePage })));
 const LearnPage = lazy(() => import("@/pages/LearnPage").then(m => ({ default: m.LearnPage })));
+const ChessLearningPage = lazy(() => import("@/pages/ChessLearningPage"));
 const DocumentUploadPage = lazy(() => import("@/pages/DocumentUploadPage"));
 const ReviewsPage = lazy(() => import("@/pages/ReviewsPage").then(m => ({ default: m.ReviewsPage })));
 const ReviewDetailPage = lazy(() => import("@/pages/ReviewDetailPage").then(m => ({ default: m.ReviewDetailPage })));
@@ -109,6 +110,7 @@ function ProtectedRoutes() {
                 <Routes>
                   <Route path="/home" element={<HomePage />} />
                   <Route path="/learn" element={<LearnPage />} />
+                  <Route path="/learn/chess" element={<ChessLearningPage />} />
                   <Route path="/learn/path/:id" element={<LearnPage />} />
                   <Route path="/learn/lesson/:pathId/:skill/:topic" element={<LearnPage />} />
                   <Route path="/learn/upload" element={<DocumentUploadPage />} />

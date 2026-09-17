@@ -37,6 +37,7 @@ export function useNavItems() {
     const labels: Record<string, string> = {
       home: t.nav.home,
       learn: t.nav.learn,
+      chess: 'Chess practice',
       review: t.nav.reviews,
       prove: t.nav.prove,
       work: t.nav.work,
