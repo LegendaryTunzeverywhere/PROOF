@@ -74,6 +74,13 @@ export class SupabaseStore {
       'teaching_sessions': { rating: 'ratingSum' },
     };
 
+    this.orderFields = {
+      'user_mastery': 'updatedAt',
+      'skill_proofs': 'completedAt',
+      'user_achievements': 'unlockedAt',
+      'bookings': 'bookedAt',
+    };
+
     // Cache for frequently accessed data
     this.cache = new Map();
     // Different TTLs for different types of data
@@ -344,16 +351,12 @@ export class SupabaseStore {
       return cached.data;
     }
 
-    const { data, error} = await this.client
+    let query = this.client
       .from(supabaseTable)
-      .select('*')
-      .order(
-        table === 'user_mastery' ? 'updatedAt' : 
-        table === 'skill_proofs' ? 'completedAt' : 
-        'createdAt', 
-        { ascending: false }
-      )
-      .limit(1000); // Safety limit
+      .select('*');
+    const orderField = this.orderFields[table] || 'createdAt';
+    if (orderField) query = query.order(orderField, { ascending: false });
+    const { data, error} = await query.limit(1000); // Safety limit
 
     if (error) {
       console.error(`All error (${table}):`, error);

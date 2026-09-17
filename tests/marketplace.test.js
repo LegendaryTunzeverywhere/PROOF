@@ -28,9 +28,12 @@ test('util: reward kind checks are safe on absent or non-string kinds', async (t
 test('users: admin can delete a demo wallet account by id', async (t) => {
   const tb = await testbed();
   const demo = await tb.users.createUser({ username: 'demoer', avatar: '🧪', walletMode: 'demo', isDemo: true });
+  const real = await tb.users.createUser({ username: 'realer', walletMode: 'nimiqpay', isDemo: false });
   const asyncUsers = new UserService(asyncStore(tb.store, ['get']), tb.config);
   await asyncUsers.deleteDemoUser(demo.id);
   assert.equal(tb.store.get('users', demo.id), null);
+  assert.equal(await asyncUsers.deleteDemoUser(real.id), false);
+  assert.ok(tb.store.get('users', real.id));
 });
 
 test('marketplace: qualification gate blocks unqualified applicants', async (t) => {

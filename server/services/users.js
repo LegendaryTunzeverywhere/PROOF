@@ -307,27 +307,33 @@ export class UserService {
   ];
 
   async checkAchievements(userId) {
-    const user = this.get(userId);
+    const user = await this.get(userId);
     if (!user) return [];
     const unlocked = [];
-    const has = (id) => this.store.find('achievements', (a) => a.userId === userId && a.achievementId === id);
-    const give = (id) => {
-      if (has(id)) return;
+    const has = (id) => this.store.find('user_achievements', (a) => a.userId === userId && a.achievementId === id);
+    const give = async (id) => {
+      if (await has(id)) return;
       const def = this.ACHIEVEMENTS.find((a) => a.id === id);
-      this.store.insert('achievements', { id: uid('ach'), userId, achievementId: id, unlockedAt: now() });
+      const achievement = await this.store.find('achievements', (a) => a.key === id);
+      await this.store.insert('user_achievements', {
+        id: uid('ach'),
+        userId,
+        achievementId: achievement?.id || id,
+        unlockedAt: now(),
+      });
       unlocked.push(def);
     };
     const skills = await this.store.filter('user_skills', (s) => s.userId === userId);
-    if (user.proofsPassed >= 1) give('first_proof');
-    if (user.earnedLuna > 0) give('nim_earner');
-    if (skills.some((s) => s.tier === 'Intermediate' || s.tier === 'Advanced' || s.tier === 'Expert')) give('skill_builder');
-    if (skills.some((s) => s.tier === 'Advanced' || s.tier === 'Expert')) give('verified');
-    if ((user.streak?.current || 0) >= 7 || (user.streak?.longest || 0) >= 7) give('streak_7');
-    if (this.store.count('task_applications', (a) => a.userId === userId && a.status === 'accepted') >= 1) give('first_gig');
-    if (this.store.count('teaching_sessions', (t) => t.teacherId === userId && t.bookings > 0) >= 1) give('mentor');
-    const goodReviews = this.store.count('reviews', (r) => r.revieweeId === userId && r.rating >= 4);
-    if (goodReviews >= 5) give('knowledge_sharer');
-    if (unlocked.length) this.store.save();
+    if (user.proofsPassed >= 1) await give('first_proof');
+    if (user.earnedLuna > 0) await give('nim_earner');
+    if (skills.some((s) => s.tier === 'Intermediate' || s.tier === 'Advanced' || s.tier === 'Expert')) await give('skill_builder');
+    if (skills.some((s) => s.tier === 'Advanced' || s.tier === 'Expert')) await give('verified');
+    if ((user.streak?.current || 0) >= 7 || (user.streak?.longest || 0) >= 7) await give('streak_7');
+    if (await this.store.count('task_applications', (a) => a.userId === userId && a.status === 'accepted') >= 1) await give('first_gig');
+    if (await this.store.count('teaching_sessions', (t) => t.teacherId === userId && t.bookings > 0) >= 1) await give('mentor');
+    const goodReviews = await this.store.count('reviews', (r) => r.revieweeId === userId && r.rating >= 4);
+    if (goodReviews >= 5) await give('knowledge_sharer');
+    if (unlocked.length) await this.store.save();
     return unlocked;
   }
 

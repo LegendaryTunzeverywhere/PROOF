@@ -1824,10 +1824,15 @@ route('GET', '/api/leaderboard', async (ctx) => {
 
 route('GET', '/api/achievements', async (ctx) => {
   const { user, res } = ctx;
-  const filtered = await store.filter('achievements', (a) => a.userId === user.id);
+  const filtered = await store.filter('user_achievements', (a) => a.userId === user.id);
   const unlocked = filtered.map((a) => a.achievementId);
+  const definitions = await store.all('achievements');
+  const definitionIds = new Map(definitions.map((a) => [a.id, a.key]));
   json(res, 200, {
-    achievements: users.ACHIEVEMENTS.map((a) => ({ ...a, unlocked: unlocked.includes(a.id) })),
+    achievements: users.ACHIEVEMENTS.map((a) => ({
+      ...a,
+      unlocked: unlocked.some((id) => definitionIds.get(id) === a.id || id === a.id),
+    })),
   });
 });
 
