@@ -370,7 +370,7 @@ export class UserService {
     };
   }
 
-  async leaderboard(category = 'proofs', limit = 10) {
+  async leaderboard(category = 'proofs', limit = 10, offset = 0) {
     const allUsers = await this.store.all('users');
     const users = allUsers.filter((u) => !u.isClient);
     const score = {
@@ -391,9 +391,9 @@ export class UserService {
     })));
     return scored
       .sort((a, b) => b.value - a.value)
-      .slice(0, limit)
+      .slice(offset, offset + limit)
       .map(({ user, value, totalXpEarned }, i) => ({
-        rank: i + 1,
+        rank: offset + i + 1,
         userId: user.id,
         username: user.username,
         avatar: user.avatar,
@@ -403,9 +403,9 @@ export class UserService {
         totalXpEarned,
         streak: this.currentStreak(user),
         proofsPassed: user.proofsPassed,
-        walletAddress: user.walletAddress, // Include real wallet address
-        walletMode: user.walletMode, // Show wallet type (nimiqpay/demo)
-        isDemo: user.isDemo, // Flag demo users
+        walletAddress: user.walletAddress,
+        walletMode: user.walletMode,
+        isDemo: user.isDemo,
         value,
       }));
   }

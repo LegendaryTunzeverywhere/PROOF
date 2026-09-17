@@ -69,6 +69,19 @@ interface RealtimeMetrics {
   };
 }
 
+function shortTxRef(ref?: string | null, { head = 8, tail = 8 } = {}) {
+  const raw = String(ref ?? '').trim();
+  if (!raw) return '';
+
+  const normalized = raw.replace(/^0x/i, '');
+  if (/^[0-9a-fA-F]{64}$/.test(normalized)) {
+    return `${normalized.slice(0, head)}…${normalized.slice(-tail)}`.toLowerCase();
+  }
+
+  if (raw.length <= head + tail + 1) return raw;
+  return `${raw.slice(0, head)}…${raw.slice(-tail)}`;
+}
+
 export function AdminDashboard() {
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
@@ -453,8 +466,9 @@ export function AdminDashboard() {
                             target="_blank"
                             rel="noreferrer"
                             className="admin-transaction-link"
+                            title={transaction.ref || undefined}
                           >
-                            {transaction.ref!.slice(0, 12)}...
+                            {shortTxRef(transaction.ref)}
                           </a>
                         ) : (
                           <span className="wallet-address">Internal ledger</span>

@@ -31,3 +31,17 @@ for (const cat of ['teacher', 'helpful', 'tasks', 'score', 'xp', 'streak']) {
     }
   });
 }
+
+test('leaderboard pagination keeps ranks consistent across offset pages', async () => {
+  const tb = await testbed();
+  const users = new UserService(tb.store, tb.config);
+
+  const pageOne = await users.leaderboard('xp', 10, 0);
+  const pageTwo = await users.leaderboard('xp', 10, 10);
+
+  assert.ok(pageOne.length > 0, 'first page should have entries');
+  assert.ok(pageTwo.length >= 0, 'second page should be requestable');
+  if (pageTwo.length > 0) {
+    assert.equal(pageTwo[0].rank, 11, 'second page should start at rank 11');
+  }
+});

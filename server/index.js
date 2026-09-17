@@ -1805,7 +1805,9 @@ route('POST', '/api/teach/sessions/:id/review', async (ctx) => {
 route('GET', '/api/leaderboard', async (ctx) => {
   const { query, res } = ctx;
   const cat = ['xp', 'streak', 'proofs', 'score', 'helpful', 'teacher', 'consistent', 'tasks', 'earned'].includes(query.get('cat')) ? query.get('cat') : 'xp';
-  json(res, 200, { category: cat, entries: await users.leaderboard(cat, 12) });
+  const limit = Math.max(1, Math.min(50, parseInt(query.get('limit') || '10', 10) || 10));
+  const offset = Math.max(0, parseInt(query.get('offset') || '0', 10) || 0);
+  json(res, 200, { category: cat, entries: await users.leaderboard(cat, limit, offset), total: (await users.leaderboard(cat, 1000)).length });
 });
 
 route('GET', '/api/achievements', async (ctx) => {
