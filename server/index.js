@@ -179,6 +179,8 @@ route('POST', '/api/auth/nonce', async (ctx) => {
 route('POST', '/api/auth/verify', async (ctx) => {
   const { body, res } = ctx;
   const mode = body?.mode === 'nimiqpay' ? 'nimiqpay' : body?.mode === 'hub' ? 'hub' : 'demo';
+  if (mode === 'demo' && !config.demoWalletsEnabled)
+    throw httpError(410, 'DEMO_WALLET_DEPRECATED', 'Demo wallets are no longer available. Connect Nimiq Pay or Nimiq Hub instead.');
 
   // Validate that required fields are present
   if (!body?.nonce) {
@@ -202,7 +204,6 @@ route('POST', '/api/auth/verify', async (ctx) => {
   // into a guaranteed BAD_NONCE on the retry.
   const nonceRow = await auth.findNonce(String(body.nonce));
   if (!nonceRow) {
-    console.error('[auth/verify] Nonce not found or expired:', body.nonce);
     throw httpError(400, 'BAD_NONCE', 'This sign-in request expired. Try again.');
   }
 
@@ -294,6 +295,9 @@ route('POST', '/api/auth/verify', async (ctx) => {
 
 route('POST', '/api/wallet/demo', (ctx) => {
   const { req, res } = ctx;
+  if (!config.demoWalletsEnabled)
+    throw httpError(410, 'DEMO_WALLET_DEPRECATED', 'Demo wallets are no longer available. Connect Nimiq Pay or Nimiq Hub instead.');
+
   // Rate limit: prevent demo wallet spam
   if (limiter.allow('demo-wallet:' + req.socket.remoteAddress, 10, 60_000) !== true)
     throw httpError(429, 'RATE_LIMITED', 'Too many demo wallet requests. Wait a minute.');
@@ -304,6 +308,9 @@ route('POST', '/api/wallet/demo', (ctx) => {
 
 route('POST', '/api/wallet/demo/sign', (ctx) => {
   const { body, res } = ctx;
+  if (!config.demoWalletsEnabled)
+    throw httpError(410, 'DEMO_WALLET_DEPRECATED', 'Demo wallets are no longer available. Connect Nimiq Pay or Nimiq Hub instead.');
+
   const sig = auth.signDemoMessage(String(body?.privateKey || ''), String(body?.message || ''));
   json(res, 200, { signature: sig });
 });
@@ -1647,7 +1654,12 @@ route('GET', '/api/wallet', async (ctx) => {
 
 route('POST', '/api/wallet/payout', async (ctx) => {
   const { user, body, res } = ctx;
-  const amountNim = parseNumber(body?.amountNim, { min: 0, max: 1_000_000 });
+  let amountNim;
+  try {
+    amountNim = parseNumber(body?.amountNim, { min: 0, max: 1_000_000 });
+  } catch (error) {
+    throw httpError(400, 'INVALID_AMOUNT', error.message);
+  }
   const tx = await rewards.requestPayout(user.id, amountNim);
   notifications.push(user.id, {
     type: 'payout_sent',

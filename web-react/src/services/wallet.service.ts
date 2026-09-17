@@ -15,6 +15,7 @@ const SDK_CANDIDATES = [
 ];
 
 const NIMIQ_PAY_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.nimiq.pay';
+const NIMIQ_PAY_MINI_APP_URL = 'https://nimpay.app/miniapps/open/proof.nimagent.online';
 
 const HUB_VERSION = 'v1.10.0';
 const HUB_CDN = `https://cdn.jsdelivr.net/npm/@nimiq/hub-api@${HUB_VERSION}/dist/standalone/HubApi.standalone.umd.js`;
@@ -206,6 +207,16 @@ function openNimiqPayPlayStore(): void {
   }
 }
 
+function openNimiqPayMiniApp(): void {
+  if (typeof window === 'undefined') return;
+  window.location.assign(NIMIQ_PAY_MINI_APP_URL);
+
+  // If the deep link did not hand off to Nimiq Pay, send the user to install it.
+  window.setTimeout(() => {
+    if (document.visibilityState === 'visible') openNimiqPayPlayStore();
+  }, 1800);
+}
+
 async function loadNimiqSdk(): Promise<any> {
   if (state.nimiq) return state.nimiq;
   
@@ -234,8 +245,9 @@ async function loadNimiqSdk(): Promise<any> {
     throw new Error('NIMIQ_SDK_UNAVAILABLE');
   }
   
-  // Outside Nimiq Pay (regular browser): open the Google Play install flow
-  openNimiqPayPlayStore();
+  // Outside Nimiq Pay, try the mini-app deep link first. The timeout fallback
+  // covers browsers where Nimiq Pay is not installed.
+  openNimiqPayMiniApp();
   throw new Error('NIMIQ_PAY_UNAVAILABLE');
 }
 

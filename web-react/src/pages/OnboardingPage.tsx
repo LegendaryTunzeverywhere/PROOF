@@ -6,6 +6,8 @@ import { WalletService } from '../services/wallet.service';
 import { api } from '../lib/api';
 import { pathsService } from '../services/paths.service';
 
+const DEMO_WALLETS_ENABLED = false;
+
 const POPULAR_TAGS = [
   "Code",
   "Design",
@@ -679,8 +681,10 @@ export function OnboardingPage() {
                 {/* Demo Wallet Option */}
                 <button
                   onClick={() => handleWalletSelect('demo')}
-                  disabled={connecting}
-                  className="group relative w-full rounded-xl border-2 border-line bg-surface p-4 text-left transition-all hover:-translate-y-1 hover:border-brand/50 hover:shadow-lg disabled:opacity-60 disabled:hover:translate-y-0"
+                  disabled={connecting || !DEMO_WALLETS_ENABLED}
+                  aria-disabled={!DEMO_WALLETS_ENABLED}
+                  title="Demo Wallet is no longer available"
+                  className="group relative w-full cursor-not-allowed rounded-xl border-2 border-line bg-elevated p-4 text-left opacity-50 grayscale transition-all disabled:hover:translate-y-0"
                 >
                   <div className="flex items-start gap-3">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-muted/30 to-muted/20 text-2xl">
@@ -689,10 +693,10 @@ export function OnboardingPage() {
                     <div className="flex-1">
                       <h4 className="font-bold text-ink">Demo Wallet</h4>
                       <p className="mt-1 text-sm text-muted">
-                        Practice mode. Simulated rewards for testing.
+                        Deprecated. Connect a real Nimiq wallet to continue.
                       </p>
-                      <p className="mt-2 text-xs text-muted">
-                        ✓ Instant · ✓ No setup · ✓ Try features
+                      <p className="mt-2 text-xs font-semibold text-muted">
+                        Currently unavailable
                       </p>
                     </div>
                   </div>
@@ -705,7 +709,7 @@ export function OnboardingPage() {
               </div>
 
               <div className="mt-6 rounded-lg bg-elevated p-3 text-center text-xs text-muted">
-                💡 Use <strong>Nimiq Pay</strong> for real on-chain rewards or <strong>Demo Wallet</strong> to explore risk-free
+                💡 Use <strong>Nimiq Pay</strong> or <strong>Nimiq Hub</strong> to connect your wallet and receive real on-chain rewards.
               </div>
             </div>
           </Reveal>

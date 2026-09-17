@@ -59,3 +59,40 @@ test('failed treasury broadcast leaves the credited balance available', async ()
   assert.equal((await rewards.pendingPayoutsForUser(user.id)).length, 0);
   assert.equal(tb.users.get(user.id).balanceLuna, 0);
 });
+
+test('demo daily rewards do not enter the treasury retry queue', async () => {
+  let sendCalls = 0;
+  const treasury = {
+    isConfigured: () => true,
+    send: async () => {
+      sendCalls++;
+      return { hash: 'unexpected-demo-payout' };
+    },
+  };
+  const tb = await testbed();
+  const user = await tb.users.createUser({ walletMode: 'demo', isDemo: true });
+  const rewards = new (Object.getPrototypeOf(tb.rewards).constructor)(tb.store, tb.config, { treasury });
+
+  const result = await rewards.claimDaily({ userId: user.id, challengeId: 'demo-daily', streak: 1 });
+
+  assert.equal(result.payout, null);
+  assert.equal(sendCalls, 0);
+  assert.equal((await rewards.pendingPayoutsForUser(user.id)).length, 0);
+
+  const legacyReward = await tb.store.insert('rewards', {
+    id: 'rw-legacy-demo',
+    key: 'legacy-demo-payout',
+    userId: user.id,
+    challengeId: 'legacy-demo',
+    sourceKind: 'daily_claim',
+    amountLuna: 10000,
+    currency: 'NIM',
+    status: 'pending_payout',
+    transactionId: null,
+    createdAt: Date.now(),
+  });
+  assert.equal(legacyReward.status, 'pending_payout');
+  assert.deepEqual(await rewards.retryPendingPayouts(), { attempted: 0, paid: 0 });
+  assert.equal(tb.store.get('rewards', legacyReward.id).status, 'credited');
+  assert.equal(sendCalls, 0);
+});

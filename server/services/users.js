@@ -140,7 +140,7 @@ export class UserService {
   }
 
   async deleteDemoUser(userId) {
-    const user = this.get(userId);
+    const user = await this.get(userId);
     if (!user) return false;
     if (!user.isDemo && user.walletMode !== 'demo') return false;
 

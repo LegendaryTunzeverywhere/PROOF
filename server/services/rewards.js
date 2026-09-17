@@ -13,7 +13,11 @@ import { uid, now, luna, toNim, looksLikeNimiqAddress, normalizeNimiqAddress } f
 import { NimiqTreasury } from './nimiq-treasury.js';
 
 export class EconomyError extends Error {
-  constructor(code, message) { super(message); this.code = code; }
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+    this.status = code === 'PAYOUT_FAILED' ? 503 : 400;
+  }
 }
 
 export class RewardService {
@@ -95,6 +99,7 @@ export class RewardService {
   }
 
   async claimDaily({ userId, challengeId, streak }) {
+    const user = await this.#user(userId);
     const activeStreak = Math.max(1, Number(streak) || 1);
     const key = `${userId}:daily:${this.todayKey()}`;
     if (await this.store.find('rewards', (reward) => reward.userId === userId && reward.key === key)) {
@@ -124,7 +129,7 @@ export class RewardService {
     await this.store.update('rewards', reward.id, { transactionId: tx.id });
     await this.store.save();
     let payout = null;
-    if (this.treasury.isConfigured()) {
+    if (this.treasury.isConfigured() && !user.isDemo && user.walletMode !== 'demo') {
       try {
         payout = await this.requestPayout(userId, amountNim, { automatic: true, rewardId: reward.id });
         await this.store.update('rewards', reward.id, { status: 'paid' });
@@ -255,9 +260,16 @@ export class RewardService {
   async retryPendingPayouts(limit = 100) {
     if (!this.treasury.isConfigured()) return { attempted: 0, paid: 0 };
     const pending = await this.pendingPayouts(limit);
+    let attempted = 0;
     let paid = 0;
     for (const reward of pending) {
       try {
+        const user = await this.#user(reward.userId);
+        if (user.isDemo || user.walletMode === 'demo') {
+          await this.store.update('rewards', reward.id, { status: 'credited' });
+          continue;
+        }
+        attempted++;
         await this.requestPayout(reward.userId, toNim(reward.amountLuna), { automatic: true, rewardId: reward.id });
         await this.store.update('rewards', reward.id, { status: 'paid' });
         paid++;
@@ -265,7 +277,7 @@ export class RewardService {
         console.error(`[rewards] retry failed for ${reward.id}:`, error.message);
       }
     }
-    return { attempted: pending.length, paid };
+    return { attempted, paid };
   }
 
   /* ── tips & payments ───────────────────────────────────────────── */

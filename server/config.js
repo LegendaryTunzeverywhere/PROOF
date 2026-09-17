@@ -34,15 +34,22 @@ function loadDotEnv(file = '.env') {
 loadDotEnv();
 
 const int = (v, d) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : d; };
+const isProduction = process.env.NODE_ENV === 'production';
+const defaultAllowedOrigins = isProduction
+  ? 'https://proof.nimagent.online,https://proofnim.vercel.app'
+  : '';
 
 export const config = {
   env: process.env.NODE_ENV || 'development',
   port: int(process.env.PORT, 3000),
   dataDir: process.env.DATA_DIR || 'data',
-  appUrl: process.env.APP_URL || `http://localhost:${int(process.env.PORT, 3000)}`,
+  appUrl: process.env.APP_URL || (process.env.NODE_ENV === 'production'
+    ? 'https://proof.nimagent.online'
+    : `http://localhost:${int(process.env.PORT, 3000)}`),
   authSecret: process.env.AUTH_SECRET || `dev-secret-${crypto.randomBytes(16).toString('hex')}`,
   adminSecret: process.env.ADMIN_SECRET || '',
-  allowedOrigins: (process.env.ALLOWED_ORIGINS || '')
+  demoWalletsEnabled: false,
+  allowedOrigins: (process.env.ALLOWED_ORIGINS || defaultAllowedOrigins)
     .split(',')
     .map((value) => String(value).trim())
     .filter(Boolean),
