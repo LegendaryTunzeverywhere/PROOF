@@ -1400,10 +1400,7 @@ route('GET', '/api/chess/puzzles/random', async (ctx) => {
   const theme = query.get('theme') || null;
   const limit = parseInt(query.get('limit')) || 5;
   
-  const puzzles = await store.query(
-    'SELECT * FROM get_random_puzzles($1, $2, $3)',
-    [difficulty, theme, limit]
-  );
+  const puzzles = await store.randomChessPuzzles({ difficulty, theme, limit });
   
   json(res, 200, { puzzles });
 });
@@ -1438,13 +1435,7 @@ route('POST', '/api/chess/puzzles/:id/attempt', async (ctx) => {
     score,
   });
   
-  // Update user progress
-  await store.query('SELECT update_user_chess_progress($1, $2, $3, $4)', [
-    user.id,
-    correct,
-    puzzle.themes[0] || 'general',
-    score,
-  ]);
+  await store.recordChessProgress({ userId: user.id, correct, score });
   
   json(res, 201, { attempt, correct, score });
 });
@@ -1484,7 +1475,8 @@ route('POST', '/api/chess/analyze/game', async (ctx) => {
   const saved = await store.create('ChessGameAnalysis', {
     userId: user.id,
     pgn,
-    players: { white: 'User', black: 'Opponent' },
+    whitePlayer: 'User',
+    blackPlayer: 'Opponent',
     result: '*',
     analysis: analysis,
     notes: '',
@@ -1521,10 +1513,7 @@ route('POST', '/api/chess/repertoire', async (ctx) => {
     eco: eco || null,
     moves: moves || [],
     notes: notes || '',
-    timesPlayed: 0,
-    gamesWon: 0,
-    gamesLost: 0,
-    gamesDrawn: 0,
+    practiceCount: 0,
     accuracy: 0,
     lastPracticed: new Date().toISOString(),
   });

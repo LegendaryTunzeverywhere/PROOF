@@ -123,6 +123,44 @@ export class Store {
     return true;
   }
 
+  create(table, doc) { return this.insert(table, doc); }
+
+  delete(table, id) { return this.remove(table, id); }
+
+  async randomChessPuzzles({ difficulty = null, theme = null, limit = 5 } = {}) {
+    const puzzles = this.filter('ChessPuzzle', (puzzle) => {
+      const difficultyMatches = !difficulty || puzzle.difficulty === difficulty;
+      const themeMatches = !theme || (puzzle.themes || []).includes(theme);
+      return difficultyMatches && themeMatches;
+    });
+    return puzzles.sort(() => Math.random() - 0.5).slice(0, limit);
+  }
+
+  async recordChessProgress({ userId, correct }) {
+    const existing = this.find('ChessUserProgress', (progress) => progress.userId === userId);
+    const next = existing || this.insert('ChessUserProgress', {
+      userId,
+      puzzleRating: 1200,
+      puzzlesSolved: 0,
+      puzzlesAttempted: 0,
+      averageAccuracy: 0,
+      strongThemes: [],
+      weakThemes: [],
+      currentStreak: 0,
+      longestStreak: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    const puzzlesAttempted = (next.puzzlesAttempted || 0) + 1;
+    const puzzlesSolved = (next.puzzlesSolved || 0) + (correct ? 1 : 0);
+    return this.update('ChessUserProgress', next.id, {
+      puzzlesAttempted,
+      puzzlesSolved,
+      averageAccuracy: Math.round((puzzlesSolved / puzzlesAttempted) * 100),
+      updatedAt: Date.now(),
+    });
+  }
+
   all(table) { return Object.values(this.tables[table] || {}); }
 
   find(table, pred) {

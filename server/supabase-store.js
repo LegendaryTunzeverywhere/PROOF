@@ -64,7 +64,13 @@ export class SupabaseStore {
       'exercise_attempts': 'ExerciseAttempt',
       'quiz_results': 'QuizResult',
       'knowledge_nodes': 'KnowledgeNode',
-      'user_mastery': 'UserMastery'
+      'user_mastery': 'UserMastery',
+      'ChessPosition': 'ChessPosition',
+      'ChessPuzzle': 'ChessPuzzle',
+      'ChessPuzzleAttempt': 'ChessPuzzleAttempt',
+      'ChessOpeningRepertoire': 'ChessOpeningRepertoire',
+      'ChessGameAnalysis': 'ChessGameAnalysis',
+      'ChessUserProgress': 'ChessUserProgress',
     };
 
     // App field name → DB column name (services use NIM-friendly names;
@@ -249,6 +255,8 @@ export class SupabaseStore {
     return this.convertFromDatabase(data, table);
   }
 
+  async create(table, doc) { return this.insert(table, doc); }
+
   async get(table, id) {
     // Never query PostgREST with a null/undefined key: it would either match
     // nothing or (worse) spam `Get error (users/null)` when the origin is
@@ -338,6 +346,26 @@ export class SupabaseStore {
     this.cache.delete(`${table}:all`);
 
     return true;
+  }
+
+  async delete(table, id) { return this.remove(table, id); }
+
+  async randomChessPuzzles({ difficulty = null, theme = null, limit = 5 } = {}) {
+    const { data, error } = await this.client.rpc('get_random_puzzles', {
+      p_difficulty: difficulty,
+      p_themes: theme ? [theme] : null,
+      p_count: limit,
+    });
+    if (error) {
+      console.error('Chess puzzle query error:', error);
+      return [];
+    }
+    return (data || []).map((row) => this.convertFromDatabase(row, 'ChessPuzzle'));
+  }
+
+  async recordChessProgress() {
+    // ChessPuzzleAttempt's database trigger updates ChessUserProgress.
+    return null;
   }
 
   async all(table) {
