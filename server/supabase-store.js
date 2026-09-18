@@ -392,14 +392,15 @@ export class SupabaseStore {
     const puzzlesAttempted = (Number(existing?.puzzlesAttempted) || 0) + 1;
     const puzzlesSolved = (Number(existing?.puzzlesSolved) || 0) + (correct ? 1 : 0);
     const averageAccuracy = Math.round((puzzlesSolved / puzzlesAttempted) * 100);
+    const timestamp = new Date().toISOString();
     const patch = {
       userId,
       puzzleRating,
       puzzlesSolved,
       puzzlesAttempted,
       averageAccuracy,
-      lastPracticeDate: new Date().toISOString(),
-      updatedAt: Date.now(),
+      lastPracticeDate: timestamp,
+      updatedAt: timestamp,
     };
 
     if (existing?.id) {
