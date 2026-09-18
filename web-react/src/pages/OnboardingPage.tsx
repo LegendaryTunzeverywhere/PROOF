@@ -421,7 +421,7 @@ export function OnboardingPage() {
         </div>
 
         <div className="flex items-center gap-2.5 sm:gap-3">
-          <div className="hidden items-center gap-1.5 rounded-full border border-line bg-surface p-1 sm:flex">
+          <div className="flex items-center gap-1.5 rounded-full border border-line bg-surface p-1">
             <a
               href="https://x.com/nimiqagent"
               target="_blank"
@@ -543,7 +543,7 @@ export function OnboardingPage() {
         </Reveal>
 
         {/* Onboarding Form */}
-        <Reveal delay={120} className="flex justify-center lg:justify-end">
+        <Reveal delay={120} className="mt-8 flex justify-center sm:mt-10 lg:mt-0 lg:justify-end">
           <form
             onSubmit={handleSubmit}
             className="relative w-full max-w-[480px] rounded-2xl border border-line bg-surface p-5 shadow-xl sm:p-6"
