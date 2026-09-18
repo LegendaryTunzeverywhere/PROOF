@@ -318,13 +318,21 @@ export class UserService {
       if (!def) return null;
       let achievement = await this.store.find('achievements', (a) => a.key === id);
       if (!achievement) {
-        achievement = await this.store.insert('achievements', {
-          id: uid('ach'),
-          key: id,
-          name: def.name,
-          emoji: def.emoji,
-          desc: def.desc,
-        });
+        try {
+          achievement = await this.store.insert('achievements', {
+            id: uid('ach'),
+            key: id,
+            name: def.name,
+            emoji: def.emoji,
+            desc: def.desc,
+          });
+        } catch (error) {
+          const message = String(error?.message || error || '');
+          if (!/UNIQUE_VIOLATION|duplicate key|unique constraint/i.test(message)) {
+            throw error;
+          }
+          achievement = await this.store.find('achievements', (a) => a.key === id);
+        }
       }
       return achievement;
     };
@@ -332,12 +340,20 @@ export class UserService {
       if (await has(id)) return;
       const achievement = await ensureAchievement(id);
       if (!achievement) return;
-      await this.store.insert('user_achievements', {
-        id: uid('ach'),
-        userId,
-        achievementId: achievement.id,
-        unlockedAt: now(),
-      });
+      try {
+        await this.store.insert('user_achievements', {
+          id: uid('ach'),
+          userId,
+          achievementId: achievement.id,
+          unlockedAt: now(),
+        });
+      } catch (error) {
+        const message = String(error?.message || error || '');
+        if (!/UNIQUE_VIOLATION|duplicate key|unique constraint/i.test(message)) {
+          throw error;
+        }
+        return;
+      }
       unlocked.push(this.ACHIEVEMENTS.find((a) => a.id === id));
     };
     const skills = await this.store.filter('user_skills', (s) => s.userId === userId);

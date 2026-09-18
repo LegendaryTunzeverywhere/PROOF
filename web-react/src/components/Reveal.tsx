@@ -7,7 +7,8 @@ export function useInView<T extends HTMLElement>(options?: { threshold?: number;
 
   useEffect(() => {
     const node = ref.current;
-    if (!node || typeof IntersectionObserver === "undefined") {
+    const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (prefersReducedMotion || !node || typeof IntersectionObserver === "undefined") {
       setInView(true);
       return;
     }
@@ -21,8 +22,8 @@ export function useInView<T extends HTMLElement>(options?: { threshold?: number;
         });
       },
       {
-        threshold: options?.threshold ?? 0.12,
-        rootMargin: options?.rootMargin ?? "0px 0px 18% 0px",
+        threshold: options?.threshold ?? 0.08,
+        rootMargin: options?.rootMargin ?? "0px 0px 8% 0px",
       },
     );
     observer.observe(node);

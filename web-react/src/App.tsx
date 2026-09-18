@@ -67,6 +67,14 @@ function ProtectedRoutes() {
     };
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (!loading && !user) {
+      const fromPath = location.pathname;
+      const safeFrom = fromPath && fromPath.startsWith('/') && fromPath !== '/' && !fromPath.startsWith('/settings') ? fromPath : '/home';
+      navigate('/', { replace: true, state: { from: { pathname: safeFrom } } });
+    }
+  }, [loading, location.pathname, navigate, user]);
+
   // Show loading state while checking authentication
   if (loading) {
     return (
@@ -75,14 +83,6 @@ function ProtectedRoutes() {
       </div>
     );
   }
-
-  useEffect(() => {
-    if (!loading && !user) {
-      const fromPath = location.pathname;
-      const safeFrom = fromPath && fromPath.startsWith('/') && fromPath !== '/' && !fromPath.startsWith('/settings') ? fromPath : '/home';
-      navigate('/', { replace: true, state: { from: { pathname: safeFrom } } });
-    }
-  }, [loading, location.pathname, navigate, user]);
 
   // Redirect to onboarding if not authenticated. Preserve only valid app routes;
   // avoid sending users back to a stale settings screen after sign-in.

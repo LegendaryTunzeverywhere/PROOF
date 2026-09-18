@@ -222,6 +222,23 @@ test('user achievements: missing achievement rows are created before linking the
   assert.ok(tb.store.find('user_achievements', (entry) => entry.userId === user.id && entry.achievementId === achievement.id));
 });
 
+test('user achievements: duplicate insert races are treated as harmless', async () => {
+  const { testbed } = await import('./helpers.js');
+  const tb = await testbed();
+  const user = await tb.users.createUser({ walletMode: 'nimiqpay', walletAddress: 'NQ45 FEDCBA9876543210ABCDEFGHJKLMNPQRSTUVXY' });
+
+  const originalInsert = tb.store.insert.bind(tb.store);
+  tb.store.insert = async (table, doc) => {
+    if (table === 'user_achievements') {
+      throw new Error('UNIQUE_VIOLATION duplicate key value violates unique constraint "UserAchievement_userId_achievementId_key"');
+    }
+    return originalInsert(table, doc);
+  };
+
+  await tb.store.update('users', user.id, { proofsPassed: 1 });
+  await assert.doesNotReject(() => tb.users.checkAchievements(user.id));
+});
+
 test('chess rewards: a correct puzzle receives the correct range for its difficulty', async () => {
   const { testbed } = await import('./helpers.js');
   const tb = await testbed();
