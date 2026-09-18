@@ -48,6 +48,7 @@ function ProtectedRoutes() {
   const { user, loading } = useAuth();
   const { resolvedTheme, cycleTheme } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Determine if current theme is dark (for Sidebar toggle display)
@@ -75,12 +76,22 @@ function ProtectedRoutes() {
     );
   }
 
+  useEffect(() => {
+    if (!loading && !user) {
+      const fromPath = location.pathname;
+      const safeFrom = fromPath && fromPath.startsWith('/') && fromPath !== '/' && !fromPath.startsWith('/settings') ? fromPath : '/home';
+      navigate('/', { replace: true, state: { from: { pathname: safeFrom } } });
+    }
+  }, [loading, location.pathname, navigate, user]);
+
   // Redirect to onboarding if not authenticated. Preserve only valid app routes;
   // avoid sending users back to a stale settings screen after sign-in.
   if (!user) {
-    const fromPath = location.pathname;
-    const safeFrom = fromPath && fromPath.startsWith('/') && fromPath !== '/' && !fromPath.startsWith('/settings') ? fromPath : '/home';
-    return <Navigate to="/" state={{ from: { pathname: safeFrom } }} replace />;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-app">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-brand border-t-transparent" />
+      </div>
+    );
   }
 
   // User is authenticated, show main app
