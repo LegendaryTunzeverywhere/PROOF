@@ -236,7 +236,7 @@ export function ProfilePage() {
                           <span>{formatTransactionDate(transaction.createdAt)} · {transaction.status}</span>
                           {transaction.ref && !transaction.ref.startsWith('ledger:') && (
                             <a
-                              href={`https://nimiq.watch/transaction/${encodeURIComponent(transaction.ref)}`}
+                              href={`https://nimiq.watch/#${transaction.ref}`}
                               target="_blank"
                               rel="noreferrer"
                               className="font-semibold text-brand hover:underline"

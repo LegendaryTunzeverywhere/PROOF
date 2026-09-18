@@ -21,6 +21,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
   showCoordinates = true,
   animationDuration = 180,
   theme = 'classic',
+  showTurnPrompt = false,
 }) => {
   const [game, setGame] = useState<Chess>(() => new Chess(initialFen));
   const [position, setPosition] = useState(initialFen);
@@ -193,31 +194,39 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
 
   return (
     <div ref={wrapperRef} className={`chess-board-wrapper theme-${theme} w-full min-w-0 max-w-[500px] select-none ${!disabled ? 'touch-none' : ''}`}>
-      {boardWidth > 0 && (
-        <Chessboard
-          id={boardId}
-          // Disabled boards are controlled directly by their FEN, so replay frames
-          // cannot briefly render a stale position while local state is synchronised.
-          position={disabled ? initialFen : position}
-          onPieceDrop={onPieceDrop}
-          onPieceDragBegin={onPieceDragBegin}
-          onSquareClick={onSquareClick}
-          onSquareRightClick={onSquareRightClick}
-          boardOrientation={playerColor ?? orientation}
-          customSquareStyles={customSquareStyles}
-          arePiecesDraggable={!disabled}
-          autoPromoteToQueen
-          animationDuration={animationDuration}
-          boardWidth={boardWidth}
-          showBoardNotation={showCoordinates}
-          customBoardStyle={{
-            borderRadius: '8px',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-          }}
-          customDarkSquareStyle={{ backgroundColor: '#b58863' }}
-          customLightSquareStyle={{ backgroundColor: '#f0d9b5' }}
-        />
-      )}
+      <div className="chess-board-surface" style={{ position: 'relative' }}>
+        {boardWidth > 0 && (
+          <Chessboard
+            id={boardId}
+            // Disabled boards are controlled directly by their FEN, so replay frames
+            // cannot briefly render a stale position while local state is synchronised.
+            position={disabled ? initialFen : position}
+            onPieceDrop={onPieceDrop}
+            onPieceDragBegin={onPieceDragBegin}
+            onSquareClick={onSquareClick}
+            onSquareRightClick={onSquareRightClick}
+            boardOrientation={playerColor ?? orientation}
+            customSquareStyles={customSquareStyles}
+            arePiecesDraggable={!disabled}
+            autoPromoteToQueen
+            animationDuration={animationDuration}
+            boardWidth={boardWidth}
+            showBoardNotation={showCoordinates}
+            customBoardStyle={{
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            }}
+            customDarkSquareStyle={{ backgroundColor: '#b58863' }}
+            customLightSquareStyle={{ backgroundColor: '#f0d9b5' }}
+          />
+        )}
+
+        {showTurnPrompt && !disabled && (
+          <div className="your-turn-overlay" aria-live="polite" aria-label="Your turn">
+            Your turn
+          </div>
+        )}
+      </div>
       
       {/* Game status indicator */}
       <div className="chess-status">

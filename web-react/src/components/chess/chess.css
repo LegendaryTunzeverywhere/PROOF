@@ -134,6 +134,56 @@
 .chess-board-wrapper {
   max-width: 500px;
   margin: 0 auto;
+  position: relative;
+}
+
+.chess-board-surface {
+  position: relative;
+}
+
+.your-turn-overlay {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(15, 118, 110, 0.16);
+  color: #ecfeff;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 28px rgba(45, 212, 191, 0.28);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 9999px;
+  padding: 0.7rem 1.3rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+  opacity: 0;
+  filter: blur(12px);
+  animation: your-turn-pulse 1.4s ease-out forwards;
+}
+
+@keyframes your-turn-pulse {
+  0% {
+    opacity: 0;
+    filter: blur(12px);
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+  18% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+  54% {
+    opacity: 1;
+    filter: blur(1px);
+    transform: translate(-50%, -50%) scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(12px);
+    transform: translate(-50%, -50%) scale(1.32);
+  }
 }
 
 .chess-status {

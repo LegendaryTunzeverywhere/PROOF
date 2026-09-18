@@ -127,6 +127,13 @@ export class Store {
 
   delete(table, id) { return this.remove(table, id); }
 
+  clearTable(table) {
+    if (!this.tables[table]) return 0;
+    const count = Object.keys(this.tables[table]).length;
+    delete this.tables[table];
+    return count;
+  }
+
   async randomChessPuzzles({ difficulty = null, theme = null, limit = 5 } = {}) {
     const allPuzzles = this.all('ChessPuzzle');
     const relatedThemes = {

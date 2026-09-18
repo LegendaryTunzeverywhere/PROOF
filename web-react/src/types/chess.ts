@@ -259,6 +259,7 @@ export interface ChessBoardProps {
   showCoordinates?: boolean;
   animationDuration?: number;
   theme?: ChessBoardTheme;
+  showTurnPrompt?: boolean;
 }
 
 export type ChessBoardTheme =

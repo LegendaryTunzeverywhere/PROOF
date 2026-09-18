@@ -22,7 +22,7 @@ import { createCurriculumFromDocument, getUserDocumentCurricula, getDocumentCurr
 import { cleanupDuplicateSkillPaths } from './services/path-dedupe.js';
 import { uid, now, toNim, escapeHtml, RateLimiter, looksLikeNimiqAddress, normalizeNimiqAddress, nimiqAddressFromPublicKey, validate, parseNumber, hmac, kindIncludesReward, shortTxRef } from './util.js';
 import * as stockfish from './ai/services/stockfish.js';
-import { buildPuzzleHint, normalizeUserMoves } from './chess-hints.js';
+import { buildPuzzleHint, normalizeUserMoves, resolvePuzzleTurn } from './chess-hints.js';
 import multer from 'multer';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -1395,7 +1395,15 @@ function dailyView(ch) {
 
 async function chessPuzzleView(puzzle) {
   const position = puzzle.position || await store.get('ChessPosition', puzzle.positionId);
-  return { ...puzzle, position };
+  if (!position) return { ...puzzle, position: null };
+
+  return {
+    ...puzzle,
+    position: {
+      ...position,
+      sideToMove: resolvePuzzleTurn(position.fen || null, position.sideToMove || null),
+    },
+  };
 }
 
 /* ── CHESS ─────────────────────────────────────────────────────────── */

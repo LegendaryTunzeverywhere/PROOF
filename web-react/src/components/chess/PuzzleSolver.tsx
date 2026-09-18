@@ -81,6 +81,7 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
   const [feedback, setFeedback] = useState('');
   const [loading, setLoading] = useState(false);
   const [boardVersion, setBoardVersion] = useState(0);
+  const [showTurnPrompt, setShowTurnPrompt] = useState(false);
   const startingFen = puzzle.position?.fen || '8/8/8/8/8/8/8/8 w - - 0 1';
   const [currentFen, setCurrentFen] = useState(startingFen);
   const humanColor = getFenTurn(startingFen) as 'white' | 'black';
@@ -98,6 +99,7 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
     setBoardVersion((version) => version + 1);
     setStatus('solving');
     setFeedback('');
+    setShowTurnPrompt(false);
   }, [startingFen, puzzle.id]);
 
   const playAutoReply = useCallback(async (fen: string) => {
@@ -114,6 +116,7 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
 
       setCurrentFen(replyGame.fen());
       setBoardVersion((version) => version + 1);
+      setShowTurnPrompt(true);
     } catch (error) {
       console.warn('[puzzle] engine auto-reply unavailable:', error);
     }
@@ -130,6 +133,12 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
     if (status !== 'solving' || turnOrder.humanMovesFirst || !startingFen) return;
     void playAutoReply(startingFen);
   }, [status, startingFen, turnOrder.humanMovesFirst, playAutoReply]);
+
+  useEffect(() => {
+    if (!showTurnPrompt) return;
+    const timer = window.setTimeout(() => setShowTurnPrompt(false), 1400);
+    return () => window.clearTimeout(timer);
+  }, [showTurnPrompt]);
 
   // Handle move
   const handleMove = useCallback(
@@ -285,6 +294,7 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
           disabled={status !== 'solving'}
           orientation={solverColor}
           playerColor={solverColor}
+          showTurnPrompt={showTurnPrompt}
         />
       </div>
 

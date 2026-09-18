@@ -462,7 +462,7 @@ export function AdminDashboard() {
                       <td>
                         {hasOnChainRef ? (
                           <a
-                            href={`https://nimiq.watch/transaction/${encodeURIComponent(transaction.ref as string)}`}
+                            href={`https://nimiq.watch/#${transaction.ref}`}
                             target="_blank"
                             rel="noreferrer"
                             className="admin-transaction-link"
