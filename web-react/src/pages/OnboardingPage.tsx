@@ -162,7 +162,7 @@ function WelcomeSplash() {
 export function OnboardingPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, refreshUser } = useAuth();
   const [tags, setTags] = useState<string[]>([]);
   const [more, setMore] = useState<string[]>([]);
   const [showMore, setShowMore] = useState(false);
@@ -207,6 +207,17 @@ export function OnboardingPage() {
     const timer = window.setTimeout(() => setShowWelcome(false), 1400);
     return () => window.clearTimeout(timer);
   }, [authLoading, showWelcome, user]);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-elevated to-base">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-brand border-t-transparent" />
+          <p className="text-sm font-semibold tracking-[0.18em] text-muted uppercase">Loading your workspace</p>
+        </div>
+      </div>
+    );
+  }
 
   const toggleTheme = useCallback(() => setIsDark((value) => !value), []);
 
@@ -253,6 +264,7 @@ export function OnboardingPage() {
       if (walletResult.isNewUser) {
         setShowUsernameModal(true);
       } else {
+        await refreshUser();
         // A verified returning wallet already has an identity. Do not ask for
         // onboarding details again; continue directly to the app.
         localStorage.setItem('onboarding_completed', 'true');
@@ -348,7 +360,8 @@ export function OnboardingPage() {
       
       // Mark onboarding as completed
       localStorage.setItem('onboarding_completed', 'true');
-      
+      await refreshUser();
+
       try {
         sessionStorage.setItem('proof_welcome_pending', 'true');
       } catch {
