@@ -806,17 +806,25 @@
   letter-spacing: -0.04em;
 }
 
-.repertoire-header .btn-primary {
-  background: linear-gradient(135deg, rgba(116, 176, 255, 0.22), rgba(112, 236, 212, 0.28));
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  color: #ebf4ff;
+.repertoire-header .btn-add-opening {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(45, 212, 191, 0.22));
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: var(--chess-text);
   padding: 0.8rem 1.25rem;
   border-radius: 999px;
-  box-shadow: 0 12px 24px -18px rgba(72, 135, 255, 0.95);
+  box-shadow: 0 12px 26px -20px rgba(16, 185, 129, 0.8);
 }
 
-.repertoire-header .btn-primary:hover {
-  background: linear-gradient(135deg, rgba(116, 176, 255, 0.32), rgba(112, 236, 212, 0.34));
+.repertoire-header .btn-add-opening:hover {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.26), rgba(45, 212, 191, 0.3));
+}
+
+@media (prefers-color-scheme: dark) {
+  .repertoire-header .btn-add-opening {
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.22), rgba(16, 185, 129, 0.32));
+    border-color: rgba(94, 234, 212, 0.45);
+    color: #ecfeff;
+  }
 }
 
 .repertoire-content {
@@ -1135,46 +1143,62 @@
 .btn-hint,
 .btn-reset,
 .btn-give-up {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(120, 130, 150, 0.25);
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.35);
   color: var(--chess-text);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+  box-shadow: 0 8px 18px -14px rgba(15, 23, 42, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.68);
 }
 
 .btn-hint {
-  background: linear-gradient(135deg, #d1fae5, #a7f3d0);
-  border-color: rgba(16, 185, 129, 0.45);
-  color: #0f172a;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(52, 211, 153, 0.3));
+  border-color: rgba(16, 185, 129, 0.5);
+  color: var(--chess-text);
   text-shadow: none;
-  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.18);
+  box-shadow: 0 10px 22px -16px rgba(16, 185, 129, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .btn-hint:hover {
-  background: linear-gradient(135deg, #bbf7d0, #86efac);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(52, 211, 153, 0.42));
+}
+
+.btn-reset,
+.btn-give-up {
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.16), rgba(100, 116, 139, 0.18));
 }
 
 .btn-reset:hover,
 .btn-give-up:hover {
-  background: rgba(248, 250, 252, 0.96);
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.24), rgba(100, 116, 139, 0.26));
 }
 
 @media (prefers-color-scheme: dark) {
   .btn-hint,
   .btn-reset,
   .btn-give-up {
-    color: #e5f1ff;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    color: #e2f7ff;
+    border-color: rgba(148, 163, 184, 0.38);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .btn-hint {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.34), rgba(13, 148, 136, 0.4));
+    border-color: rgba(94, 234, 212, 0.48);
+    color: #ecfeff;
   }
 
   .btn-reset,
   .btn-give-up {
-    background: rgba(15, 23, 42, 0.8);
-    border-color: rgba(148, 163, 184, 0.35);
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.96));
+    color: #e2e8f0;
+  }
+
+  .btn-hint:hover {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.42), rgba(13, 148, 136, 0.5));
   }
 
   .btn-reset:hover,
   .btn-give-up:hover {
-    background: rgba(30, 41, 59, 0.9);
+    background: linear-gradient(135deg, rgba(30, 41, 59, 1), rgba(51, 65, 85, 1));
   }
 }
 

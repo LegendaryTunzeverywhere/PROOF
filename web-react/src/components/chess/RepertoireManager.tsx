@@ -90,7 +90,7 @@ export const RepertoireManager: React.FC<RepertoireManagerProps> = () => {
       <div className="repertoire-header">
         <h2>Opening Repertoire</h2>
         <button
-          className="btn btn-primary"
+          className="btn btn-add-opening"
           onClick={() => setIsCreating(true)}
         >
           ➕ Add Opening
