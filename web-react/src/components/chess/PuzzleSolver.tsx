@@ -18,6 +18,28 @@ const normalizeSideToMove = (side?: string | null) => {
   return 'white';
 };
 
+const normalizeUserMovesForPuzzle = (fen?: string | null, solution: string[] = []) => {
+  if (!fen || !Array.isArray(solution) || solution.length === 0) return [...solution];
+
+  try {
+    const chess = new Chess(fen);
+    const expectedTurn = chess.turn();
+    const userMoves: string[] = [];
+
+    for (const moveText of solution) {
+      const turnBeforeMove = chess.turn();
+      const move = chess.move(moveText);
+      if (!move) continue;
+      if (turnBeforeMove === expectedTurn) userMoves.push(move.san);
+    }
+
+    return userMoves.length > 0 ? userMoves : [...solution];
+  } catch (error) {
+    console.warn('[puzzle] failed to normalize move list:', error);
+    return [...solution];
+  }
+};
+
 export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
   puzzle,
   onComplete,
@@ -38,6 +60,10 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
   const solverColor = normalizeSideToMove(
     puzzle.position?.sideToMove ?? (new Chess(puzzle.position?.fen || puzzle.positionId).turn())
   ) as 'white' | 'black';
+  const normalizedSolution = normalizeUserMovesForPuzzle(
+    puzzle.position?.fen || puzzle.positionId,
+    Array.isArray(puzzle.solution) ? puzzle.solution : []
+  );
 
   const resetBoard = useCallback(() => {
     const nextGame = new Chess(puzzle.position?.fen || puzzle.positionId);
@@ -80,7 +106,7 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
       if (status !== 'solving') return;
 
       const nextMoves = [...moves, move.san];
-      const expectedMove = puzzle.solution[moves.length];
+      const expectedMove = normalizedSolution[moves.length];
       const expectedMover = game.turn();
 
       if (move.color !== expectedMover) {
@@ -112,12 +138,12 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
       setGame(newGame);
       setMoves(nextMoves);
 
-      if (nextMoves.length < puzzle.solution.length) {
+      if (nextMoves.length < normalizedSolution.length) {
         await playAutoReply(newFen);
       }
 
       // Check if puzzle is complete
-      if (nextMoves.length === puzzle.solution.length) {
+      if (nextMoves.length === normalizedSolution.length) {
         const timeSpent = Date.now() - startTime;
         setStatus('correct');
         setFeedback('Correct! Well done!');
@@ -177,8 +203,8 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
   }, [resetBoard]);
 
   // Calculate moves remaining
-  const movesRemaining = puzzle.solution.length - moves.length;
-  const progress = (moves.length / puzzle.solution.length) * 100;
+  const movesRemaining = normalizedSolution.length - moves.length;
+  const progress = normalizedSolution.length > 0 ? (moves.length / normalizedSolution.length) * 100 : 0;
 
   return (
     <div className="puzzle-solver">
@@ -297,7 +323,7 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
           <h4>Explanation</h4>
           <p>{puzzle.solutionExplanation}</p>
           <div className="solution-moves">
-            <strong>Solution:</strong> {puzzle.solution.join(', ')}
+            <strong>Solution:</strong> {normalizedSolution.join(', ')}
           </div>
         </div>
       )}

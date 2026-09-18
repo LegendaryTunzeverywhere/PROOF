@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Store } from '../server/store.js';
 import { buildPuzzleFromFen, convertPuzzle, getPlayerMovesForTurn } from '../scripts/import-lichess-puzzles.js';
-import { buildPuzzleHint } from '../server/chess-hints.js';
+import { buildPuzzleHint, normalizeUserMoves } from '../server/chess-hints.js';
 
 test('lichess import: the stored puzzle FEN stays at the actual starting position', () => {
   const row = {
@@ -52,6 +52,13 @@ test('lichess import: solver side is taken from the starting FEN, not the final 
   const converted = convertPuzzle(row);
   assert.ok(converted);
   assert.equal(converted.position.sideToMove, 'black');
+});
+
+test('puzzle validation: mixed side-to-move lines are reduced to the solver sequence only', () => {
+  const fen = 'r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 0 5';
+  const solution = ['Bxf7+', 'Kxf7', 'Nxe5+'];
+
+  assert.deepEqual(normalizeUserMoves(fen, solution), ['Bxf7+', 'Nxe5+']);
 });
 
 test('chess persistence: random puzzles filter by difficulty and theme', async () => {

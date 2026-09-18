@@ -18,7 +18,7 @@ VALUES
 INSERT INTO "ChessPuzzle" ("id", "positionId", "title", "difficulty", "themes", "solution", "solutionExplanation", "hints", "rating", "topicSlug")
 VALUES 
   ('puzzle-pin-1', 'pos-pin-1', 'Pin to Win', 'beginner', ARRAY['pin']::chess_puzzle_theme[], 
-   ARRAY['Bxf7+', 'Kxf7', 'Nxe5+'], 
+   ARRAY['Bxf7+', 'Nxe5+'], 
    'After Bxf7+ Kxf7, the knight on e5 is pinned to the king by the bishop on c4. White wins material.',
    ARRAY['Look for pieces on the same line as the king', 'The bishop on f7 check forces the king to move'],
    1250, 'fundamental-tactics');

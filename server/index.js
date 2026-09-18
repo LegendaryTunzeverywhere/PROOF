@@ -22,7 +22,7 @@ import { createCurriculumFromDocument, getUserDocumentCurricula, getDocumentCurr
 import { cleanupDuplicateSkillPaths } from './services/path-dedupe.js';
 import { uid, now, toNim, escapeHtml, RateLimiter, looksLikeNimiqAddress, normalizeNimiqAddress, nimiqAddressFromPublicKey, validate, parseNumber, hmac, kindIncludesReward, shortTxRef } from './util.js';
 import * as stockfish from './ai/services/stockfish.js';
-import { buildPuzzleHint } from './chess-hints.js';
+import { buildPuzzleHint, normalizeUserMoves } from './chess-hints.js';
 import multer from 'multer';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -1468,7 +1468,9 @@ route('POST', '/api/chess/puzzles/:id/attempt', async (ctx) => {
   if (!puzzle) throw httpError(404, 'NOT_FOUND', 'Puzzle not found');
   
   const { moves, timeSpentMs, hintsUsed } = body;
-  const correct = JSON.stringify(moves) === JSON.stringify(puzzle.solution);
+  const position = await store.get('ChessPosition', puzzle.positionId);
+  const normalizedSolution = normalizeUserMoves(position?.fen || puzzle.position?.fen || null, puzzle.solution || []);
+  const correct = JSON.stringify(moves || []) === JSON.stringify(normalizedSolution);
   
   // Calculate score based on correctness, hints, and time
   let score = correct ? 100 : 0;
