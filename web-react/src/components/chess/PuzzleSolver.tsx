@@ -59,10 +59,11 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
 
       const nextMoves = [...moves, move.san];
       const expectedMove = puzzle.solution[moves.length];
+      const expectedMover = game.turn();
 
-      if (move.color !== (solverColor === 'white' ? 'w' : 'b')) {
+      if (move.color !== expectedMover) {
         setStatus('incorrect');
-        setFeedback(`That move is for the wrong side. You are solving as ${solverColor === 'white' ? 'White' : 'Black'}.`);
+        setFeedback(`That move is for the wrong side. The position says ${expectedMover === 'w' ? 'White' : 'Black'} to move.`);
         setGame(new Chess(newFen));
         setMoves(nextMoves);
         return;

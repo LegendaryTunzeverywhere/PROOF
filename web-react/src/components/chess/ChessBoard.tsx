@@ -30,7 +30,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const boardId = useId();
   const [boardWidth, setBoardWidth] = useState(0);
-  const activeColor = playerColor ?? (game.turn() === 'w' ? 'white' : 'black');
+  const activeColor = game.turn() === 'w' ? 'white' : 'black';
 
   // Keep a replayed FEN and the rules engine in lockstep before the browser paints.
   // This avoids a frame where pieces animate from a previous lesson position.
