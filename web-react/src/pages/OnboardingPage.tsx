@@ -208,6 +208,12 @@ export function OnboardingPage() {
     return () => window.clearTimeout(timer);
   }, [authLoading, showWelcome, user]);
 
+  useEffect(() => {
+    if (user && !authLoading) {
+      navigate(getSafeRedirectTarget(), { replace: true });
+    }
+  }, [authLoading, navigate, user]);
+
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-elevated to-base">
@@ -230,15 +236,11 @@ export function OnboardingPage() {
   };
 
   if (showWelcome) {
-    if (user && !authLoading) {
-      navigate(getSafeRedirectTarget(), { replace: true });
-    }
     return <WelcomeSplash />;
   }
 
-  // If already authenticated, redirect to intended destination or home
+  // If already authenticated, avoid showing the sign-up flow while redirecting.
   if (user && !authLoading) {
-    navigate(getSafeRedirectTarget(), { replace: true });
     return null;
   }
 
@@ -419,6 +421,31 @@ export function OnboardingPage() {
         </div>
 
         <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="hidden items-center gap-1.5 rounded-full border border-line bg-surface p-1 sm:flex">
+            <a
+              href="https://x.com/nimiqagent"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Nimiq Agent on X"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-elevated hover:text-brand"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                <path d="M18.9 2h3.3l-7.2 8.2L22.7 22h-6.5l-5.1-7.1L5.6 22H2.3l7.7-8.8L1.8 2h6.7l4.6 6.6L18.9 2Zm-1.1 18h1.8L7.1 3.9H5.2L17.8 20Z" />
+              </svg>
+            </a>
+            <a
+              href="https://t.me/Proof_on_nimiq"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="PROOF community on Telegram"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-elevated hover:text-brand"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                <path d="M21.5 4.8c.3-1.2-1-2.2-2.1-1.6l-15.9 6.5c-1.2.5-1.1 2.2.1 2.5l3.9 1.2 1 3.8c.2.9 1.5 1.1 2.1.4l2.4-2.9 4.3 3.2c.9.7 2.2-.2 2-1.2l-1.9-11.9Zm-12.4 9.6 8.2-5.4c.4-.3.8-.1.5.2l-6.8 6.2-.9 3.2-1-3.9Z" />
+              </svg>
+            </a>
+          </div>
+
           {/* Theme Toggle */}
           <button
             type="button"
