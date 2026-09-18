@@ -208,11 +208,21 @@ export function OnboardingPage() {
     return () => window.clearTimeout(timer);
   }, [authLoading, showWelcome, user]);
 
+  const toggleTheme = useCallback(() => setIsDark((value) => !value), []);
+
+  const getSafeRedirectTarget = useCallback(() => {
+    const from = (location.state as any)?.from?.pathname;
+    if (typeof from === 'string' && from.startsWith('/') && from !== '/' && from !== '/settings') {
+      return from;
+    }
+    return '/home';
+  }, [location.state]);
+
   useEffect(() => {
     if (user && !authLoading) {
       navigate(getSafeRedirectTarget(), { replace: true });
     }
-  }, [authLoading, navigate, user]);
+  }, [authLoading, getSafeRedirectTarget, navigate, user]);
 
   if (authLoading) {
     return (
@@ -224,16 +234,6 @@ export function OnboardingPage() {
       </div>
     );
   }
-
-  const toggleTheme = useCallback(() => setIsDark((value) => !value), []);
-
-  const getSafeRedirectTarget = () => {
-    const from = (location.state as any)?.from?.pathname;
-    if (typeof from === 'string' && from.startsWith('/') && from !== '/' && from !== '/settings') {
-      return from;
-    }
-    return '/home';
-  };
 
   if (showWelcome) {
     return <WelcomeSplash />;
