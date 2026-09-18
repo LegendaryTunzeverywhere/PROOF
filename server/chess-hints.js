@@ -37,6 +37,36 @@ export function normalizeUserMoves(fen, solution = []) {
   return userMoves.length > 0 ? userMoves : [...solution];
 }
 
+export function resolveLegalMoveForFen(fen, moveText) {
+  if (!fen || typeof moveText !== 'string' || !moveText.trim()) return null;
+
+  const trimmed = moveText.trim();
+
+  try {
+    const chess = new Chess(fen);
+    const parsed = chess.move(trimmed);
+    if (parsed) return parsed.san;
+  } catch (error) {
+    // ignore; fall through to UCI parsing
+  }
+
+  const uci = trimmed.toLowerCase();
+  const uciMatch = uci.match(/^([a-h])(\d)([a-h])(\d)([qrbn])?$/i);
+  if (!uciMatch) return null;
+
+  try {
+    const chess = new Chess(fen);
+    const move = chess.move({
+      from: `${uciMatch[1]}${uciMatch[2]}`,
+      to: `${uciMatch[3]}${uciMatch[4]}`,
+      promotion: uciMatch[5] || 'q',
+    });
+    return move ? move.san : null;
+  } catch (error) {
+    return null;
+  }
+}
+
 export async function buildPuzzleHint(puzzle, level = 1, positionFen = null) {
   const clues = Array.isArray(puzzle?.hints) ? puzzle.hints : [];
   const fallbackIndex = Math.min(Math.max((Number(level) || 1) - 1, 0), Math.max(clues.length - 1, 0));
@@ -48,7 +78,7 @@ export async function buildPuzzleHint(puzzle, level = 1, positionFen = null) {
   if (fen) {
     try {
       const evaluation = await stockfish.evaluatePosition(fen, { depth: 12 });
-      bestMove = evaluation?.bestMove || null;
+      bestMove = resolveLegalMoveForFen(fen, evaluation?.bestMove || null) || null;
     } catch (error) {
       console.warn('[chess-hints] evaluatePosition failed:', error.message);
     }
@@ -57,8 +87,9 @@ export async function buildPuzzleHint(puzzle, level = 1, positionFen = null) {
   const normalizedSolution = normalizeUserMoves(fen, puzzle?.solution ?? []);
   if (!bestMove && normalizedSolution.length > 0) {
     const firstSolutionMove = normalizedSolution[0];
-    if (typeof firstSolutionMove === 'string' && firstSolutionMove.length > 0) {
-      bestMove = firstSolutionMove;
+    const resolvedSolutionMove = resolveLegalMoveForFen(fen, firstSolutionMove);
+    if (resolvedSolutionMove) {
+      bestMove = resolvedSolutionMove;
     }
   }
 

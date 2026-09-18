@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Store } from '../server/store.js';
 import { buildPuzzleFromFen, convertPuzzle, getPlayerMovesForTurn } from '../scripts/import-lichess-puzzles.js';
-import { buildPuzzleHint, normalizeUserMoves, resolvePuzzleTurn } from '../server/chess-hints.js';
+import { buildPuzzleHint, normalizeUserMoves, resolveLegalMoveForFen, resolvePuzzleTurn } from '../server/chess-hints.js';
 
 test('lichess import: the stored puzzle FEN stays at the actual starting position', () => {
   const row = {
@@ -76,6 +76,13 @@ test('stored turn metadata must never override the actual FEN side to move', () 
   assert.equal(resolvePuzzleTurn(fen, 'white'), 'black');
   assert.equal(resolvePuzzleTurn(fen, 'black'), 'black');
   assert.equal(resolvePuzzleTurn('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', 'black'), 'white');
+});
+
+test('hint generation accepts only legal SAN moves for the live FEN', () => {
+  const fen = 'r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 0 5';
+
+  assert.equal(resolveLegalMoveForFen(fen, 'Bxf7+'), 'Bxf7+');
+  assert.equal(resolveLegalMoveForFen(fen, 'g4e6'), null);
 });
 
 test('chess persistence: random puzzles filter by difficulty and theme', async () => {

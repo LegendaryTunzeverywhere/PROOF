@@ -97,6 +97,18 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
   const commitMove = useCallback((sourceSquare: ChessSquare, targetSquare: ChessSquare): boolean => {
     if (disabled) return false;
 
+    const sourcePiece = game.get(sourceSquare);
+    if (!sourcePiece || sourcePiece.color !== game.turn()) {
+      clearSelection();
+      return false;
+    }
+
+    const legalTargets = game.moves({ square: sourceSquare, verbose: true }).map((move) => move.to);
+    if (!legalTargets.includes(targetSquare)) {
+      clearSelection();
+      return false;
+    }
+
     try {
       const gameCopy = new Chess(game.fen());
       const move = gameCopy.move({
@@ -116,7 +128,6 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
       onMove?.(move, gameCopy.fen());
       return true;
     } catch (error) {
-      console.error('Invalid move:', error);
       clearSelection();
       return false;
     }

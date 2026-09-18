@@ -111,7 +111,14 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
       if (!bestMove) return;
 
       const replyGame = new Chess(fen);
-      const played = replyGame.move(bestMove);
+      const played = (() => {
+        try {
+          return replyGame.move(bestMove);
+        } catch (error) {
+          return null;
+        }
+      })();
+
       if (!played) return;
 
       setCurrentFen(replyGame.fen());
