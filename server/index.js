@@ -1404,7 +1404,7 @@ route('GET', '/api/chess/puzzles/random', async (ctx) => {
   const difficulty = query.get('difficulty') || null;
   const theme = query.get('theme') || null;
   const limit = parseInt(query.get('limit')) || 5;
-  
+
   const puzzles = await Promise.all((await store.randomChessPuzzles({ difficulty, theme, limit })).map(chessPuzzleView));
   
   json(res, 200, { puzzles });
@@ -1438,6 +1438,7 @@ route('POST', '/api/chess/puzzles/:id/attempt', async (ctx) => {
     hintsUsed: hintsUsed || 0,
     timeSpentMs: timeSpentMs || 0,
     score,
+    createdAt: now(),
   });
   
   await store.recordChessProgress({ userId: user.id, correct, score });

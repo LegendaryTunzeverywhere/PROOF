@@ -13,6 +13,7 @@
     "dev": "node --watch server/index.js",
     "test": "node --test tests/*.test.js",
     "smoke": "node tests/smoke.js",
+    "import:chess": "node --env-file=.env scripts/import-lichess-puzzles.js",
     "typecheck": "tsc --noEmit",
     "seed:reset": "node -e \"import('./server/store.js').then(async m=>{const s=new m.Store({dataDir:'data'});await s.reset();console.log('store reset')})\"",
     "reset:supabase-users": "node --env-file=.env scripts/reset-supabase-users.js"

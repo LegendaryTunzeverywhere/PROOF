@@ -26,10 +26,10 @@
   --chess-success: #4ade80;
   --chess-warning: #fbbf24;
   --chess-danger: #ef4444;
-  --chess-border: #e5e7eb;
-  --chess-bg: #f9fafb;
-  --chess-text: #1f2937;
-  --chess-text-secondary: #6b7280;
+  --chess-border: var(--line, #e5e7eb);
+  --chess-bg: var(--surface-2, #f9fafb);
+  --chess-text: var(--ink, #1f2937);
+  --chess-text-secondary: var(--ink-soft, #6b7280);
 }
 
 /* ============================================================================
@@ -392,7 +392,7 @@
 }
 
 .eval-bar-white {
-  background: #f3f4f6;
+  background: var(--surface-2, #f3f4f6);
   transition: height 0.3s ease;
 }
 
@@ -413,9 +413,9 @@
 }
 
 .analyzer-error {
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+  background: color-mix(in srgb, var(--chess-danger) 14%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--chess-danger) 35%, var(--chess-border));
+  color: var(--chess-danger);
   padding: 1rem;
   border-radius: 0.5rem;
   margin-bottom: 1rem;
@@ -490,7 +490,7 @@
 
 .pv-move {
   padding: 0.25rem 0.5rem;
-  background: white;
+  background: var(--surface, #fff);
   border: 1px solid var(--chess-border);
   border-radius: 0.25rem;
   font-size: 0.875rem;
@@ -509,7 +509,7 @@
   display: flex;
   gap: 0.5rem;
   padding: 0.5rem;
-  background: white;
+  background: var(--surface, #fff);
   border: 1px solid var(--chess-border);
   border-radius: 0.25rem;
   margin-bottom: 0.5rem;
@@ -551,7 +551,7 @@
 }
 
 .stat-card {
-  background: white;
+  background: var(--surface, #fff);
   padding: 1.5rem;
   border-radius: 0.75rem;
   border-top: 4px solid var(--chess-primary);
@@ -619,12 +619,12 @@
 }
 
 .theme-card.strong {
-  background: #dcfce7;
+  background: color-mix(in srgb, var(--chess-success) 14%, var(--surface));
   border-color: var(--chess-success);
 }
 
 .theme-card.weak {
-  background: #fee2e2;
+  background: color-mix(in srgb, var(--chess-danger) 14%, var(--surface));
   border-color: var(--chess-danger);
 }
 
@@ -671,7 +671,7 @@
 }
 
 .history-section {
-  background: white;
+  background: var(--surface, #fff);
   border: 1px solid var(--chess-border);
   border-radius: 0.75rem;
   padding: 1.5rem;
@@ -693,7 +693,7 @@
   padding: 0.5rem;
   border: 1px solid var(--chess-border);
   border-radius: 0.25rem;
-  background: white;
+  background: var(--surface, #fff);
   cursor: pointer;
 }
 
@@ -787,7 +787,7 @@
 }
 
 .repertoire-sidebar {
-  background: white;
+  background: var(--surface, #fff);
   border: 1px solid var(--chess-border);
   border-radius: 0.75rem;
   padding: 1rem;
@@ -866,7 +866,7 @@
 }
 
 .repertoire-main {
-  background: white;
+  background: var(--surface, #fff);
   border: 1px solid var(--chess-border);
   border-radius: 0.75rem;
   padding: 2rem;
@@ -1033,6 +1033,8 @@
   border-radius: 0.5rem;
   font-size: 1rem;
   font-family: inherit;
+  color: var(--chess-text);
+  background: var(--surface, #fff);
 }
 
 .form-group textarea {
@@ -1097,7 +1099,7 @@
 .btn-hint,
 .btn-reset,
 .btn-give-up {
-  background: white;
+  background: var(--surface, #fff);
   border: 1px solid var(--chess-border);
   color: var(--chess-text);
 }
@@ -1112,7 +1114,7 @@
 }
 
 .btn-refresh {
-  background: white;
+  background: var(--surface, #fff);
   border: 1px solid var(--chess-border);
   color: var(--chess-text);
 }
@@ -1142,9 +1144,9 @@
 }
 
 .error-message {
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+  background: color-mix(in srgb, var(--chess-danger) 14%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--chess-danger) 35%, var(--chess-border));
+  color: var(--chess-danger);
   padding: 1rem;
   border-radius: 0.5rem;
   margin-bottom: 1rem;
@@ -1188,7 +1190,7 @@
   padding: 0.75rem;
   border: 2px solid var(--chess-border);
   border-radius: 0.5rem;
-  background: white;
+  background: var(--surface, #fff);
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
@@ -1205,7 +1207,7 @@
 
 .theme-option.selected {
   border-color: var(--chess-primary);
-  background: #eff6ff;
+  background: color-mix(in srgb, var(--chess-primary) 12%, var(--surface));
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -1258,7 +1260,7 @@
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--chess-border);
   border-radius: 0.375rem;
-  background: white;
+  background: var(--surface, #fff);
   font-size: 0.875rem;
   cursor: pointer;
   min-width: 180px;

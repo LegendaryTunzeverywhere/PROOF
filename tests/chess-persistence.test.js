@@ -12,6 +12,17 @@ test('chess persistence: random puzzles filter by difficulty and theme', async (
   assert.deepEqual(puzzles.map((puzzle) => puzzle.id), ['p1']);
 });
 
+test('chess persistence: sparse filters fall back and repeats remain allowed', async () => {
+  const store = new Store({ dataDir: './data/test-chess-' + Math.random().toString(36).slice(2, 8) });
+  await store.open();
+  store.insert('ChessPuzzle', { id: 'p1', difficulty: 'beginner', themes: ['fork'] });
+
+  const first = await store.randomChessPuzzles({ difficulty: 'advanced', theme: 'pin', limit: 1 });
+  const second = await store.randomChessPuzzles({ difficulty: 'advanced', theme: 'pin', limit: 1 });
+  assert.equal(first[0].id, 'p1');
+  assert.equal(second[0].id, 'p1');
+});
+
 test('chess persistence: puzzle progress is saved through the store API', async () => {
   const store = new Store({ dataDir: './data/test-chess-' + Math.random().toString(36).slice(2, 8) });
   await store.open();

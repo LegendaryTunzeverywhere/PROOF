@@ -128,12 +128,14 @@ export class Store {
   delete(table, id) { return this.remove(table, id); }
 
   async randomChessPuzzles({ difficulty = null, theme = null, limit = 5 } = {}) {
-    const puzzles = this.filter('ChessPuzzle', (puzzle) => {
+    const allPuzzles = this.all('ChessPuzzle');
+    const puzzles = allPuzzles.filter((puzzle) => {
       const difficultyMatches = !difficulty || puzzle.difficulty === difficulty;
       const themeMatches = !theme || (puzzle.themes || []).includes(theme);
       return difficultyMatches && themeMatches;
     });
-    return puzzles.sort(() => Math.random() - 0.5).slice(0, limit);
+    const pool = puzzles.length > 0 ? puzzles : allPuzzles;
+    return pool.sort(() => Math.random() - 0.5).slice(0, limit);
   }
 
   async recordChessProgress({ userId, correct }) {

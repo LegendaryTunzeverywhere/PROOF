@@ -356,11 +356,18 @@ export class SupabaseStore {
       p_themes: theme ? [theme] : null,
       p_count: limit,
     });
-    if (error) {
-      console.error('Chess puzzle query error:', error);
-      return [];
-    }
-    return (data || []).map((row) => this.convertFromDatabase(row, 'ChessPuzzle'));
+    if (!error && data?.length) return data.map((row) => this.convertFromDatabase(row, 'ChessPuzzle'));
+
+    if (error) console.error('Chess puzzle query error:', error);
+    const all = await this.all('ChessPuzzle');
+    const filtered = all.filter((puzzle) => {
+      const difficultyMatches = !difficulty || puzzle.difficulty === difficulty;
+      const themeMatches = !theme || (puzzle.themes || []).includes(theme);
+      return difficultyMatches && themeMatches;
+    });
+    return (filtered.length ? filtered : all)
+      .sort(() => Math.random() - 0.5)
+      .slice(0, limit);
   }
 
   async recordChessProgress() {

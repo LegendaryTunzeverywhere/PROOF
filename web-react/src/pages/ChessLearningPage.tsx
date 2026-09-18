@@ -45,7 +45,7 @@ export function ChessLearningPage() {
       });
       setPuzzles(next);
       setPuzzleIndex(0);
-      if (next.length === 0) setError('No puzzles match those filters yet. Try a broader set.');
+      if (next.length === 0) setError('The chess catalog is empty. Add the puzzle seed or import a puzzle corpus to begin.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load puzzles');
     } finally {

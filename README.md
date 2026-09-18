@@ -74,6 +74,22 @@ npm test           # 43 unit tests
 npm run smoke      # end-to-end demo flow over the real HTTP API (needs the server running; see SMOKE_BASE)
 ```
 
+### Chess puzzle data
+
+The chess practice catalog is populated from the Lichess open puzzle database:
+
+<https://database.lichess.org/#puzzles>
+
+Import a larger catalog into Supabase with:
+
+```bash
+npm run import:chess -- path/to/lichess_db_puzzle.tsv 5000
+```
+
+The final argument is the target number of puzzles per difficulty-and-motif bucket. The importer defaults to 5,000 when the argument is omitted. See [docs/CHESS-DATA.md](docs/CHESS-DATA.md) for download, schema, verification, and attribution requirements.
+
+Lichess puzzle data is provided under the [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/). PROOF preserves the source metadata and credits Lichess in its chess data documentation.
+
 ---
 
 ## What's inside
