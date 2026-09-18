@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Chess } from 'chess.js';
 import { ChessBoard } from './ChessBoard';
-import { puzzleApi } from '../../services/chess';
+import { analysisApi, puzzleApi } from '../../services/chess';
 import type { PuzzleSolverProps, ChessStatus, PuzzleAttemptResponse } from '../../types/chess';
 import { DIFFICULTY_COLORS, DIFFICULTY_LABELS, THEME_LABELS } from '../../types/chess';
 
@@ -47,6 +47,25 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
     setStatus('solving');
     setFeedback('');
   }, [puzzle.id, puzzle.position?.fen, puzzle.positionId]);
+
+  const playAutoReply = useCallback(async (fen: string) => {
+    if (!fen || status !== 'solving') return;
+
+    try {
+      const analysis = await analysisApi.analyzePosition({ fen, depth: 12 });
+      const bestMove = analysis?.evaluation?.bestMove;
+      if (!bestMove) return;
+
+      const replyGame = new Chess(fen);
+      const played = replyGame.move(bestMove);
+      if (!played) return;
+
+      setGame(replyGame);
+      setBoardVersion((version) => version + 1);
+    } catch (error) {
+      console.warn('[puzzle] engine auto-reply unavailable:', error);
+    }
+  }, [status]);
 
   // Reset when puzzle changes
   useEffect(() => {
@@ -92,6 +111,10 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
       const newGame = new Chess(newFen);
       setGame(newGame);
       setMoves(nextMoves);
+
+      if (nextMoves.length < puzzle.solution.length) {
+        await playAutoReply(newFen);
+      }
 
       // Check if puzzle is complete
       if (nextMoves.length === puzzle.solution.length) {
@@ -181,6 +204,15 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
         </div>
       </div>
 
+      {/* Feedback banner shown early while the user is still focused on the position */}
+      {feedback && (
+        <div className={`puzzle-feedback ${status}`} role="alert" aria-live="polite">
+          {status === 'correct' && <span className="feedback-icon">✅</span>}
+          {status === 'incorrect' && <span className="feedback-icon">❌</span>}
+          <span className="feedback-text">{feedback}</span>
+        </div>
+      )}
+
       {/* Progress bar */}
       {status === 'solving' && movesRemaining > 0 && (
         <div className="puzzle-progress">
@@ -237,15 +269,6 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
               <span className="hint-text">{hint}</span>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Feedback */}
-      {feedback && (
-        <div className={`puzzle-feedback ${status}`}>
-          {status === 'correct' && <span className="feedback-icon">✅</span>}
-          {status === 'incorrect' && <span className="feedback-icon">❌</span>}
-          <span className="feedback-text">{feedback}</span>
         </div>
       )}
 

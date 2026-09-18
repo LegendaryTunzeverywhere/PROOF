@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Store } from '../server/store.js';
 import { buildPuzzleFromFen, convertPuzzle, getPlayerMovesForTurn } from '../scripts/import-lichess-puzzles.js';
+import { buildPuzzleHint } from '../server/chess-hints.js';
 
 test('lichess import: the stored puzzle FEN stays at the actual starting position', () => {
   const row = {
@@ -167,4 +168,19 @@ test('chess activity: practice updates XP and streak data', async () => {
   assert.equal(streak.current, 1);
   assert.equal(stored.xpLedger[0].eventKey, 'chess:p1:attempt-1');
   assert.equal(stored.streak.current, 1);
+});
+
+test('engine hints: the hint system exposes a concrete best move', async () => {
+  const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+  const puzzle = {
+    id: 'hint-test',
+    positionId: 'pos-hint-test',
+    hints: ['Look for checks, captures, and threats.'],
+    solution: ['e4'],
+  };
+
+  const result = await buildPuzzleHint(puzzle, 1, fen);
+  assert.match(result.hint, /Best move:/i);
+  assert.ok(result.bestMove);
+  assert.ok(result.hasMore !== undefined);
 });

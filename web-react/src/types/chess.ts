@@ -191,6 +191,7 @@ export interface PuzzleAttemptResponse {
 export interface HintResponse {
   hint: string;
   hasMore: boolean;
+  bestMove?: string | null;
 }
 
 export interface PositionAnalysisRequest {

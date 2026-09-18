@@ -22,6 +22,7 @@ import { createCurriculumFromDocument, getUserDocumentCurricula, getDocumentCurr
 import { cleanupDuplicateSkillPaths } from './services/path-dedupe.js';
 import { uid, now, toNim, escapeHtml, RateLimiter, looksLikeNimiqAddress, normalizeNimiqAddress, nimiqAddressFromPublicKey, validate, parseNumber, hmac, kindIncludesReward, shortTxRef } from './util.js';
 import * as stockfish from './ai/services/stockfish.js';
+import { buildPuzzleHint } from './chess-hints.js';
 import multer from 'multer';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -1530,12 +1531,16 @@ route('GET', '/api/chess/puzzles/:id/hint', async (ctx) => {
   const { user, params, query, res } = ctx;
   const puzzle = await store.get('ChessPuzzle', params.id);
   if (!puzzle) throw httpError(404, 'NOT_FOUND', 'Puzzle not found');
-  
+
   const hintLevel = parseInt(query.get('level')) || 1;
-  const hints = puzzle.hints || [];
-  const hint = hints[Math.min(hintLevel - 1, hints.length - 1)] || 'No more hints available';
-  
-  json(res, 200, { hint, hasMore: hintLevel < hints.length });
+  const position = await store.get('ChessPosition', puzzle.positionId);
+  const hintResponse = await buildPuzzleHint(puzzle, hintLevel, position?.fen || null);
+
+  json(res, 200, {
+    hint: hintResponse.hint,
+    hasMore: hintResponse.hasMore,
+    bestMove: hintResponse.bestMove,
+  });
 });
 
 // Analysis
