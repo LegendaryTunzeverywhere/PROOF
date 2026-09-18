@@ -27,73 +27,83 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
   const [loading, setLoading] = useState(false);
   const [boardVersion, setBoardVersion] = useState(0);
 
-  // Reset when puzzle changes
-  useEffect(() => {
-    const newGame = new Chess(puzzle.position?.fen || puzzle.positionId);
-    setGame(newGame);
+  const resetBoard = useCallback(() => {
+    const nextGame = new Chess(puzzle.position?.fen || puzzle.positionId);
+    setGame(nextGame);
     setMoves([]);
-    setHints([]);
-    setHintsUsed(0);
+    setBoardVersion((version) => version + 1);
     setStatus('solving');
     setFeedback('');
-  }, [puzzle]);
+  }, [puzzle.position?.fen, puzzle.positionId]);
+
+  // Reset when puzzle changes
+  useEffect(() => {
+    resetBoard();
+    setHints([]);
+    setHintsUsed(0);
+  }, [resetBoard]);
 
   // Handle move
   const handleMove = useCallback(
     async (move: any, newFen: string) => {
-      const newMoves = [...moves, move.san];
-      const newGame = new Chess(newFen);
-      setGame(newGame);
-      setMoves(newMoves);
+      if (status !== 'solving') return;
 
-      // Check if move matches solution
-      const solutionIndex = newMoves.length - 1;
-      if (puzzle.solution[solutionIndex] !== move.san) {
+      const nextMoves = [...moves, move.san];
+      const expectedMove = puzzle.solution[moves.length];
+
+      if (expectedMove !== move.san) {
         setStatus('incorrect');
-        setFeedback("That's not the right move. Try again!");
-        
-        // Reset the board after a delay
-        setTimeout(() => {
-          const resetGame = new Chess(puzzle.position?.fen || puzzle.positionId);
-          setGame(resetGame);
-          setBoardVersion((version) => version + 1);
-          setMoves([]);
-          setStatus('solving');
-          setFeedback('');
-        }, 1500);
+        setFeedback("That move misses the tactic. Reset the board and try the actual idea.");
+        setGame(new Chess(newFen));
+        setMoves(nextMoves);
         return;
       }
 
+      const newGame = new Chess(newFen);
+      setGame(newGame);
+      setMoves(nextMoves);
+
       // Check if puzzle is complete
-      if (newMoves.length === puzzle.solution.length) {
+      if (nextMoves.length === puzzle.solution.length) {
         const timeSpent = Date.now() - startTime;
         setStatus('correct');
         setFeedback('Correct! Well done!');
-        
-        // Submit attempt
+
         try {
           const result = await puzzleApi.submitAttempt(puzzle.id, {
-            moves: newMoves,
+            moves: nextMoves,
             timeSpentMs: timeSpent,
             hintsUsed,
           });
-          setFeedback(`Correct! Score: ${result.score}/100`);
+          const rewardText = result.reward?.amountNim
+            ? ` +${result.reward.amountNim.toFixed(1)} NIM earned.`
+            : '';
+          const xpText = result.xpGained ? ` +${result.xpGained} XP.` : '';
+          setFeedback(`Correct! Score: ${result.score}/100.${rewardText}${xpText}`);
           onComplete?.(result);
         } catch (error) {
           console.error('Failed to submit puzzle:', error);
         }
-      } else {
-        // Make opponent's response
-        const opponentMove = puzzle.solution[newMoves.length];
-        setTimeout(() => {
-          const gameCopy = new Chess(newFen);
-          gameCopy.move(opponentMove);
-          setGame(gameCopy);
-          setMoves([...newMoves, opponentMove]);
-        }, 500);
+        return;
       }
+
+      const opponentMove = puzzle.solution[nextMoves.length];
+      if (!opponentMove) {
+        return;
+      }
+
+      setTimeout(() => {
+        const gameCopy = new Chess(newFen);
+        const playedOpponent = gameCopy.move(opponentMove);
+        if (!playedOpponent) {
+          setFeedback('The tactic is still live — keep the idea in mind.');
+          return;
+        }
+        setGame(gameCopy);
+        setMoves([...nextMoves, opponentMove]);
+      }, 450);
     },
-    [moves, puzzle, startTime, hintsUsed, onComplete]
+    [moves, puzzle, startTime, hintsUsed, onComplete, status]
   );
 
   // Request hint
@@ -115,13 +125,8 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
 
   // Reset puzzle
   const resetPuzzle = useCallback(() => {
-    const newGame = new Chess(puzzle.position?.fen || puzzle.positionId);
-    setGame(newGame);
-    setBoardVersion((version) => version + 1);
-    setMoves([]);
-    setStatus('solving');
-    setFeedback('');
-  }, [puzzle]);
+    resetBoard();
+  }, [resetBoard]);
 
   // Calculate moves remaining
   const movesRemaining = puzzle.solution.length - moves.length;

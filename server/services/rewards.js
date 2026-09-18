@@ -11,6 +11,7 @@
  */
 import { uid, now, luna, toNim, looksLikeNimiqAddress, normalizeNimiqAddress } from '../util.js';
 import { NimiqTreasury } from './nimiq-treasury.js';
+import crypto from 'node:crypto';
 
 export class EconomyError extends Error {
   constructor(code, message) {
@@ -194,6 +195,22 @@ export class RewardService {
       }
     }
     return { granted: true, reward: { ...reward, transactionId: tx.id }, amountNim: rewardNim, payout };
+  }
+
+  async rewardForChessPuzzle({ userId, puzzle, attempt }) {
+    const amountNim = crypto.randomInt(1, 11) / 10;
+    return this.rewardForAttempt({
+      userId,
+      challenge: {
+        id: `chess-puzzle:${puzzle.id}`,
+        title: puzzle.title || 'Chess puzzle',
+        rewardNim: amountNim,
+      },
+      attempt,
+      evaluation: { pass: true },
+      sourceKind: 'chess_puzzle',
+      sourceKey: `chess-puzzle:${userId}:${puzzle.id}:${attempt.id}`,
+    });
   }
 
   /**

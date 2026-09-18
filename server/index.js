@@ -1410,6 +1410,51 @@ route('GET', '/api/chess/puzzles/random', async (ctx) => {
   json(res, 200, { puzzles });
 });
 
+route('POST', '/api/chess/curriculum', async (ctx) => {
+  const { user, body, res } = ctx;
+  const level = ['beginner', 'intermediate', 'advanced'].includes(body?.level) ? body.level : 'beginner';
+  const themes = Array.isArray(body?.themes) && body.themes.length
+    ? body.themes.slice(0, 7).map((theme) => String(theme))
+    : ['fork', 'pin', 'skewer', 'discovery', 'deflection', 'back-rank', 'double-attack'];
+  const days = [];
+  for (let index = 0; index < themes.length; index++) {
+    const theme = themes[index];
+    const puzzles = await store.randomChessPuzzles({ difficulty: level, theme, limit: 5 });
+    days.push({
+      index: index + 1,
+      title: `${theme.replaceAll('-', ' ')} practice`,
+      objective: `Learn to recognize ${theme.replaceAll('-', ' ')} patterns.`,
+      items: puzzles.map((puzzle, puzzleIndex) => ({
+        type: 'chess-puzzle',
+        topic: puzzle.title,
+        puzzleId: puzzle.id,
+        positionId: puzzle.positionId,
+        order: puzzleIndex + 1,
+        completed: false,
+      })),
+    });
+  }
+  const path = await store.insert('paths', {
+    id: uid('path'),
+    userId: user.id,
+    goal: `Build ${level} chess tactics fluency`,
+    skillSlug: 'chess',
+    skillName: 'Chess tactics',
+    skillEmoji: '♞',
+    title: `${level[0].toUpperCase() + level.slice(1)} chess tactics`,
+    description: 'A real-puzzle curriculum that moves from pattern recognition to independent calculation.',
+    level,
+    minutesPerDay: 20,
+    days,
+    totalXp: days.reduce((total, day) => total + day.items.length * 20, 0),
+    engine: 'lichess-puzzle-curriculum',
+    progress: {},
+    createdAt: now(),
+  });
+  await store.save();
+  json(res, 201, { path: await pathView(path, user.id), source: 'lichess' });
+});
+
 route('GET', '/api/chess/puzzles/:topicSlug', async (ctx) => {
   const { user, params, res } = ctx;
   const puzzles = await Promise.all((await store.filter('ChessPuzzle', (p) => p.topicSlug === params.topicSlug)).map(chessPuzzleView));
@@ -1440,10 +1485,34 @@ route('POST', '/api/chess/puzzles/:id/attempt', async (ctx) => {
     score,
     createdAt: now(),
   });
+
+  const reward = correct
+    ? await rewards.rewardForChessPuzzle({ userId: user.id, puzzle, attempt })
+    : { granted: false, reason: 'NOT_PASSED' };
   
   await store.recordChessProgress({ userId: user.id, correct, score });
+  const xpGained = correct ? 25 : 5;
+  const xpResult = await users.addXp(
+    user.id,
+    xpGained,
+    correct ? 'Chess puzzle solved' : 'Chess practice attempt',
+    `chess:${puzzle.id}:${attempt.id}`,
+  );
+  const streak = await users.touchStreak(user.id);
+  const newAchievements = await users.checkAchievements(user.id);
   
-  json(res, 201, { attempt, correct, score });
+  json(res, 201, {
+    attempt,
+    correct,
+    score,
+    reward: reward.granted ? { amountNim: reward.amountNim } : null,
+    rewardReason: reward.reason || null,
+    xpGained,
+    leveledUp: xpResult.leveledUp,
+    newLevel: xpResult.newLevel || null,
+    streak,
+    newAchievements,
+  });
 });
 
 route('GET', '/api/chess/puzzles/:id/hint', async (ctx) => {

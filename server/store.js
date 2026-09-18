@@ -129,12 +129,19 @@ export class Store {
 
   async randomChessPuzzles({ difficulty = null, theme = null, limit = 5 } = {}) {
     const allPuzzles = this.all('ChessPuzzle');
+    const relatedThemes = {
+      windmill: ['windmill', 'discovery', 'deflection', 'double-attack'],
+      zwischenzug: ['zwischenzug', 'deflection', 'discovery', 'skewer'],
+      'greek-gift': ['greek-gift', 'deflection', 'decoy', 'discovery'],
+    };
+    const themePool = relatedThemes[theme] || (theme ? [theme] : null);
     const puzzles = allPuzzles.filter((puzzle) => {
       const difficultyMatches = !difficulty || puzzle.difficulty === difficulty;
-      const themeMatches = !theme || (puzzle.themes || []).includes(theme);
+      const themeMatches = !themePool || themePool.some((candidate) => (puzzle.themes || []).includes(candidate));
       return difficultyMatches && themeMatches;
     });
-    const pool = puzzles.length > 0 ? puzzles : allPuzzles;
+    const difficultyPool = allPuzzles.filter((puzzle) => !difficulty || puzzle.difficulty === difficulty);
+    const pool = puzzles.length > 0 ? puzzles : (difficultyPool.length ? difficultyPool : allPuzzles);
     return pool.sort(() => Math.random() - 0.5).slice(0, limit);
   }
 

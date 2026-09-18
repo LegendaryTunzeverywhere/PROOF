@@ -356,16 +356,25 @@ export class SupabaseStore {
       p_themes: theme ? [theme] : null,
       p_count: limit,
     });
-    if (!error && data?.length) return data.map((row) => this.convertFromDatabase(row, 'ChessPuzzle'));
+    const relatedRequest = ['windmill', 'zwischenzug', 'greek-gift'].includes(theme);
+    if (!error && data?.length && (!relatedRequest || data.length >= limit))
+      return data.map((row) => this.convertFromDatabase(row, 'ChessPuzzle'));
 
     if (error) console.error('Chess puzzle query error:', error);
     const all = await this.all('ChessPuzzle');
+    const relatedThemes = {
+      windmill: ['windmill', 'discovery', 'deflection', 'double-attack'],
+      zwischenzug: ['zwischenzug', 'deflection', 'discovery', 'skewer'],
+      'greek-gift': ['greek-gift', 'deflection', 'decoy', 'discovery'],
+    };
+    const themePool = relatedThemes[theme] || (theme ? [theme] : null);
     const filtered = all.filter((puzzle) => {
       const difficultyMatches = !difficulty || puzzle.difficulty === difficulty;
-      const themeMatches = !theme || (puzzle.themes || []).includes(theme);
+      const themeMatches = !themePool || themePool.some((candidate) => (puzzle.themes || []).includes(candidate));
       return difficultyMatches && themeMatches;
     });
-    return (filtered.length ? filtered : all)
+    const pool = filtered.length ? filtered : all.filter((puzzle) => !difficulty || puzzle.difficulty === difficulty);
+    return pool
       .sort(() => Math.random() - 0.5)
       .slice(0, limit);
   }

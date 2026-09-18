@@ -176,6 +176,13 @@ export interface PuzzleAttemptResponse {
   attempt: ChessPuzzleAttempt;
   correct: boolean;
   score: number;
+  reward?: { amountNim: number } | null;
+  rewardReason?: string | null;
+  xpGained?: number;
+  leveledUp?: boolean;
+  newLevel?: number | null;
+  streak?: { current: number; longest: number; lastDay: string | null; emoji?: string; atRisk?: boolean };
+  newAchievements?: Array<{ id: string; name: string; desc: string; emoji: string }>;
 }
 
 export interface HintResponse {

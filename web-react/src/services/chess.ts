@@ -257,6 +257,16 @@ export const progressApi = {
   },
 };
 
+export const curriculumApi = {
+  async create(level: 'beginner' | 'intermediate' | 'advanced') {
+    const data = await apiRequest<{ path: any; source: string }>(`${API_BASE}/curriculum`, {
+      method: 'POST',
+      body: JSON.stringify({ level }),
+    });
+    return data;
+  },
+};
+
 // ============================================================================
 // Challenge API
 // ============================================================================
