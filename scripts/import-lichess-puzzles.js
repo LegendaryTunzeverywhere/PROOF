@@ -12,6 +12,29 @@ export function parseRow(line) {
   return { id, fen, moves: moves.split(' '), rating: Number(rating) || 1200, themes: String(themes || '').split(' ').filter(Boolean) };
 }
 
+export function getPlayerMovesForTurn(fen, moves) {
+  const game = new Chess(fen);
+  const solverMoves = [];
+  const expectedTurn = game.turn();
+
+  for (const uci of moves) {
+    const turnBeforeMove = game.turn();
+    const move = game.move({
+      from: uci.slice(0, 2),
+      to: uci.slice(2, 4),
+      promotion: uci[4],
+    });
+
+    if (!move) return null;
+
+    if (turnBeforeMove === expectedTurn) {
+      solverMoves.push(move.san);
+    }
+  }
+
+  return solverMoves;
+}
+
 export function convertPuzzle(row) {
   const game = new Chess(row.fen);
   const solution = [];
@@ -25,6 +48,9 @@ export function convertPuzzle(row) {
     if (!move) return null;
     solution.push(move.san);
   }
+
+  const playerSolution = getPlayerMovesForTurn(row.fen, row.moves);
+  if (!playerSolution || !playerSolution.length) return null;
 
   const themes = [...new Set(row.themes.map((theme) => themeMap[theme]).filter(Boolean))];
   if (!themes.length) return null;
@@ -46,7 +72,7 @@ export function convertPuzzle(row) {
       title: `${themes[0].replaceAll('-', ' ')} puzzle`,
       difficulty,
       themes,
-      solution,
+      solution: playerSolution,
       solutionExplanation: 'Find the strongest continuation and identify the tactical motif.',
       hints: ['Look for checks, captures, and threats.', `Theme: ${themes.join(', ')}`],
       rating: row.rating,

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Store } from '../server/store.js';
-import { convertPuzzle } from '../scripts/import-lichess-puzzles.js';
+import { convertPuzzle, getPlayerMovesForTurn } from '../scripts/import-lichess-puzzles.js';
 
 test('lichess import: the stored puzzle FEN stays at the actual starting position', () => {
   const row = {
@@ -15,7 +15,13 @@ test('lichess import: the stored puzzle FEN stays at the actual starting positio
   const converted = convertPuzzle(row);
   assert.ok(converted);
   assert.equal(converted.position.fen, row.fen);
-  assert.deepEqual(converted.puzzle.solution, ['e4', 'e5']);
+  assert.deepEqual(converted.puzzle.solution, ['e4']);
+});
+
+test('lichess import: only the starting side is treated as the solver for a multi-move line', () => {
+  const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+  const solverMoves = getPlayerMovesForTurn(fen, ['e2e4', 'e7e5', 'g1f3']);
+  assert.deepEqual(solverMoves, ['e4', 'Nf3']);
 });
 
 test('chess persistence: random puzzles filter by difficulty and theme', async () => {
@@ -59,6 +65,17 @@ test('chess persistence: puzzle progress is saved through the store API', async 
   assert.equal(progress.puzzlesAttempted, 2);
   assert.equal(progress.puzzlesSolved, 1);
   assert.equal(progress.averageAccuracy, 50);
+});
+
+test('chess persistence: failed attempts reduce the stored puzzle rating', async () => {
+  const store = new Store({ dataDir: './data/test-chess-' + Math.random().toString(36).slice(2, 8) });
+  await store.open();
+
+  await store.recordChessProgress({ userId: 'user-rating', correct: false, score: 0 });
+
+  const progress = store.find('ChessUserProgress', (row) => row.userId === 'user-rating');
+  assert.equal(progress.puzzleRating, 1175);
+  assert.equal(progress.puzzlesAttempted, 1);
 });
 
 test('chess persistence: create and delete aliases use the standard store contract', async () => {

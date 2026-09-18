@@ -160,9 +160,13 @@ export class Store {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
+    const currentRating = Number.isFinite(next.puzzleRating) ? next.puzzleRating : 1200;
+    const ratingDelta = correct ? 25 : -25;
+    const puzzleRating = Math.max(400, currentRating + ratingDelta);
     const puzzlesAttempted = (next.puzzlesAttempted || 0) + 1;
     const puzzlesSolved = (next.puzzlesSolved || 0) + (correct ? 1 : 0);
     return this.update('ChessUserProgress', next.id, {
+      puzzleRating,
       puzzlesAttempted,
       puzzlesSolved,
       averageAccuracy: Math.round((puzzlesSolved / puzzlesAttempted) * 100),

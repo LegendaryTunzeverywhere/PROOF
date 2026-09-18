@@ -26,6 +26,7 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
   const [feedback, setFeedback] = useState('');
   const [loading, setLoading] = useState(false);
   const [boardVersion, setBoardVersion] = useState(0);
+  const playerColor = puzzle.position?.sideToMove || (new Chess(puzzle.position?.fen || puzzle.positionId).turn() === 'w' ? 'white' : 'black');
 
   const resetBoard = useCallback(() => {
     const nextGame = new Chess(puzzle.position?.fen || puzzle.positionId);
@@ -34,14 +35,14 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
     setBoardVersion((version) => version + 1);
     setStatus('solving');
     setFeedback('');
-  }, [puzzle.position?.fen, puzzle.positionId]);
+  }, [puzzle.id, puzzle.position?.fen, puzzle.positionId]);
 
   // Reset when puzzle changes
   useEffect(() => {
     resetBoard();
     setHints([]);
     setHintsUsed(0);
-  }, [resetBoard]);
+  }, [puzzle.id, resetBoard]);
 
   // Handle move
   const handleMove = useCallback(
@@ -53,7 +54,7 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
 
       if (expectedMove !== move.san) {
         setStatus('incorrect');
-        setFeedback("That move misses the tactic. Reset the board and try the actual idea.");
+        setFeedback('That move misses the tactic. Your puzzle rating dropped by 25. Reset the board and try the actual idea.');
         setGame(new Chess(newFen));
         setMoves(nextMoves);
         return;
@@ -75,6 +76,14 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
             timeSpentMs: timeSpent,
             hintsUsed,
           });
+
+          if (!result.correct) {
+            setStatus('incorrect');
+            setFeedback(`Puzzle failed. Your puzzle rating dropped by 25. Score: ${result.score}/100.`);
+            onComplete?.(result);
+            return;
+          }
+
           const rewardText = result.reward?.amountNim
             ? ` +${result.reward.amountNim.toFixed(1)} NIM earned.`
             : '';
@@ -86,22 +95,6 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
         }
         return;
       }
-
-      const opponentMove = puzzle.solution[nextMoves.length];
-      if (!opponentMove) {
-        return;
-      }
-
-      setTimeout(() => {
-        const gameCopy = new Chess(newFen);
-        const playedOpponent = gameCopy.move(opponentMove);
-        if (!playedOpponent) {
-          setFeedback('The tactic is still live — keep the idea in mind.');
-          return;
-        }
-        setGame(gameCopy);
-        setMoves([...nextMoves, opponentMove]);
-      }, 450);
     },
     [moves, puzzle, startTime, hintsUsed, onComplete, status]
   );
@@ -144,6 +137,7 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
           >
             {DIFFICULTY_LABELS[puzzle.difficulty]}
           </span>
+          <span className="puzzle-turn">♟ {playerColor === 'white' ? 'White to move' : 'Black to move'}</span>
           <span className="puzzle-rating">⭐ {puzzle.rating}</span>
         </div>
         <div className="puzzle-themes">
@@ -177,7 +171,7 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
           initialFen={game.fen()}
           onMove={handleMove}
           disabled={status !== 'solving'}
-          orientation={game.turn() === 'w' ? 'white' : 'black'}
+          orientation={playerColor}
         />
       </div>
 
