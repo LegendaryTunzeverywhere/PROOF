@@ -12,10 +12,35 @@ import { analysisApi, puzzleApi } from '../../services/chess';
 import type { PuzzleSolverProps, ChessStatus } from '../../types/chess';
 import { DIFFICULTY_COLORS, DIFFICULTY_LABELS, THEME_LABELS } from '../../types/chess';
 
-const normalizeSideToMove = (side?: string | null) => {
+const normalizeSideToMove = (side?: string | null): 'white' | 'black' => {
   if (side === 'w' || side === 'white') return 'white';
   if (side === 'b' || side === 'black') return 'black';
   return 'white';
+};
+
+const determineTurnOrder = (fen?: string | null, humanColor?: 'white' | 'black' | null) => {
+  const startingTurn = getFenTurn(fen);
+  const resolvedHumanColor = normalizeSideToMove(humanColor ?? startingTurn);
+  const humanMovesFirst = startingTurn === resolvedHumanColor;
+
+  return {
+    startingTurn,
+    humanColor: resolvedHumanColor,
+    botColor: resolvedHumanColor === 'white' ? 'black' : 'white',
+    humanMovesFirst,
+  };
+};
+
+const getFenTurn = (fen?: string | null): 'white' | 'black' => {
+  if (!fen) return 'white';
+
+  try {
+    const rawTurn = new Chess(fen).turn();
+    return normalizeSideToMove(rawTurn);
+  } catch (error) {
+    console.warn('[puzzle] invalid FEN for turn detection:', fen, error);
+    return 'white';
+  }
 };
 
 const normalizeUserMovesForPuzzle = (fen?: string | null, solution: string[] = []) => {
@@ -55,23 +80,24 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
   const [feedback, setFeedback] = useState('');
   const [loading, setLoading] = useState(false);
   const [boardVersion, setBoardVersion] = useState(0);
-  const [currentFen, setCurrentFen] = useState(() => puzzle.position?.fen || puzzle.positionId);
-  const solverColor = normalizeSideToMove(
-    puzzle.position?.sideToMove ?? (new Chess(puzzle.position?.fen || puzzle.positionId).turn())
-  ) as 'white' | 'black';
+  const startingFen = puzzle.position?.fen || '8/8/8/8/8/8/8/8 w - - 0 1';
+  const [currentFen, setCurrentFen] = useState(startingFen);
+  const humanColor = normalizeSideToMove(puzzle.position?.sideToMove ?? getFenTurn(startingFen)) as 'white' | 'black';
+  const turnOrder = determineTurnOrder(startingFen, humanColor);
+  const solverColor = turnOrder.humanColor as 'white' | 'black';
   const normalizedSolution = normalizeUserMovesForPuzzle(
-    puzzle.position?.fen || puzzle.positionId,
+    startingFen,
     Array.isArray(puzzle.solution) ? puzzle.solution : []
   );
 
   const resetBoard = useCallback(() => {
-    const nextGame = new Chess(puzzle.position?.fen || puzzle.positionId);
+    const nextGame = new Chess(startingFen);
     setCurrentFen(nextGame.fen());
     setMoves([]);
     setBoardVersion((version) => version + 1);
     setStatus('solving');
     setFeedback('');
-  }, [puzzle.id, puzzle.position?.fen, puzzle.positionId]);
+  }, [startingFen, puzzle.id]);
 
   const playAutoReply = useCallback(async (fen: string) => {
     if (!fen || status !== 'solving') return;
@@ -98,6 +124,11 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
     setHints([]);
     setHintsUsed(0);
   }, [puzzle.id, resetBoard]);
+
+  useEffect(() => {
+    if (status !== 'solving' || turnOrder.humanMovesFirst || !startingFen) return;
+    void playAutoReply(startingFen);
+  }, [status, startingFen, turnOrder.humanMovesFirst, playAutoReply]);
 
   // Handle move
   const handleMove = useCallback(
@@ -208,7 +239,7 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
           >
             {DIFFICULTY_LABELS[puzzle.difficulty]}
           </span>
-          <span className="puzzle-turn">♟ {solverColor === 'white' ? 'White to move' : 'Black to move'}</span>
+          <span className="puzzle-turn">♟ {turnOrder.startingTurn === 'white' ? 'White to move' : 'Black to move'}</span>
           <span className="puzzle-rating">⭐ {puzzle.rating}</span>
         </div>
         <div className="puzzle-themes">
@@ -299,6 +330,16 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
           >
             Retry
           </button>
+          {onNext && (
+            <button className="btn btn-primary" onClick={onNext}>
+              Next
+            </button>
+          )}
+        </div>
+      )}
+
+      {status === 'correct' && (
+        <div className="puzzle-controls">
           {onNext && (
             <button className="btn btn-primary" onClick={onNext}>
               Next

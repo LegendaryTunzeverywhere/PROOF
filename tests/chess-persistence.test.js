@@ -54,6 +54,15 @@ test('lichess import: solver side is taken from the starting FEN, not the final 
   assert.equal(converted.position.sideToMove, 'black');
 });
 
+test('fen turn must override stale stored metadata when deciding who is to move', () => {
+  const fen = 'r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 0 5';
+  const solution = ['Bxf7+', 'Kxf7', 'Nxe5+'];
+
+  const normalized = normalizeUserMoves(fen, solution);
+  assert.deepEqual(normalized, ['Bxf7+', 'Nxe5+']);
+  assert.ok(normalized.length > 0);
+});
+
 test('puzzle validation: mixed side-to-move lines are reduced to the solver sequence only', () => {
   const fen = 'r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 0 5';
   const solution = ['Bxf7+', 'Kxf7', 'Nxe5+'];
