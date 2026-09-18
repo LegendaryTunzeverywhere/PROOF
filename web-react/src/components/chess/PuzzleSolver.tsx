@@ -20,13 +20,14 @@ const normalizeSideToMove = (side?: string | null): 'white' | 'black' => {
 
 const determineTurnOrder = (fen?: string | null, humanColor?: 'white' | 'black' | null) => {
   const startingTurn = getFenTurn(fen);
-  const resolvedHumanColor = normalizeSideToMove(humanColor ?? startingTurn);
-  const humanMovesFirst = startingTurn === resolvedHumanColor;
+  const actualHumanColor = normalizeSideToMove(humanColor ?? startingTurn);
+  const authoritativeHumanColor = getFenTurn(fen);
+  const humanMovesFirst = startingTurn === authoritativeHumanColor;
 
   return {
     startingTurn,
-    humanColor: resolvedHumanColor,
-    botColor: resolvedHumanColor === 'white' ? 'black' : 'white',
+    humanColor: authoritativeHumanColor,
+    botColor: authoritativeHumanColor === 'white' ? 'black' : 'white',
     humanMovesFirst,
   };
 };
@@ -82,7 +83,7 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
   const [boardVersion, setBoardVersion] = useState(0);
   const startingFen = puzzle.position?.fen || '8/8/8/8/8/8/8/8 w - - 0 1';
   const [currentFen, setCurrentFen] = useState(startingFen);
-  const humanColor = normalizeSideToMove(puzzle.position?.sideToMove ?? getFenTurn(startingFen)) as 'white' | 'black';
+  const humanColor = getFenTurn(startingFen) as 'white' | 'black';
   const turnOrder = determineTurnOrder(startingFen, humanColor);
   const solverColor = turnOrder.humanColor as 'white' | 'black';
   const normalizedSolution = normalizeUserMovesForPuzzle(

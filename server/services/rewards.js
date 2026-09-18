@@ -198,8 +198,17 @@ export class RewardService {
   }
 
   async rewardForChessPuzzle({ userId, puzzle, attempt }) {
+    const normalizedDifficulty = (() => {
+      const difficulty = String(puzzle?.difficulty || '').toLowerCase();
+      if (['beginner', 'intermediate', 'advanced'].includes(difficulty)) return difficulty;
+      const rating = Number(puzzle?.rating ?? 0);
+      if (rating >= 1800) return 'advanced';
+      if (rating >= 1400) return 'intermediate';
+      return 'beginner';
+    })();
+
     const range = (() => {
-      switch (puzzle?.difficulty) {
+      switch (normalizedDifficulty) {
         case 'advanced':
           return { min: 3, max: 10 };
         case 'intermediate':

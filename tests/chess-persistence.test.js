@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Store } from '../server/store.js';
 import { buildPuzzleFromFen, convertPuzzle, getPlayerMovesForTurn } from '../scripts/import-lichess-puzzles.js';
-import { buildPuzzleHint, normalizeUserMoves } from '../server/chess-hints.js';
+import { buildPuzzleHint, normalizeUserMoves, resolvePuzzleTurn } from '../server/chess-hints.js';
 
 test('lichess import: the stored puzzle FEN stays at the actual starting position', () => {
   const row = {
@@ -70,6 +70,14 @@ test('puzzle validation: mixed side-to-move lines are reduced to the solver sequ
   assert.deepEqual(normalizeUserMoves(fen, solution), ['Bxf7+', 'Nxe5+']);
 });
 
+test('stored turn metadata must never override the actual FEN side to move', () => {
+  const fen = 'r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R b KQkq - 0 5';
+
+  assert.equal(resolvePuzzleTurn(fen, 'white'), 'black');
+  assert.equal(resolvePuzzleTurn(fen, 'black'), 'black');
+  assert.equal(resolvePuzzleTurn('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', 'black'), 'white');
+});
+
 test('chess persistence: random puzzles filter by difficulty and theme', async () => {
   const store = new Store({ dataDir: './data/test-chess-' + Math.random().toString(36).slice(2, 8) });
   await store.open();
@@ -124,6 +132,48 @@ test('chess persistence: failed attempts reduce the stored puzzle rating', async
   assert.equal(progress.puzzlesAttempted, 1);
 });
 
+test('supabase progress: successful solves and failed attempts update puzzle rating and attempt totals', async () => {
+  const { SupabaseStore } = await import('../server/supabase-store.js');
+  const store = new SupabaseStore();
+  const calls = [];
+  let progress = {
+    id: 'progress-1',
+    userId: 'user-supabase',
+    puzzleRating: 1200,
+    puzzlesSolved: 2,
+    puzzlesAttempted: 4,
+    averageAccuracy: 50,
+    updatedAt: Date.now(),
+  };
+
+  store.find = async () => ({ ...progress });
+
+  store.client = {
+    from: (table) => ({
+      update: (payload) => ({
+        eq: async (field, value) => {
+          calls.push({ table, action: 'update', field, value, payload });
+          progress = { ...progress, ...payload, id: progress.id };
+          return { error: null };
+        },
+      }),
+      insert: async (payload) => {
+        calls.push({ table, action: 'insert', payload });
+        progress = { ...progress, ...payload };
+        return { error: null };
+      },
+    }),
+  };
+
+  await store.recordChessProgress({ userId: 'user-supabase', correct: true, score: 100 });
+  await store.recordChessProgress({ userId: 'user-supabase', correct: false, score: 0 });
+
+  assert.equal(calls[0].payload.puzzleRating, 1225);
+  assert.equal(calls[0].payload.puzzlesSolved, 3);
+  assert.equal(calls[1].payload.puzzleRating, 1200);
+  assert.equal(calls[1].payload.puzzlesAttempted, 6);
+});
+
 test('chess persistence: create and delete aliases use the standard store contract', async () => {
   const store = new Store({ dataDir: './data/test-chess-' + Math.random().toString(36).slice(2, 8) });
   await store.open();
@@ -132,6 +182,37 @@ test('chess persistence: create and delete aliases use the standard store contra
   assert.equal(store.get('ChessOpeningRepertoire', opening.id).name, 'Sicilian');
   assert.equal(store.delete('ChessOpeningRepertoire', opening.id), true);
   assert.equal(store.get('ChessOpeningRepertoire', opening.id), null);
+});
+
+test('chess rewards: missing difficulty falls back to the puzzle rating tier', async () => {
+  const { testbed } = await import('./helpers.js');
+  const tb = await testbed();
+  const user = await tb.users.createUser({ walletMode: 'nimiqpay', walletAddress: 'NQ45 FEDCBA9876543210ABCDEFGHJKLMNPQRSTUVXY' });
+
+  const result = await tb.rewards.rewardForChessPuzzle({
+    userId: user.id,
+    puzzle: { id: 'p-rating-tier', title: 'High-level reward fallback', rating: 2100 },
+    attempt: { id: 'attempt-rating-tier' },
+  });
+
+  assert.equal(result.granted, true);
+  assert.ok(result.amountNim >= 3 && result.amountNim <= 10);
+});
+
+test('user achievements: missing achievement rows are created before linking them to a user', async () => {
+  const { testbed } = await import('./helpers.js');
+  const tb = await testbed();
+  const user = await tb.users.createUser({ walletMode: 'nimiqpay', walletAddress: 'NQ45 FEDCBA9876543210ABCDEFGHJKLMNPQRSTUVXY' });
+
+  tb.store.tables.achievements = {};
+  tb.store.tables.user_achievements = {};
+  tb.store.update('users', user.id, { proofsPassed: 1 });
+
+  await tb.users.checkAchievements(user.id);
+
+  const achievement = tb.store.find('achievements', (entry) => entry.key === 'first_proof');
+  assert.ok(achievement);
+  assert.ok(tb.store.find('user_achievements', (entry) => entry.userId === user.id && entry.achievementId === achievement.id));
 });
 
 test('chess rewards: a correct puzzle receives the correct range for its difficulty', async () => {

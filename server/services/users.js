@@ -55,6 +55,8 @@ export class UserService {
     this.store = store;
     this.config = config;
     store.declareUniques('users', ['usernameLower']);
+    store.declareUniques('achievements', ['key']);
+    store.declareUniques('user_achievements', ['userId', 'achievementId']);
   }
 
   async createUser({ walletAddress = null, walletMode = null, isDemo = false, username = null, avatar = null } = {}) {
@@ -311,17 +313,32 @@ export class UserService {
     if (!user) return [];
     const unlocked = [];
     const has = (id) => this.store.find('user_achievements', (a) => a.userId === userId && a.achievementId === id);
+    const ensureAchievement = async (id) => {
+      const def = this.ACHIEVEMENTS.find((a) => a.id === id);
+      if (!def) return null;
+      let achievement = await this.store.find('achievements', (a) => a.key === id);
+      if (!achievement) {
+        achievement = await this.store.insert('achievements', {
+          id: uid('ach'),
+          key: id,
+          name: def.name,
+          emoji: def.emoji,
+          desc: def.desc,
+        });
+      }
+      return achievement;
+    };
     const give = async (id) => {
       if (await has(id)) return;
-      const def = this.ACHIEVEMENTS.find((a) => a.id === id);
-      const achievement = await this.store.find('achievements', (a) => a.key === id);
+      const achievement = await ensureAchievement(id);
+      if (!achievement) return;
       await this.store.insert('user_achievements', {
         id: uid('ach'),
         userId,
-        achievementId: achievement?.id || id,
+        achievementId: achievement.id,
         unlockedAt: now(),
       });
-      unlocked.push(def);
+      unlocked.push(this.ACHIEVEMENTS.find((a) => a.id === id));
     };
     const skills = await this.store.filter('user_skills', (s) => s.userId === userId);
     if (user.proofsPassed >= 1) await give('first_proof');

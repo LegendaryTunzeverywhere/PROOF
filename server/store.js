@@ -145,7 +145,7 @@ export class Store {
     return pool.sort(() => Math.random() - 0.5).slice(0, limit);
   }
 
-  async recordChessProgress({ userId, correct }) {
+  async recordChessProgress({ userId, correct, hintsUsed = 0 }) {
     const existing = this.find('ChessUserProgress', (progress) => progress.userId === userId);
     const next = existing || this.insert('ChessUserProgress', {
       userId,
@@ -161,7 +161,8 @@ export class Store {
       updatedAt: Date.now(),
     });
     const currentRating = Number.isFinite(next.puzzleRating) ? next.puzzleRating : 1200;
-    const ratingDelta = correct ? 25 : -25;
+    const hintPenalty = Math.min(Number(hintsUsed) || 0, 5) * 10;
+    const ratingDelta = correct ? Math.max(5, 25 - hintPenalty) : -Math.max(25, 25 + hintPenalty);
     const puzzleRating = Math.max(400, currentRating + ratingDelta);
     const puzzlesAttempted = (next.puzzlesAttempted || 0) + 1;
     const puzzlesSolved = (next.puzzlesSolved || 0) + (correct ? 1 : 0);

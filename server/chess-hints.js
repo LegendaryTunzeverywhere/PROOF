@@ -1,6 +1,23 @@
 import { Chess } from 'chess.js';
 import * as stockfish from './ai/services/stockfish.js';
 
+export function normalizeSideToMove(side) {
+  if (side === 'w' || side === 'white') return 'white';
+  if (side === 'b' || side === 'black') return 'black';
+  return 'white';
+}
+
+export function resolvePuzzleTurn(fen, fallbackSide = null) {
+  if (!fen) return normalizeSideToMove(fallbackSide);
+
+  try {
+    const chess = new Chess(fen);
+    return normalizeSideToMove(chess.turn());
+  } catch (error) {
+    return normalizeSideToMove(fallbackSide);
+  }
+}
+
 export function normalizeUserMoves(fen, solution = []) {
   if (!fen || !Array.isArray(solution) || solution.length === 0) return Array.isArray(solution) ? [...solution] : [];
 

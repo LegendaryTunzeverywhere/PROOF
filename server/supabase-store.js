@@ -379,9 +379,54 @@ export class SupabaseStore {
       .slice(0, limit);
   }
 
-  async recordChessProgress() {
-    // ChessPuzzleAttempt's database trigger updates ChessUserProgress.
-    return null;
+  async recordChessProgress({ userId, correct, hintsUsed = 0 } = {}) {
+    if (!userId) {
+      throw new Error('Chess progress update requires a userId');
+    }
+
+    const existing = await this.find('ChessUserProgress', (progress) => progress.userId === userId);
+    const currentRating = Number.isFinite(existing?.puzzleRating) ? Number(existing.puzzleRating) : 1200;
+    const hintPenalty = Math.min(Number(hintsUsed) || 0, 5) * 10;
+    const ratingDelta = correct ? Math.max(5, 25 - hintPenalty) : -Math.max(25, 25 + hintPenalty);
+    const puzzleRating = Math.max(400, currentRating + ratingDelta);
+    const puzzlesAttempted = (Number(existing?.puzzlesAttempted) || 0) + 1;
+    const puzzlesSolved = (Number(existing?.puzzlesSolved) || 0) + (correct ? 1 : 0);
+    const averageAccuracy = Math.round((puzzlesSolved / puzzlesAttempted) * 100);
+    const patch = {
+      userId,
+      puzzleRating,
+      puzzlesSolved,
+      puzzlesAttempted,
+      averageAccuracy,
+      lastPracticeDate: new Date().toISOString(),
+      updatedAt: Date.now(),
+    };
+
+    if (existing?.id) {
+      const { error } = await this.client
+        .from('ChessUserProgress')
+        .update(patch)
+        .eq('id', existing.id);
+
+      if (error) {
+        throw new Error(`Chess progress update failed: ${error.message}`);
+      }
+
+      return { ...existing, ...patch };
+    }
+
+    const { error } = await this.client
+      .from('ChessUserProgress')
+      .insert({
+        ...patch,
+        createdAt: new Date().toISOString(),
+      });
+
+    if (error) {
+      throw new Error(`Chess progress insert failed: ${error.message}`);
+    }
+
+    return { ...patch, id: `progress_${Date.now()}` };
   }
 
   async all(table) {

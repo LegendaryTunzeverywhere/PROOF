@@ -63,7 +63,8 @@ export function ChessLearningPage() {
 
   const puzzle = puzzles[puzzleIndex];
   const failureDelta = lastAttemptResult && !lastAttemptResult.correct ? Math.abs(lastAttemptResult.ratingDelta ?? 25) : 0;
-  const canAdvance = puzzleSolved || (lastAttemptResult && !lastAttemptResult.correct);
+  const showRetry = Boolean(lastAttemptResult && !lastAttemptResult.correct);
+  const canAdvance = Boolean(puzzleSolved && puzzleIndex < puzzles.length - 1);
 
   return (
     <div className="mx-auto w-full max-w-[1180px] pb-10">
@@ -160,17 +161,21 @@ export function ChessLearningPage() {
                   </span>
                   <button
                     type="button"
-                    disabled={!canAdvance || puzzleIndex >= puzzles.length - 1}
+                    disabled={showRetry ? false : !canAdvance}
                     onClick={() => {
+                      if (showRetry) {
+                        setPuzzleSolved(false);
+                        setLastAttemptResult(null);
+                        return;
+                      }
+
                       setPuzzleSolved(false);
                       setLastAttemptResult(null);
-                      setPuzzleIndex((index) => index + 1);
+                      setPuzzleIndex((index) => Math.min(index + 1, puzzles.length - 1));
                     }}
                     className="rounded-xl bg-brand px-4 py-2 font-bold text-white shadow-[0_10px_22px_-14px_rgba(3,2,2,.65)] transition-all hover:-translate-y-0.5 hover:bg-brand-hover active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    {lastAttemptResult && !lastAttemptResult.correct
-                      ? 'Next position'
-                      : puzzleSolved ? 'Next position' : 'Solve to continue'}
+                    {showRetry ? 'Retry this puzzle' : puzzleSolved ? 'Next position' : 'Solve to continue'}
                   </button>
                 </div>
               </>
