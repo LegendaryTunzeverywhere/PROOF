@@ -12,6 +12,12 @@ import { puzzleApi } from '../../services/chess';
 import type { PuzzleSolverProps, ChessStatus } from '../../types/chess';
 import { DIFFICULTY_COLORS, DIFFICULTY_LABELS, THEME_LABELS } from '../../types/chess';
 
+const normalizeSideToMove = (side?: string | null) => {
+  if (side === 'w' || side === 'white') return 'white';
+  if (side === 'b' || side === 'black') return 'black';
+  return 'white';
+};
+
 export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
   puzzle,
   onComplete,
@@ -26,7 +32,9 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
   const [feedback, setFeedback] = useState('');
   const [loading, setLoading] = useState(false);
   const [boardVersion, setBoardVersion] = useState(0);
-  const solverColor = (puzzle.position?.sideToMove || (new Chess(puzzle.position?.fen || puzzle.positionId).turn() === 'w' ? 'white' : 'black')) as 'white' | 'black';
+  const solverColor = normalizeSideToMove(
+    puzzle.position?.sideToMove ?? (new Chess(puzzle.position?.fen || puzzle.positionId).turn())
+  ) as 'white' | 'black';
 
   const resetBoard = useCallback(() => {
     const nextGame = new Chess(puzzle.position?.fen || puzzle.positionId);

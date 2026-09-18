@@ -57,12 +57,13 @@ export function convertPuzzle(row) {
   const difficulty = difficultyForRating(row.rating);
   const positionId = `lichess-pos-${row.id}`;
   const puzzleId = `lichess-puzzle-${row.id}`;
+  const sideToMove = game.turn() === 'w' ? 'white' : 'black';
   return {
     position: {
       id: positionId,
       fen: row.fen,
       type: 'puzzle',
-      sideToMove: new Chess(row.fen).turn(),
+      sideToMove,
       description: `Imported Lichess puzzle ${row.id}`,
       metadata: { source: 'lichess', sourceId: row.id },
     },
