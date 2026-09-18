@@ -17,13 +17,19 @@ export function getPlayerMovesForTurn(fen, moves) {
   const solverMoves = [];
   const expectedTurn = game.turn();
 
-  for (const uci of moves) {
+  for (const notation of moves) {
     const turnBeforeMove = game.turn();
-    const move = game.move({
-      from: uci.slice(0, 2),
-      to: uci.slice(2, 4),
-      promotion: uci[4],
-    });
+    let move;
+
+    if (typeof notation === 'string' && /^[a-h][1-8][a-h][1-8][qnrb]?$/.test(notation.toLowerCase())) {
+      move = game.move({
+        from: notation.slice(0, 2),
+        to: notation.slice(2, 4),
+        promotion: notation[4],
+      });
+    } else {
+      move = game.move(notation);
+    }
 
     if (!move) return null;
 
@@ -33,6 +39,55 @@ export function getPlayerMovesForTurn(fen, moves) {
   }
 
   return solverMoves;
+}
+
+export function buildPuzzleFromFen({
+  id,
+  fen,
+  moves,
+  rating = 1200,
+  themes = [],
+  title,
+  difficulty,
+  topicSlug,
+  source = 'custom',
+  metadata = {},
+  positionId,
+}) {
+  const game = new Chess(fen);
+  const solverMoves = getPlayerMovesForTurn(fen, moves);
+  if (!solverMoves || !solverMoves.length) return null;
+
+  const normalizedThemes = [...new Set((themes || []).map((theme) => String(theme)).filter(Boolean))];
+  const derivedDifficulty = difficulty || difficultyForRating(rating);
+  const finalPositionId = positionId || `position-${id}`;
+  const finalPuzzleId = `puzzle-${id}`;
+  const sideToMove = game.turn() === 'w' ? 'white' : 'black';
+
+  return {
+    position: {
+      id: finalPositionId,
+      fen,
+      type: 'puzzle',
+      sideToMove,
+      description: title || `Puzzle ${id}`,
+      metadata: { source, sourceId: id, ...metadata },
+    },
+    puzzle: {
+      id: finalPuzzleId,
+      positionId: finalPositionId,
+      title: title || `${normalizedThemes[0] || 'tactical'} puzzle`,
+      difficulty: derivedDifficulty,
+      themes: normalizedThemes,
+      solution: solverMoves,
+      solutionExplanation: 'Find the strongest continuation from the side to move in this position.',
+      hints: ['Look for checks, captures, and threats.', ...(normalizedThemes.length ? [`Theme: ${normalizedThemes.join(', ')}`] : [])],
+      rating,
+      topicSlug: topicSlug || `chess-${derivedDifficulty}`,
+      source,
+      metadata: { sourceId: id, ...metadata },
+    },
+  };
 }
 
 export function convertPuzzle(row) {

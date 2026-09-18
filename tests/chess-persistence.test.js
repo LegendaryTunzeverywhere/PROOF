@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Store } from '../server/store.js';
-import { convertPuzzle, getPlayerMovesForTurn } from '../scripts/import-lichess-puzzles.js';
+import { buildPuzzleFromFen, convertPuzzle, getPlayerMovesForTurn } from '../scripts/import-lichess-puzzles.js';
 
 test('lichess import: the stored puzzle FEN stays at the actual starting position', () => {
   const row = {
@@ -22,6 +22,21 @@ test('lichess import: only the starting side is treated as the solver for a mult
   const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
   const solverMoves = getPlayerMovesForTurn(fen, ['e2e4', 'e7e5', 'g1f3']);
   assert.deepEqual(solverMoves, ['e4', 'Nf3']);
+});
+
+test('custom puzzle builder: derive the solver side directly from the FEN and keep one-sided move flow', () => {
+  const puzzle = buildPuzzleFromFen({
+    id: 'custom-1',
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+    rating: 1700,
+    themes: ['fork'],
+    moves: ['e4', 'e5', 'Nf3', 'Nc6'],
+    title: 'openings fork ideas',
+  });
+
+  assert.ok(puzzle);
+  assert.equal(puzzle.position.sideToMove, 'white');
+  assert.deepEqual(puzzle.puzzle.solution, ['e4', 'Nf3']);
 });
 
 test('chess persistence: random puzzles filter by difficulty and theme', async () => {
