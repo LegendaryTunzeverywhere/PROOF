@@ -1489,9 +1489,17 @@ route('POST', '/api/chess/puzzles/:id/attempt', async (ctx) => {
   const reward = correct
     ? await rewards.rewardForChessPuzzle({ userId: user.id, puzzle, attempt })
     : { granted: false, reason: 'NOT_PASSED' };
+
+  const currentProgress = await store.find('ChessUserProgress', (progress) => progress.userId === user.id) || {
+    puzzleRating: 1200,
+  };
+  const previousRating = Number.isFinite(currentProgress.puzzleRating) ? currentProgress.puzzleRating : 1200;
+  const ratingDelta = correct ? 25 : -25;
+  const newRating = Math.max(400, previousRating + ratingDelta);
   
   await store.recordChessProgress({ userId: user.id, correct, score });
-  const xpGained = correct ? 25 : 5;
+  const baseXpGained = correct ? 25 : 5;
+  const xpGained = correct && (hintsUsed || 0) > 0 ? Math.max(1, Math.round(baseXpGained * 0.5)) : baseXpGained;
   const xpResult = await users.addXp(
     user.id,
     xpGained,
@@ -1505,6 +1513,9 @@ route('POST', '/api/chess/puzzles/:id/attempt', async (ctx) => {
     attempt,
     correct,
     score,
+    ratingDelta,
+    previousRating,
+    newRating,
     reward: reward.granted ? { amountNim: reward.amountNim } : null,
     rewardReason: reward.reason || null,
     xpGained,

@@ -176,6 +176,9 @@ export interface PuzzleAttemptResponse {
   attempt: ChessPuzzleAttempt;
   correct: boolean;
   score: number;
+  ratingDelta?: number;
+  previousRating?: number;
+  newRating?: number;
   reward?: { amountNim: number } | null;
   rewardReason?: string | null;
   xpGained?: number;
@@ -278,6 +281,8 @@ export interface PuzzleSolverProps {
   puzzle: ChessPuzzle;
   onComplete?: (result: PuzzleAttemptResponse) => void;
   onGiveUp?: () => void;
+  onRetry?: () => void;
+  onNext?: () => void;
 }
 
 export interface PositionAnalyzerProps {

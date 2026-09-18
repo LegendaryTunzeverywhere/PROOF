@@ -4,7 +4,7 @@ import { ProgressDashboard } from '@/components/chess/ProgressDashboard';
 import { RepertoireManager } from '@/components/chess/RepertoireManager';
 import { PositionAnalyzer } from '@/components/chess/PositionAnalyzer';
 import { puzzleApi } from '@/services/chess';
-import type { ChessDifficulty, ChessPuzzle, ChessTheme } from '@/types/chess';
+import type { ChessDifficulty, ChessPuzzle, ChessTheme, PuzzleAttemptResponse } from '@/types/chess';
 
 const DIFFICULTIES: Array<{ value: ChessDifficulty | ''; label: string }> = [
   { value: '', label: 'Any level' },
@@ -34,6 +34,7 @@ export function ChessLearningPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [puzzleSolved, setPuzzleSolved] = useState(false);
+  const [lastAttemptResult, setLastAttemptResult] = useState<PuzzleAttemptResponse | null>(null);
 
   const loadPuzzles = async () => {
     setLoading(true);
@@ -47,6 +48,7 @@ export function ChessLearningPage() {
       setPuzzles(next);
       setPuzzleIndex(0);
       setPuzzleSolved(false);
+      setLastAttemptResult(null);
       if (next.length === 0) setError('The chess catalog is empty. Add the puzzle seed or import a puzzle corpus to begin.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load puzzles');
@@ -60,6 +62,8 @@ export function ChessLearningPage() {
   }, [difficulty, theme]);
 
   const puzzle = puzzles[puzzleIndex];
+  const failureDelta = lastAttemptResult && !lastAttemptResult.correct ? Math.abs(lastAttemptResult.ratingDelta ?? 25) : 0;
+  const canAdvance = puzzleSolved || (lastAttemptResult && !lastAttemptResult.correct);
 
   return (
     <div className="mx-auto w-full max-w-[1180px] pb-10">
@@ -134,20 +138,39 @@ export function ChessLearningPage() {
                 <PuzzleSolver
                   key={puzzle.id}
                   puzzle={puzzle}
-                  onComplete={() => setPuzzleSolved(true)}
+                  onComplete={(result) => {
+                    setPuzzleSolved(Boolean(result.correct));
+                    setLastAttemptResult(result);
+                  }}
+                  onRetry={() => {
+                    setPuzzleSolved(false);
+                    setLastAttemptResult(null);
+                  }}
+                  onNext={() => {
+                    setPuzzleSolved(false);
+                    setLastAttemptResult(null);
+                    setPuzzleIndex((index) => Math.min(index + 1, puzzles.length - 1));
+                  }}
                 />
                 <div className="mt-5 flex items-center justify-between border-t border-line pt-4 text-sm text-muted">
-                  <span>Position {puzzleIndex + 1} of {puzzles.length}</span>
+                  <span>
+                    {lastAttemptResult && !lastAttemptResult.correct
+                      ? `Failed: -${failureDelta} rating`
+                      : `Position ${puzzleIndex + 1} of ${puzzles.length}`}
+                  </span>
                   <button
                     type="button"
-                    disabled={!puzzleSolved || puzzleIndex >= puzzles.length - 1}
+                    disabled={!canAdvance || puzzleIndex >= puzzles.length - 1}
                     onClick={() => {
                       setPuzzleSolved(false);
+                      setLastAttemptResult(null);
                       setPuzzleIndex((index) => index + 1);
                     }}
                     className="rounded-xl bg-brand px-4 py-2 font-bold text-white shadow-[0_10px_22px_-14px_rgba(3,2,2,.65)] transition-all hover:-translate-y-0.5 hover:bg-brand-hover active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    {puzzleSolved ? 'Next position' : 'Solve to continue'}
+                    {lastAttemptResult && !lastAttemptResult.correct
+                      ? 'Next position'
+                      : puzzleSolved ? 'Next position' : 'Solve to continue'}
                   </button>
                 </div>
               </>

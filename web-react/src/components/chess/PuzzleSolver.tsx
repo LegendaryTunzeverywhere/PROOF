@@ -9,7 +9,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Chess } from 'chess.js';
 import { ChessBoard } from './ChessBoard';
 import { puzzleApi } from '../../services/chess';
-import type { PuzzleSolverProps, ChessStatus } from '../../types/chess';
+import type { PuzzleSolverProps, ChessStatus, PuzzleAttemptResponse } from '../../types/chess';
 import { DIFFICULTY_COLORS, DIFFICULTY_LABELS, THEME_LABELS } from '../../types/chess';
 
 const normalizeSideToMove = (side?: string | null) => {
@@ -22,6 +22,8 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
   puzzle,
   onComplete,
   onGiveUp,
+  onRetry,
+  onNext,
 }) => {
   const [game, setGame] = useState<Chess>(() => new Chess(puzzle.position?.fen || puzzle.positionId));
   const [moves, setMoves] = useState<string[]>([]);
@@ -32,6 +34,7 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
   const [feedback, setFeedback] = useState('');
   const [loading, setLoading] = useState(false);
   const [boardVersion, setBoardVersion] = useState(0);
+  const [lastAttemptResult, setLastAttemptResult] = useState<PuzzleAttemptResponse | null>(null);
   const solverColor = normalizeSideToMove(
     puzzle.position?.sideToMove ?? (new Chess(puzzle.position?.fen || puzzle.positionId).turn())
   ) as 'white' | 'black';
@@ -70,8 +73,17 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
       }
 
       if (expectedMove !== move.san) {
+        const ratingLoss = 25;
         setStatus('incorrect');
-        setFeedback('That move misses the tactic. Your puzzle rating dropped by 25. Reset the board and try the actual idea.');
+        setFeedback(`That move misses the tactic. Your puzzle rating dropped by ${ratingLoss}. Retry the position or move to the next one.`);
+        setLastAttemptResult({
+          attempt: { id: '', puzzleId: puzzle.id, userId: '', createdAt: new Date().toISOString(), moves: nextMoves, correct: false, score: 0, hintsUsed, timeSpentMs: Date.now() - startTime } as any,
+          correct: false,
+          score: 0,
+          ratingDelta: -ratingLoss,
+          previousRating: 1200,
+          newRating: 1175,
+        });
         setGame(new Chess(newFen));
         setMoves(nextMoves);
         return;
@@ -95,8 +107,11 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
           });
 
           if (!result.correct) {
+            const ratingDelta = Number(result.ratingDelta ?? -25);
+            const absoluteDelta = Math.abs(ratingDelta);
             setStatus('incorrect');
-            setFeedback(`Puzzle failed. Your puzzle rating dropped by 25. Score: ${result.score}/100.`);
+            setLastAttemptResult(result);
+            setFeedback(`Puzzle failed. Your puzzle rating dropped by ${absoluteDelta}. New rating: ${result.newRating ?? 'unavailable'}.`);
             onComplete?.(result);
             return;
           }
@@ -202,13 +217,6 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
         >
           💡 Hint {hintsUsed > 0 && `(${hintsUsed})`}
         </button>
-        <button
-          className="btn btn-reset"
-          onClick={resetPuzzle}
-          disabled={status !== 'solving'}
-        >
-          🔄 Reset
-        </button>
         {onGiveUp && (
           <button
             className="btn btn-give-up"
@@ -238,6 +246,25 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
           {status === 'correct' && <span className="feedback-icon">✅</span>}
           {status === 'incorrect' && <span className="feedback-icon">❌</span>}
           <span className="feedback-text">{feedback}</span>
+        </div>
+      )}
+
+      {status === 'incorrect' && (
+        <div className="puzzle-controls">
+          <button
+            className="btn btn-reset"
+            onClick={() => {
+              resetPuzzle();
+              onRetry?.();
+            }}
+          >
+            Retry
+          </button>
+          {onNext && (
+            <button className="btn btn-primary" onClick={onNext}>
+              Next
+            </button>
+          )}
         </div>
       )}
 
