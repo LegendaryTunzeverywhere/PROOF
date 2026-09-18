@@ -17,6 +17,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
   orientation = 'white',
   playerColor,
   highlightSquares = [],
+  moveFootprints = [],
   disabled = false,
   showCoordinates = true,
   animationDuration = 180,
@@ -197,6 +198,13 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
   const customSquareStyles = {
     ...optionSquares,
     ...rightClickedSquares,
+    ...moveFootprints.reduce((acc, square) => ({
+      ...acc,
+      [square]: {
+        background: 'radial-gradient(circle, rgba(255, 236, 127, 0.9) 0 30%, rgba(255, 236, 127, 0.18) 30% 100%)',
+        boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.18)',
+      },
+    }), {}),
     ...highlightSquares.reduce((acc, square) => ({
       ...acc,
       [square]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' },

@@ -255,6 +255,7 @@ export interface ChessBoardProps {
   orientation?: ChessColor;
   playerColor?: ChessColor;
   highlightSquares?: string[];
+  moveFootprints?: string[];
   disabled?: boolean;
   showCoordinates?: boolean;
   animationDuration?: number;

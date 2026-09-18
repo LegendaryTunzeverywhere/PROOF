@@ -20,8 +20,7 @@ const normalizeSideToMove = (side?: string | null): 'white' | 'black' => {
 
 const determineTurnOrder = (fen?: string | null, humanColor?: 'white' | 'black' | null) => {
   const startingTurn = getFenTurn(fen);
-  const actualHumanColor = normalizeSideToMove(humanColor ?? startingTurn);
-  const authoritativeHumanColor = getFenTurn(fen);
+  const authoritativeHumanColor = normalizeSideToMove(humanColor ?? startingTurn);
   const humanMovesFirst = startingTurn === authoritativeHumanColor;
 
   return {
@@ -80,8 +79,8 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
   const [status, setStatus] = useState<ChessStatus>('solving');
   const [feedback, setFeedback] = useState('');
   const [loading, setLoading] = useState(false);
-  const [boardVersion, setBoardVersion] = useState(0);
   const [showTurnPrompt, setShowTurnPrompt] = useState(false);
+  const [moveFootprints, setMoveFootprints] = useState<string[]>([]);
   const startingFen = puzzle.position?.fen || '8/8/8/8/8/8/8/8 w - - 0 1';
   const [currentFen, setCurrentFen] = useState(startingFen);
   const humanColor = getFenTurn(startingFen) as 'white' | 'black';
@@ -96,7 +95,7 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
     const nextGame = new Chess(startingFen);
     setCurrentFen(nextGame.fen());
     setMoves([]);
-    setBoardVersion((version) => version + 1);
+    setMoveFootprints([]);
     setStatus('solving');
     setFeedback('');
     setShowTurnPrompt(false);
@@ -121,8 +120,8 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
 
       if (!played) return;
 
+      setMoveFootprints((prev) => (prev.includes(played.from) ? prev : [...prev, played.from]));
       setCurrentFen(replyGame.fen());
-      setBoardVersion((version) => version + 1);
       setShowTurnPrompt(true);
     } catch (error) {
       console.warn('[puzzle] engine auto-reply unavailable:', error);
@@ -155,6 +154,8 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
       const nextMoves = [...moves, move.san];
       const expectedMove = normalizedSolution[moves.length];
       const expectedMover = new Chess(currentFen).turn();
+
+      setMoveFootprints((prev) => (prev.includes(move.from) ? prev : [...prev, move.from]));
 
       if (move.color !== expectedMover) {
         setStatus('incorrect');
@@ -295,12 +296,12 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
       {/* Chessboard */}
       <div className="puzzle-board">
         <ChessBoard
-          key={`${currentFen}-${boardVersion}`}
           initialFen={currentFen}
           onMove={handleMove}
           disabled={status !== 'solving'}
           orientation={solverColor}
           playerColor={solverColor}
+          moveFootprints={moveFootprints}
           showTurnPrompt={showTurnPrompt}
         />
       </div>
