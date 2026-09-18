@@ -39,6 +39,20 @@ test('custom puzzle builder: derive the solver side directly from the FEN and ke
   assert.deepEqual(puzzle.puzzle.solution, ['e4', 'Nf3']);
 });
 
+test('lichess import: solver side is taken from the starting FEN, not the final move line', () => {
+  const row = {
+    id: 'sidecheck-1',
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1',
+    moves: ['e7e5', 'e2e4', 'd7d6'],
+    rating: 1600,
+    themes: ['fork'],
+  };
+
+  const converted = convertPuzzle(row);
+  assert.ok(converted);
+  assert.equal(converted.position.sideToMove, 'black');
+});
+
 test('chess persistence: random puzzles filter by difficulty and theme', async () => {
   const store = new Store({ dataDir: './data/test-chess-' + Math.random().toString(36).slice(2, 8) });
   await store.open();

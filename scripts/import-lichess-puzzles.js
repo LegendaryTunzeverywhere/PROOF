@@ -54,7 +54,7 @@ export function buildPuzzleFromFen({
   metadata = {},
   positionId,
 }) {
-  const game = new Chess(fen);
+  const startingGame = new Chess(fen);
   const solverMoves = getPlayerMovesForTurn(fen, moves);
   if (!solverMoves || !solverMoves.length) return null;
 
@@ -62,7 +62,7 @@ export function buildPuzzleFromFen({
   const derivedDifficulty = difficulty || difficultyForRating(rating);
   const finalPositionId = positionId || `position-${id}`;
   const finalPuzzleId = `puzzle-${id}`;
-  const sideToMove = game.turn() === 'w' ? 'white' : 'black';
+  const sideToMove = startingGame.turn() === 'w' ? 'white' : 'black';
 
   return {
     position: {
@@ -91,6 +91,7 @@ export function buildPuzzleFromFen({
 }
 
 export function convertPuzzle(row) {
+  const startingGame = new Chess(row.fen);
   const game = new Chess(row.fen);
   const solution = [];
 
@@ -112,7 +113,7 @@ export function convertPuzzle(row) {
   const difficulty = difficultyForRating(row.rating);
   const positionId = `lichess-pos-${row.id}`;
   const puzzleId = `lichess-puzzle-${row.id}`;
-  const sideToMove = game.turn() === 'w' ? 'white' : 'black';
+  const sideToMove = startingGame.turn() === 'w' ? 'white' : 'black';
   return {
     position: {
       id: positionId,
