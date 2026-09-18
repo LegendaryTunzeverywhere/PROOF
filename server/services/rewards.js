@@ -198,7 +198,20 @@ export class RewardService {
   }
 
   async rewardForChessPuzzle({ userId, puzzle, attempt }) {
-    const amountNim = crypto.randomInt(1, 11) / 10;
+    const range = (() => {
+      switch (puzzle?.difficulty) {
+        case 'advanced':
+          return { min: 3, max: 10 };
+        case 'intermediate':
+          return { min: 1, max: 3 };
+        case 'beginner':
+        default:
+          return { min: 0.1, max: 0.9 };
+      }
+    })();
+
+    const amountNim = Number((crypto.randomInt(Math.round(range.min * 10), Math.round(range.max * 10) + 1) / 10).toFixed(1));
+
     return this.rewardForAttempt({
       userId,
       challenge: {

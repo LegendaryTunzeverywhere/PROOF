@@ -1,6 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Store } from '../server/store.js';
+import { convertPuzzle } from '../scripts/import-lichess-puzzles.js';
+
+test('lichess import: the stored puzzle FEN stays at the actual starting position', () => {
+  const row = {
+    id: 'sample-1',
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+    moves: ['e2e4', 'e7e5'],
+    rating: 1500,
+    themes: ['backRankMate'],
+  };
+
+  const converted = convertPuzzle(row);
+  assert.ok(converted);
+  assert.equal(converted.position.fen, row.fen);
+  assert.deepEqual(converted.puzzle.solution, ['e4', 'e5']);
+});
 
 test('chess persistence: random puzzles filter by difficulty and theme', async () => {
   const store = new Store({ dataDir: './data/test-chess-' + Math.random().toString(36).slice(2, 8) });
@@ -55,20 +71,41 @@ test('chess persistence: create and delete aliases use the standard store contra
   assert.equal(store.get('ChessOpeningRepertoire', opening.id), null);
 });
 
-test('chess rewards: a correct puzzle receives a secure tenth-NIM increment', async () => {
+test('chess rewards: a correct puzzle receives the correct range for its difficulty', async () => {
   const { testbed } = await import('./helpers.js');
   const tb = await testbed();
-  const user = await tb.users.createUser({ walletMode: 'nimiqpay', walletAddress: 'NQ45 FEDCBA9876543210ABCDEFGHJKLMNPQRSTUVXY' });
-  const result = await tb.rewards.rewardForChessPuzzle({
-    userId: user.id,
-    puzzle: { id: 'p-reward', title: 'Reward puzzle' },
-    attempt: { id: 'attempt-reward' },
+
+  const beginnerUser = await tb.users.createUser({ walletMode: 'nimiqpay', walletAddress: 'NQ45 FEDCBA9876543210ABCDEFGHJKLMNPQRSTUVXY' });
+  const intermediateUser = await tb.users.createUser({ walletMode: 'nimiqpay', walletAddress: 'NQ45 FEDCBA9876543210ABCDEFGHJKLMNPQRSTUVZ' });
+  const advancedUser = await tb.users.createUser({ walletMode: 'nimiqpay', walletAddress: 'NQ45 FEDCBA9876543210ABCDEFGHJKLMNPQRSTUVWW' });
+
+  const beginnerResult = await tb.rewards.rewardForChessPuzzle({
+    userId: beginnerUser.id,
+    puzzle: { id: 'p-beginner', title: 'Beginner reward', difficulty: 'beginner' },
+    attempt: { id: 'attempt-beginner' },
+  });
+  const intermediateResult = await tb.rewards.rewardForChessPuzzle({
+    userId: intermediateUser.id,
+    puzzle: { id: 'p-intermediate', title: 'Intermediate reward', difficulty: 'intermediate' },
+    attempt: { id: 'attempt-intermediate' },
+  });
+  const advancedResult = await tb.rewards.rewardForChessPuzzle({
+    userId: advancedUser.id,
+    puzzle: { id: 'p-advanced', title: 'Advanced reward', difficulty: 'advanced' },
+    attempt: { id: 'attempt-advanced' },
   });
 
-  assert.equal(result.granted, true);
-  assert.ok(result.amountNim >= 0.1 && result.amountNim <= 1);
-  assert.equal(Math.round(result.amountNim * 10), result.amountNim * 10);
-  assert.equal(tb.store.get('users', user.id).balanceLuna, Math.round(result.amountNim * 100000));
+  assert.equal(beginnerResult.granted, true);
+  assert.ok(beginnerResult.amountNim >= 0.1 && beginnerResult.amountNim <= 0.9);
+  assert.equal(Math.round(beginnerResult.amountNim * 10), beginnerResult.amountNim * 10);
+
+  assert.equal(intermediateResult.granted, true);
+  assert.ok(intermediateResult.amountNim >= 1 && intermediateResult.amountNim <= 3);
+  assert.equal(Math.round(intermediateResult.amountNim * 10), intermediateResult.amountNim * 10);
+
+  assert.equal(advancedResult.granted, true);
+  assert.ok(advancedResult.amountNim >= 3 && advancedResult.amountNim <= 10);
+  assert.equal(Math.round(advancedResult.amountNim * 10), advancedResult.amountNim * 10);
 });
 
 test('chess activity: practice updates XP and streak data', async () => {

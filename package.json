@@ -14,6 +14,8 @@
     "test": "node --test tests/*.test.js",
     "smoke": "node tests/smoke.js",
     "import:chess": "node --env-file=.env scripts/import-lichess-puzzles.js",
+    "clear:chess-data": "node --env-file=.env scripts/reset-chess-import.js --clear-only --all",
+    "reset:chess-import": "node --env-file=.env scripts/reset-chess-import.js --all",
     "typecheck": "tsc --noEmit",
     "seed:reset": "node -e \"import('./server/store.js').then(async m=>{const s=new m.Store({dataDir:'data'});await s.reset();console.log('store reset')})\"",
     "reset:supabase-users": "node --env-file=.env scripts/reset-supabase-users.js"

@@ -3,7 +3,7 @@ import { PuzzleSolver } from '@/components/chess/PuzzleSolver';
 import { ProgressDashboard } from '@/components/chess/ProgressDashboard';
 import { RepertoireManager } from '@/components/chess/RepertoireManager';
 import { PositionAnalyzer } from '@/components/chess/PositionAnalyzer';
-import { curriculumApi, puzzleApi } from '@/services/chess';
+import { puzzleApi } from '@/services/chess';
 import type { ChessDifficulty, ChessPuzzle, ChessTheme } from '@/types/chess';
 
 const DIFFICULTIES: Array<{ value: ChessDifficulty | ''; label: string }> = [
@@ -33,8 +33,6 @@ export function ChessLearningPage() {
   const [puzzleIndex, setPuzzleIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [curriculumMessage, setCurriculumMessage] = useState<string | null>(null);
-  const [creatingCurriculum, setCreatingCurriculum] = useState(false);
   const [puzzleSolved, setPuzzleSolved] = useState(false);
 
   const loadPuzzles = async () => {
@@ -63,20 +61,6 @@ export function ChessLearningPage() {
 
   const puzzle = puzzles[puzzleIndex];
 
-  const createCurriculum = async () => {
-    setCreatingCurriculum(true);
-    setCurriculumMessage(null);
-    try {
-      const result = await curriculumApi.create(difficulty || 'beginner');
-      setCurriculumMessage(`Your ${difficulty || 'beginner'} seven-day chess path is ready in Learn.`);
-      console.info('[chess] curriculum created', result.path?.id);
-    } catch (err) {
-      setCurriculumMessage(err instanceof Error ? err.message : 'Unable to create the chess path');
-    } finally {
-      setCreatingCurriculum(false);
-    }
-  };
-
   return (
     <div className="mx-auto w-full max-w-[1180px] pb-10">
       <header className="mb-6 rounded-[22px] border border-line bg-surface px-5 py-6 shadow-sm sm:px-8 sm:py-8">
@@ -91,13 +75,8 @@ export function ChessLearningPage() {
           <div className="rounded-2xl bg-brand-soft px-4 py-3 text-sm text-brand">
             <div className="font-bold">A focused session</div>
             <div className="mt-1 text-brand/75">{puzzles.length || 0} positions in this set</div>
-            <button type="button" onClick={() => void createCurriculum()} disabled={creatingCurriculum} className="mt-3 rounded-lg bg-brand px-3 py-2 text-xs font-bold text-white disabled:opacity-60">
-              {creatingCurriculum ? 'Building path...' : 'Build 7-day path'}
-            </button>
           </div>
         </div>
-
-        {curriculumMessage && <div className="mt-4 rounded-xl bg-elevated px-4 py-3 text-sm font-semibold text-ink-soft">{curriculumMessage}</div>}
 
         <div className="mt-6 flex flex-wrap gap-2 border-t border-line pt-4" role="tablist" aria-label="Chess learning views">
           {[
@@ -166,7 +145,7 @@ export function ChessLearningPage() {
                       setPuzzleSolved(false);
                       setPuzzleIndex((index) => index + 1);
                     }}
-                    className="rounded-xl bg-ink px-4 py-2 font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    className="rounded-xl bg-brand px-4 py-2 font-bold text-white shadow-[0_10px_22px_-14px_rgba(3,2,2,.65)] transition-all hover:-translate-y-0.5 hover:bg-brand-hover active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {puzzleSolved ? 'Next position' : 'Solve to continue'}
                   </button>
