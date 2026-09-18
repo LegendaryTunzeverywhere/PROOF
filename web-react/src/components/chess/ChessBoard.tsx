@@ -15,6 +15,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
   initialFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
   onMove,
   orientation = 'white',
+  playerColor,
   highlightSquares = [],
   disabled = false,
   showCoordinates = true,
@@ -29,6 +30,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const boardId = useId();
   const [boardWidth, setBoardWidth] = useState(0);
+  const activeColor = playerColor ?? (game.turn() === 'w' ? 'white' : 'black');
 
   // Keep a replayed FEN and the rules engine in lockstep before the browser paints.
   // This avoids a frame where pieces animate from a previous lesson position.
@@ -127,7 +129,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
       // If no piece is selected, try to select this square
       if (!moveFrom) {
         const piece = game.get(square);
-        if (piece && piece.color === game.turn()) {
+        if (piece && piece.color === activeColor[0]) {
           setMoveFrom(square);
           getMoveOptions(square);
         }
@@ -149,12 +151,12 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
     (_piece: string, sourceSquare: ChessSquare) => {
       if (disabled) return;
       const piece = game.get(sourceSquare);
-      if (piece && piece.color === game.turn()) {
+      if (piece && piece.color === activeColor[0]) {
         setMoveFrom(sourceSquare);
         getMoveOptions(sourceSquare);
       }
     },
-    [disabled, game, getMoveOptions]
+    [activeColor, disabled, game, getMoveOptions]
   );
 
   // Handle piece drop (drag and drop)
@@ -201,7 +203,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
           onPieceDragBegin={onPieceDragBegin}
           onSquareClick={onSquareClick}
           onSquareRightClick={onSquareRightClick}
-          boardOrientation={orientation}
+          boardOrientation={playerColor ?? orientation}
           customSquareStyles={customSquareStyles}
           arePiecesDraggable={!disabled}
           autoPromoteToQueen
@@ -241,7 +243,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
         )}
         {!game.isGameOver() && (
           <div className="status-turn">
-            {game.turn() === 'w' ? 'White' : 'Black'} to move
+            {(playerColor ?? (game.turn() === 'w' ? 'white' : 'black')) === 'white' ? 'White' : 'Black'} to move
           </div>
         )}
       </div>

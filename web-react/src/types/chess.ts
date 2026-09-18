@@ -249,6 +249,7 @@ export interface ChessBoardProps {
   initialFen?: string;
   onMove?: (move: any, newFen: string) => void;
   orientation?: ChessColor;
+  playerColor?: ChessColor;
   highlightSquares?: string[];
   disabled?: boolean;
   showCoordinates?: boolean;

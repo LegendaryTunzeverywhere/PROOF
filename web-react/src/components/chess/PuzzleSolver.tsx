@@ -26,7 +26,7 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
   const [feedback, setFeedback] = useState('');
   const [loading, setLoading] = useState(false);
   const [boardVersion, setBoardVersion] = useState(0);
-  const playerColor = puzzle.position?.sideToMove || (new Chess(puzzle.position?.fen || puzzle.positionId).turn() === 'w' ? 'white' : 'black');
+  const solverColor = (puzzle.position?.sideToMove || (new Chess(puzzle.position?.fen || puzzle.positionId).turn() === 'w' ? 'white' : 'black')) as 'white' | 'black';
 
   const resetBoard = useCallback(() => {
     const nextGame = new Chess(puzzle.position?.fen || puzzle.positionId);
@@ -51,6 +51,14 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
 
       const nextMoves = [...moves, move.san];
       const expectedMove = puzzle.solution[moves.length];
+
+      if (move.color !== (solverColor === 'white' ? 'w' : 'b')) {
+        setStatus('incorrect');
+        setFeedback(`That move is for the wrong side. You are solving as ${solverColor === 'white' ? 'White' : 'Black'}.`);
+        setGame(new Chess(newFen));
+        setMoves(nextMoves);
+        return;
+      }
 
       if (expectedMove !== move.san) {
         setStatus('incorrect');
@@ -137,7 +145,7 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
           >
             {DIFFICULTY_LABELS[puzzle.difficulty]}
           </span>
-          <span className="puzzle-turn">♟ {playerColor === 'white' ? 'White to move' : 'Black to move'}</span>
+          <span className="puzzle-turn">♟ {solverColor === 'white' ? 'White to move' : 'Black to move'}</span>
           <span className="puzzle-rating">⭐ {puzzle.rating}</span>
         </div>
         <div className="puzzle-themes">
@@ -171,7 +179,8 @@ export const PuzzleSolver: React.FC<PuzzleSolverProps> = ({
           initialFen={game.fen()}
           onMove={handleMove}
           disabled={status !== 'solving'}
-          orientation={playerColor}
+          orientation={solverColor}
+          playerColor={solverColor}
         />
       </div>
 
