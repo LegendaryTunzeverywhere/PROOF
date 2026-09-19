@@ -19,6 +19,7 @@ import { ChallengeService, chessConfigFromTemplate, chessConfigFromChallenge } f
 import { MarketplaceService } from './services/marketplace.js';
 import { TeachingService } from './services/teaching.js';
 import { generateLearningPath, generateLesson, recommendNextSkill, tutorReply, detectDomain } from './ai/service.js';
+import { languageSpeechTargets } from './ai/engine.js';
 import { createCurriculumFromDocument, getUserDocumentCurricula, getDocumentCurriculum, documentTutorReply } from './services/document-curriculum.js';
 import { cleanupDuplicateSkillPaths } from './services/path-dedupe.js';
 import { uid, now, toNim, escapeHtml, RateLimiter, looksLikeNimiqAddress, normalizeNimiqAddress, validate, parseNumber, hmac, kindIncludesReward, shortTxRef } from './util.js';
@@ -1435,12 +1436,15 @@ function publicChessConfig(chess) {
 
 function challengeView(ch) {
   const speechConfig = ch.type === 'speech' ? (ch.evaluator?.config || {}) : null;
+  const legacySpeechLanguage = speechConfig && !speechConfig.language
+    ? languageSpeechTargets().find((target) => target.text === speechConfig.targets?.[0])?.language
+    : null;
   return {
     id: ch.id, skillSlug: ch.skillSlug, kind: ch.kind, type: ch.type,
     title: ch.title, brief: ch.brief, requirements: ch.requirements,
     timeMin: ch.timeMin, passScore: ch.passScore, rewardNim: ch.rewardNim, xp: ch.xp,
     chess: ch.type === 'chess' ? publicChessConfig(chessConfigFromChallenge(ch)) : undefined,
-    speech: speechConfig ? { target: speechConfig.targets?.[0] || '', language: speechConfig.language || 'en' } : undefined,
+    speech: speechConfig ? { target: speechConfig.targets?.[0] || '', language: speechConfig.language || legacySpeechLanguage || 'en' } : undefined,
     submissionFields: ch.type === 'html' ? ['code']
       : ch.type === 'js-static' ? ['code', 'explanation']
       : ch.type === 'chess' ? ['positions']
