@@ -1,8 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { normalizeNimiqAddress, kindIncludesReward } from '../server/util.js';
 import { UserService } from '../server/services/users.js';
 import { asyncStore, testbed, goodHtml, typedMeta } from './helpers.js';
+
+test('schema: task applications include delivery review fields required by the escrow flow', async () => {
+  const sql = await readFile(new URL('../database/complete-migration.sql', import.meta.url), 'utf8');
+  const prismaSchema = await readFile(new URL('../prisma/schema.prisma', import.meta.url), 'utf8');
+
+  for (const fragment of [
+    '"deliveredAt" TIMESTAMP',
+    '"deliveryNote" TEXT',
+    '"deliveryUrl" TEXT',
+    '"deliveryAttachment" TEXT',
+    '"reviewedAt" TIMESTAMP',
+    '"reviewFeedback" TEXT',
+    '"completedAt" TIMESTAMP',
+  ]) {
+    assert.ok(sql.includes(fragment), `Missing migration column: ${fragment}`);
+  }
+
+  for (const name of ['deliveredAt', 'deliveryNote', 'deliveryUrl', 'deliveryAttachment', 'reviewedAt', 'reviewFeedback', 'completedAt']) {
+    assert.ok(prismaSchema.includes(name), `Missing Prisma field: ${name}`);
+  }
+});
 
 test('users: listWalletAccounts works with async store.all', async (t) => {
   const tb = await testbed();

@@ -313,6 +313,13 @@ CREATE TABLE IF NOT EXISTS "TaskApplication" (
   status "ApplicationStatus" DEFAULT 'pending',
   "appliedAt" TIMESTAMP DEFAULT NOW(),
   "respondedAt" TIMESTAMP,
+  "deliveredAt" TIMESTAMP,
+  "deliveryNote" TEXT,
+  "deliveryUrl" TEXT,
+  "deliveryAttachment" TEXT,
+  "reviewedAt" TIMESTAMP,
+  "reviewFeedback" TEXT,
+  "completedAt" TIMESTAMP,
   UNIQUE("taskId", "userId")
 );
 

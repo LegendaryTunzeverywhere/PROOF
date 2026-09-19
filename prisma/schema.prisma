@@ -342,13 +342,20 @@ model MarketplaceTask {
 }
 
 model TaskApplication {
-  id         String           @id @default(cuid())
-  taskId     String
-  userId     String
-  pitch      String
-  status     ApplicationStatus @default(pending)
-  appliedAt  DateTime         @default(now())
-  respondedAt DateTime?
+  id                 String           @id @default(cuid())
+  taskId             String
+  userId             String
+  pitch              String
+  status             ApplicationStatus @default(pending)
+  appliedAt          DateTime         @default(now())
+  respondedAt        DateTime?
+  deliveredAt        DateTime?
+  deliveryNote       String?
+  deliveryUrl        String?
+  deliveryAttachment String?
+  reviewedAt         DateTime?
+  reviewFeedback     String?
+  completedAt        DateTime?
 
   task MarketplaceTask @relation(fields: [taskId], references: [id])
   user User            @relation(fields: [userId], references: [id])
