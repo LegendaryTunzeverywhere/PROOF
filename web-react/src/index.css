@@ -381,6 +381,11 @@
   animation: learning-status-typewriter 2.6s ease-in-out both;
 }
 
+@keyframes document-progress {
+  0% { transform: translateX(-130%); }
+  100% { transform: translateX(330%); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

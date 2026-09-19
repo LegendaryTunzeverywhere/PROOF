@@ -739,6 +739,8 @@ async function discoveryFeed(userId) {
 }
 
 /* ── PATHS ─────────────────────────────────────────────────────────── */
+const pathGenerationInFlight = new Map();
+
 route('POST', '/api/paths', async (ctx) => {
   const { user, body, req, res } = ctx;
   // Validate goal
@@ -778,13 +780,16 @@ route('POST', '/api/paths', async (ctx) => {
   if (limiter.allow('paths:' + user.id, 5, 300_000) !== true)
     throw httpError(429, 'RATE_LIMITED', 'Path generation limit reached. Wait 5 minutes before creating another path.');
   
-  const gen = await generateLearningPath({
-    goal: goal,
-    domain: domain,
-    level: level,
-    minutesPerDay: minutesPerDay,
-    style: style,
-  });
+  const generationKey = `${user.id}:${domain || ''}:${goal.toLowerCase()}`;
+  let generation = pathGenerationInFlight.get(generationKey);
+  if (!generation) {
+    generation = generateLearningPath({ goal, domain, level, minutesPerDay, style })
+      .finally(() => pathGenerationInFlight.delete(generationKey));
+    pathGenerationInFlight.set(generationKey, generation);
+  } else {
+    console.log(`[PATH GENERATION] Joining in-flight request for user ${user.id}`);
+  }
+  const gen = await generation;
   if (!gen || !Array.isArray(gen.days) || !gen.days.length)
     throw httpError(502, 'PATH_GENERATION_FAILED', 'No learning path could be generated for that goal — try a more specific goal.');
   // Guard the shape we rely on below so a bad generator/LLM output can never
@@ -846,7 +851,6 @@ route('POST', '/api/paths', async (ctx) => {
 
 route('GET', '/api/paths', async (ctx) => {
   const { user, res } = ctx;
-  await cleanupDuplicateSkillPaths(store, user.id).catch((error) => console.error('[paths] cleanup failed during list load:', error.message));
   const filtered = await store.filter('paths', (p) => p.userId === user.id);
   const sorted = filtered.sort((a, b) => b.createdAt - a.createdAt);
   const mine = await Promise.all(sorted.map((p) => pathView(p, user.id)));
@@ -1223,14 +1227,16 @@ route('DELETE', '/api/curriculum/documents/:id', async (ctx) => {
   
   // Delete associated challenges first (they reference the path)
   const challenges = await store.filter('challenges', (c) =>
-    c.documentPathId === params.id || c.evaluator?.documentPathId === params.id
+    c.pathId === params.id || c.documentPathId === params.id || c.evaluator?.documentPathId === params.id
   );
   for (const challenge of challenges) {
-    await store.remove('challenges', challenge.id);
+    const removed = await store.remove('challenges', challenge.id);
+    if (removed === false) throw httpError(502, 'CURRICULUM_DELETE_FAILED', 'Could not remove the curriculum challenges. Please try again.');
   }
   
   // Delete the path
-  await store.remove('paths', params.id);
+  const removedPath = await store.remove('paths', params.id);
+  if (removedPath === false) throw httpError(502, 'CURRICULUM_DELETE_FAILED', 'Could not remove the curriculum. Please try again.');
   
   json(res, 200, { success: true, message: 'Curriculum deleted successfully' });
 });

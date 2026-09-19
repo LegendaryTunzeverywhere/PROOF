@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Reveal } from '../components/Reveal';
 import { PathDetailView } from '../components/PathDetailView';
@@ -45,6 +45,37 @@ function PathCreationStatus() {
   );
 }
 
+function LearnHubLoading() {
+  const [messageIndex, setMessageIndex] = useState(0);
+  const messages = ['Loading your learning space...', 'Checking your paths...', 'Preparing skill catalog...'];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setMessageIndex((index) => (index + 1) % messages.length);
+    }, 2200);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="mx-auto w-full max-w-5xl space-y-6 p-4 sm:p-6" aria-live="polite">
+      <div className="learning-hub-loading-status rounded-2xl border border-line bg-surface p-6 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-brand-soft text-xl text-brand animate-pulse" aria-hidden="true">✦</div>
+          <div>
+            <p key={messageIndex} className="learning-status-typewriter font-semibold text-ink">{messages[messageIndex]}</p>
+            <p className="mt-1 text-sm text-muted">Your learning paths are loading in the background.</p>
+          </div>
+        </div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-3" aria-hidden="true">
+          <div className="h-24 animate-pulse rounded-xl bg-elevated" />
+          <div className="h-24 animate-pulse rounded-xl bg-elevated" />
+          <div className="h-24 animate-pulse rounded-xl bg-elevated" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function LearnPage() {
   const params = useParams<{ id?: string; pathId?: string; skill?: string; topic?: string }>();
   
@@ -81,6 +112,7 @@ function LearnHubView() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [goalInput, setGoalInput] = useState('');
   const [createTimeout, setCreateTimeout] = useState(false);
+  const creatingRef = useRef(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -134,6 +166,8 @@ function LearnHubView() {
     }
 
     try {
+      if (creatingRef.current) return;
+      creatingRef.current = true;
       setCreating(true);
       setCreateError(null);
       
@@ -155,13 +189,14 @@ function LearnHubView() {
       console.error('Failed to create path:', err);
       setCreateError(err.message || 'Failed to create learning path');
     } finally {
+      creatingRef.current = false;
       setCreating(false);
     }
   };
 
   const handleSkillClick = async (skill: SkillCatalog) => {
     // Prevent duplicate clicks
-    if (creating) return;
+    if (creating || creatingRef.current) return;
 
     if (skill.slug === 'languages') {
       setShowLanguagePicker(true);
@@ -172,6 +207,7 @@ function LearnHubView() {
     setGoalInput(goal);
     
     try {
+      creatingRef.current = true;
       setCreating(true);
       setCreateError(null);
       
@@ -188,14 +224,16 @@ function LearnHubView() {
     } catch (err: any) {
       console.error('Failed to create path:', err);
       setCreateError(err.message || 'Failed to create learning path');
+      creatingRef.current = false;
       setCreating(false);
     }
   };
 
   const handleLanguageSelect = async (language: (typeof LANGUAGE_OPTIONS)[number]) => {
-    if (creating) return;
+    if (creating || creatingRef.current) return;
 
     try {
+      creatingRef.current = true;
       setShowLanguagePicker(false);
       setCreating(true);
       setCreateError(null);
@@ -210,16 +248,13 @@ function LearnHubView() {
     } catch (err: any) {
       console.error('Failed to create language path:', err);
       setCreateError(err.message || 'Failed to create learning path');
+      creatingRef.current = false;
       setCreating(false);
     }
   };
 
   if (authLoading || loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand border-t-transparent" />
-      </div>
-    );
+    return <LearnHubLoading />;
   }
 
   if (!user) {

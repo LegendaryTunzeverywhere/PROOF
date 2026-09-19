@@ -22,6 +22,7 @@ export default function DocumentUploadPage() {
   const navigate = useNavigate();
   const [documents, setDocuments] = useState<DocumentPath[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [deletingPathId, setDeletingPathId] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [goal, setGoal] = useState('');
   const [dragActive, setDragActive] = useState(false);
@@ -205,8 +206,10 @@ export default function DocumentUploadPage() {
   };
 
   const confirmDelete = async () => {
+    const pathId = deleteConfirm.pathId;
+    setDeletingPathId(pathId);
     try {
-      const response = await fetch(`/api/curriculum/documents/${deleteConfirm.pathId}`, {
+      const response = await fetch(`/api/curriculum/documents/${pathId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -216,7 +219,7 @@ export default function DocumentUploadPage() {
       }
 
       // Remove from UI
-      setDocuments(documents.filter(doc => doc.id !== deleteConfirm.pathId));
+      setDocuments((current) => current.filter(doc => doc.id !== pathId));
       setDeleteConfirm({ show: false, pathId: '', title: '' });
     } catch (error) {
       setErrorModal({
@@ -224,6 +227,8 @@ export default function DocumentUploadPage() {
         message: 'Failed to delete curriculum. Please try again.'
       });
       setDeleteConfirm({ show: false, pathId: '', title: '' });
+    } finally {
+      setDeletingPathId(null);
     }
   };
 
@@ -294,11 +299,21 @@ export default function DocumentUploadPage() {
                       e.stopPropagation();
                       handleDeleteClick(doc);
                     }}
-                    className="flex shrink-0 items-center gap-2 rounded-lg border-2 border-red-500 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 transition-all hover:bg-red-100 dark:border-red-600 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
+                    disabled={uploading || deletingPathId !== null}
+                    className="flex shrink-0 items-center gap-2 rounded-lg border-2 border-red-500 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 transition-all hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-600 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
                     title="Delete curriculum"
                   >
-                    <TrashIcon className="h-4 w-4" />
-                    Delete
+                    {deletingPathId === doc.id ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent dark:border-red-400" />
+                        Deleting…
+                      </>
+                    ) : (
+                      <>
+                        <TrashIcon className="h-4 w-4" />
+                        Delete
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -416,6 +431,22 @@ export default function DocumentUploadPage() {
           </p>
         </form>
       </div>
+
+      {uploading && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-line bg-surface p-8 text-center shadow-2xl">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-brand-soft text-2xl text-brand animate-pulse" aria-hidden="true">
+              ✦
+            </div>
+            <h2 className="mt-4 text-xl font-bold text-ink">Analyzing your document</h2>
+            <p className="mt-2 text-sm text-muted">Building lessons, quizzes, recall prompts, and proof challenges.</p>
+            <div className="mt-6 h-2 overflow-hidden rounded-full bg-elevated" aria-label="Analysis in progress">
+              <div className="h-full w-1/3 rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 animate-[document-progress_1.8s_ease-in-out_infinite]" />
+            </div>
+            <p className="mt-3 text-xs text-muted">This may take a little while for larger documents.</p>
+          </div>
+        </div>
+      )}
 
       {/* Error Modal */}
       {errorModal.show && (
