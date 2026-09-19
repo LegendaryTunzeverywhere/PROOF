@@ -299,12 +299,19 @@ function normalizeDocumentCurriculum(curriculum, userGoal = '') {
 async function analyzeDocumentWithAI(text, userGoal = '') {
   if (!llmEnabled()) return localDocumentCurriculum(text, userGoal);
 
-  const systemPrompt = `Create comprehensive learning curricula. Keep JSON complete and valid.`;
+  const systemPrompt = `You are PROOF's document-learning architect. Read the supplied document as the source of truth before designing the curriculum. Extract its central thesis, named people and organizations, definitions, claims, examples, procedures, and evidence. Build a progressive 7-day path from those facts. Do not invent facts, citations, topics, or examples that are not supported by the document. Keep JSON complete, valid, and concise.`;
 
   // Reduced from 8000 to 4000 chars to prevent HTTP 413 (Request Too Large)
   const textSample = text.slice(0, 4000);
   const userPrompt = `
-Create a 7-day curriculum from this document.
+Read this document carefully, create a compact internal digest, then create a 7-day curriculum from that digest.
+
+Planning requirements:
+- Identify the document's main purpose and 4-8 factual concepts before sequencing lessons.
+- Start with orientation and vocabulary, then move through the document's major ideas, examples, and implications.
+- Give each lesson one distinct concept and a title that reflects the document, not a generic filler phrase.
+- Keep every lesson grounded in the supplied text. If a detail is unclear or absent, do not guess.
+- Make proof tasks ask learners to explain or apply ideas that actually appear in the document.
 
 Document excerpt:
 ${textSample}
@@ -516,7 +523,7 @@ async function generateDocumentLesson(skillSlug, topicSlug) {
     throw new Error('Document content not available');
   }
   
-  const systemPrompt = `You are an expert educator. Create comprehensive, engaging lesson content based on the provided document.`;
+  const systemPrompt = `You are PROOF's document lesson writer. Treat the uploaded document as the only factual source. First identify the passages relevant to the requested topic, then teach them clearly. Preserve names, definitions, dates, institutions, examples, and relationships accurately. Do not repeat raw MCQ stems, invent details, or turn the lesson title into an answer. Separate document facts from suggested study guidance.`;
   
   const userPrompt = `
 Create a comprehensive lesson for "${lessonTitle}" from this document.
@@ -585,7 +592,68 @@ Make it educational and complete - 3 sections, 4 key points, 3 practice question
   }
 }
 
-async function documentTutorReply({ skillSlug, topicSlug, pathId = '', question, history = [] }) {
+const TUTOR_STOP_WORDS = new Set([
+  'about', 'after', 'also', 'answer', 'does', 'from', 'give', 'into', 'just',
+  'like', 'that', 'the', 'this', 'what', 'when', 'where', 'which', 'with',
+  'would', 'your', 'you', 'please', 'tell', 'explain', 'document',
+]);
+
+function findDocumentEvidence(documentText, question) {
+  const terms = String(question || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .filter((term) => term.length > 2 && !TUTOR_STOP_WORDS.has(term));
+  if (!terms.length) return '';
+
+  const chunks = String(documentText || '')
+    .split(/\n{2,}|(?<=[.!?])\s+/)
+    .map((chunk) => chunk.replace(/\s+/g, ' ').trim())
+    .filter((chunk) => chunk.length >= 35);
+
+  return chunks
+    .map((chunk, index) => {
+      const normalized = chunk.toLowerCase();
+      const score = terms.reduce((total, term) => total + (normalized.includes(term) ? 1 : 0), 0);
+      return { chunk, index, score };
+    })
+    .filter((candidate) => candidate.score > 0)
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .slice(0, 2)
+    .map((candidate) => candidate.chunk)
+    .join('\n\n');
+}
+
+function buildDocumentTutorFallback({ question, documentText, lesson }) {
+  const normalizedQuestion = String(question || '').toLowerCase().trim();
+  const practice = Array.isArray(lesson?.practice) ? lesson.practice : [];
+  if (/\b(exercise|practice|quiz|test me)\b/.test(normalizedQuestion) && practice.length) {
+    const item = practice[0];
+    return {
+      intent: 'exercise',
+      reply: `Try this from the lesson:\n\n${item.q || item.question}${item.choices?.length ? `\n\n${item.choices.map((choice, index) => `${'ABCD'[index]}. ${choice}`).join('\n')}` : ''}`,
+      engine: 'proof-engine',
+    };
+  }
+
+  const evidence = findDocumentEvidence(documentText, question);
+  if (evidence) {
+    return {
+      intent: 'explain',
+      reply: `Based on your uploaded document:\n\n${evidence}\n\nThat is the closest passage I found for your question. Ask me about another phrase or section and I’ll trace it back to the document.`,
+      engine: 'proof-engine',
+    };
+  }
+
+  const lessonPoint = lesson?.keyPoints?.[0] || lesson?.tldr;
+  return {
+    intent: 'coach',
+    reply: `I could not find a passage in the uploaded document that answers that precisely. The current lesson focuses on ${lesson?.title || 'this topic'}.${lessonPoint ? ` The main takeaway here is: ${lessonPoint}` : ''}\n\nTry naming a person, concept, or phrase from the document and I’ll search for it directly.`,
+    engine: 'proof-engine',
+  };
+}
+
+async function documentTutorReply({ skillSlug, topicSlug, pathId = '', question, history = [], lessonContext }) {
   const paths = await store.filter('paths', (path) =>
     path.isFromDocument && (!pathId || path.id === pathId) && path.skillSlug === skillSlug
   );
@@ -602,21 +670,18 @@ async function documentTutorReply({ skillSlug, topicSlug, pathId = '', question,
   const item = (path.days || []).flatMap((day) => day.items || []).find((candidate) => candidate.topic === topicSlug);
   const lessonTitle = item?.title || topicSlug.replace(/-/g, ' ');
   const documentExcerpt = path.sourceDocument?.content?.slice(0, 5000) || '';
-  const localLesson = buildDocumentLessonFallback(documentExcerpt, topicSlug, lessonTitle);
+  const localLesson = lessonContext || buildDocumentLessonFallback(documentExcerpt, topicSlug, lessonTitle);
 
   if (!llmEnabled()) {
-    return {
-      intent: 'explain',
-      reply: `${localLesson.tldr}\n\n${localLesson.sections[0].body}\n\nKey points:\n${localLesson.keyPoints.map((point) => `• ${point}`).join('\n')}\n\nQuick check: ${localLesson.ask}`,
-      engine: 'proof-engine',
-    };
+    return buildDocumentTutorFallback({ question, documentText: path.sourceDocument?.content || '', lesson: localLesson });
   }
 
   try {
     const response = await llmJson({
-      system: 'You are a helpful tutor. Answer only from the uploaded document context. If the context does not answer the question, say so and suggest what to inspect next. Return JSON with reply and intent.',
+      system: 'You are PROOF Document Tutor. First understand the uploaded document and the current lesson digest, then answer the learner question accurately. Use only those sources. Do not repeat the question, lesson title, or raw MCQ text. If the sources do not contain the answer, say that clearly and ask for a more specific term or section. For exercises, guide without revealing the answer. Return JSON: {"reply": string, "intent": "explain|simplify|example|exercise|hint|coach"}.',
       prompt: JSON.stringify({
         lessonTitle,
+        lessonContext: localLesson,
         documentExcerpt,
         question,
         history: history.slice(-6),
