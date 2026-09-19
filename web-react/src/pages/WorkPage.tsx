@@ -878,7 +878,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                                     <div className="text-sm font-semibold text-warn">Delivery waiting for approval</div>
                                     <textarea
                                       value={reviewDrafts[task.id] || ''}
-                                      onChange={(event) => setReviewDrafts((prev) => ({ ...prev, [task.id]: event.target.value.slice(0, 500) }))}
+                                      onChange={(event) => setReviewDrafts((prev) => ({ ...prev, [task.id || 'unknown-task']: event.target.value.slice(0, 500) }))}
                                       placeholder="Optional approval notes or revision feedback..."
                                       rows={3}
                                       className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -966,7 +966,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                                 Notes
                                 <textarea
                                   value={draft.note}
-                                  onChange={(event) => setDeliveryDrafts((prev) => ({ ...prev, [task.id]: { ...draft, note: event.target.value.slice(0, 500) } }))}
+                                  onChange={(event) => setDeliveryDrafts((prev) => ({ ...prev, [taskId || 'unknown-task']: { ...draft, note: event.target.value.slice(0, 500) } }))}
                                   placeholder="What was completed, and what should the client review?"
                                   rows={3}
                                   className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -977,7 +977,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                                   Link
                                   <input
                                     value={draft.url}
-                                    onChange={(event) => setDeliveryDrafts((prev) => ({ ...prev, [task.id]: { ...draft, url: event.target.value.slice(0, 250) } }))}
+                                    onChange={(event) => setDeliveryDrafts((prev) => ({ ...prev, [taskId || 'unknown-task']: { ...draft, url: event.target.value.slice(0, 250) } }))}
                                     placeholder="https://example.com"
                                     className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
                                   />
@@ -986,7 +986,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                                   Attachment
                                   <input
                                     value={draft.attachment}
-                                    onChange={(event) => setDeliveryDrafts((prev) => ({ ...prev, [task.id]: { ...draft, attachment: event.target.value.slice(0, 250) } }))}
+                                    onChange={(event) => setDeliveryDrafts((prev) => ({ ...prev, [taskId || 'unknown-task']: { ...draft, attachment: event.target.value.slice(0, 250) } }))}
                                     placeholder="doc.pdf / mockup.png"
                                     className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
                                   />
