@@ -303,11 +303,11 @@ export class UserService {
     if (!user || !delta) return;
     const key = role === 'client' ? 'clientReputation' : role === 'applicant' ? 'applicantReputation' : null;
     if (!key) return;
-    const current = Number(user[key] ?? user.reputation ?? 50);
-    const next = clamp(current + delta, 0, 100);
-    const clientReputation = key === 'clientReputation' ? next : Number(user.clientReputation ?? 50);
-    const applicantReputation = key === 'applicantReputation' ? next : Number(user.applicantReputation ?? 50);
-    const overallReputation = clamp((clientReputation + applicantReputation) / 2, 0, 100);
+    const current = Math.round(Number(user[key] ?? user.reputation ?? 50));
+    const next = clamp(Math.round(current + Number(delta)), 0, 100);
+    const clientReputation = Math.round(key === 'clientReputation' ? next : Number(user.clientReputation ?? 50));
+    const applicantReputation = Math.round(key === 'applicantReputation' ? next : Number(user.applicantReputation ?? 50));
+    const overallReputation = clamp(Math.round((clientReputation + applicantReputation) / 2), 0, 100);
     await this.store.update('users', userId, { [key]: next, clientReputation, applicantReputation, reputation: overallReputation, updatedAt: now() });
     await this.store.save();
   }

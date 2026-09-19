@@ -83,6 +83,19 @@ test('user progression: recorded attempts and path completions reconstruct histo
   assert.equal(await tb.users.recordedXp(user.id), 150, 'historical proof, lesson, and practice XP should be reconstructable');
 });
 
+test('user progression: role reputation values are rounded before writing to integer columns', async () => {
+  const tb = await testbed();
+  const user = await tb.users.createUser({ clientReputation: 50, applicantReputation: 51, reputation: 50 });
+
+  await tb.users.updateRoleReputation(user.id, 'client', 0);
+
+  const stored = tb.store.get('users', user.id);
+  assert.equal(Number.isInteger(stored.clientReputation), true);
+  assert.equal(Number.isInteger(stored.applicantReputation), true);
+  assert.equal(Number.isInteger(stored.reputation), true);
+  assert.equal(stored.reputation, 50);
+});
+
 test('user progression: reputation persists via store.update(), not in-memory mutation', async (t) => {
   const tb = await testbed();
   const user = await tb.users.createUser({});
