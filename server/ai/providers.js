@@ -1,16 +1,27 @@
 /**
- * LLM providers — Google Gemini and Groq
+ * LLM providers — Google Gemini and Cohere
  *
- * Groq is used first (fast and free), with Gemini as fallback.
- * JSON mode via responseMimeType (Gemini) or response_format (Groq).
+ * Cohere is used first in auto mode, with Gemini as fallback.
+ * JSON mode is requested from both providers and parsed defensively.
  */
 import { config } from '../config.js';
 
 const TIMEOUT_MS = 60_000; // Increased to 60 seconds for document analysis
+let cohereKeyCursor = 0;
 
-export const llmEnabled = () =>
-  (config.ai.provider === 'gemini' || config.ai.provider === 'groq' || config.ai.provider === 'auto') &&
-  (!!config.ai.apiKey || !!config.ai.groqApiKey);
+function selectedProvider() {
+  if (config.ai.provider === 'cohere') return config.ai.cohereApiKeys.length ? 'cohere' : '';
+  if (config.ai.provider === 'gemini') return config.ai.apiKey ? 'gemini' : '';
+  if (config.ai.provider === 'auto') {
+    if (config.ai.cohereApiKeys.length) return 'cohere';
+    if (config.ai.apiKey) return 'gemini';
+  }
+  return '';
+}
+
+export const llmEnabled = () => !!selectedProvider();
+export const cohereEmbeddingsEnabled = () =>
+  config.ai.cohereEmbeddingsEnabled && selectedProvider() === 'cohere';
 
 const GEMINI_FALLBACK_MODELS = [
   'gemini-3.8-flash',
@@ -25,55 +36,38 @@ const GEMINI_FALLBACK_MODELS = [
   'gemini-1.5-flash-latest',
 ];
 
-const GROQ_MODELS = [
-  'groq/compound',              // Primary model - high token limit, no rate limit
-  'qwen/qwen3.8-27b',          // Backup if compound fails
-  'openai/gpt-oss-120b',       // Additional backup
-];
-
 function modelCandidates() {
   const primary = config.ai.model;
   const rest = GEMINI_FALLBACK_MODELS.filter((m) => m !== primary);
   return primary ? [primary, ...rest] : rest;
 }
 
-export async function llmJson({ system, prompt, maxTokens = 900 }) {
+export async function llmJson({ system, prompt, maxTokens = 900, task = 'tutor' }) {
   if (!llmEnabled()) throw new Error('LLM_NOT_CONFIGURED');
-  
-  // Only use Groq - with retry logic for rate limits
-  if (config.ai.groqApiKey) {
-    console.log('[LLM] Using Groq only (no fallback)');
-    
-    // Retry up to 3 times with exponential backoff for rate limits
+
+  if (selectedProvider() === 'cohere') {
+    const keys = config.ai.cohereApiKeys;
     let lastError;
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    const start = cohereKeyCursor % keys.length;
+
+    // Trial-friendly failover: each key gets one attempt, with no repeated
+    // retries that could burn quota during a provider outage.
+    for (let offset = 0; offset < keys.length; offset++) {
+      const keyIndex = (start + offset) % keys.length;
       try {
-        return await callGroq({ system, prompt, maxTokens });
-      } catch (e) {
-        lastError = e;
-        const isRateLimit = /rate.limit|429/i.test(e.message);
-        
-        if (isRateLimit && attempt < 3) {
-          // Extract wait time from error message or use exponential backoff
-          const waitMatch = e.message.match(/try again in ([\d.]+)s/);
-          const waitTime = waitMatch 
-            ? Math.ceil(parseFloat(waitMatch[1]) * 1000) 
-            : Math.pow(2, attempt) * 5000; // 10s, 20s
-          
-          console.warn(`[LLM] Rate limit hit (attempt ${attempt}/3), waiting ${waitTime}ms...`);
-          await new Promise(resolve => setTimeout(resolve, waitTime));
-          continue;
-        }
-        
-        // For non-rate-limit errors or final attempt, throw immediately
-        throw e;
+        const result = await callCohere({ system, prompt, maxTokens, task, apiKey: keys[keyIndex] });
+        cohereKeyCursor = keyIndex;
+        return result;
+      } catch (error) {
+        lastError = error;
+        if (!isRateLimitError(error) || offset === keys.length - 1) throw error;
+        console.warn(`[Cohere] Key ${keyIndex + 1}/${keys.length} is rate-limited; switching keys.`);
       }
     }
-    
-    throw lastError;
+    throw lastError || new Error('COHERE_UNAVAILABLE');
   }
 
-  if (config.ai.apiKey) {
+  if (selectedProvider() === 'gemini') {
     let lastError;
     for (const model of modelCandidates()) {
       try {
@@ -89,64 +83,118 @@ export async function llmJson({ system, prompt, maxTokens = 900 }) {
   throw new Error('LLM_NOT_CONFIGURED');
 }
 
-async function callGroq({ system, prompt, maxTokens }) {
+export async function cohereEmbed(texts, inputType) {
+  if (!cohereEmbeddingsEnabled()) throw new Error('COHERE_EMBEDDINGS_DISABLED');
+
+  const keys = config.ai.cohereApiKeys;
+  let lastError;
+  const start = cohereKeyCursor % keys.length;
+  for (let offset = 0; offset < keys.length; offset++) {
+    const keyIndex = (start + offset) % keys.length;
+    try {
+      const result = await callCohereEmbed({ texts, inputType, apiKey: keys[keyIndex] });
+      cohereKeyCursor = keyIndex;
+      return result;
+    } catch (error) {
+      lastError = error;
+      if (!isRateLimitError(error) || offset === keys.length - 1) throw error;
+      console.warn(`[Cohere] Embedding key ${keyIndex + 1}/${keys.length} is rate-limited; switching keys.`);
+    }
+  }
+  throw lastError || new Error('COHERE_EMBED_UNAVAILABLE');
+}
+
+async function callCohere({ system, prompt, maxTokens, task, apiKey }) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-  
+
   try {
-    const model = GROQ_MODELS[0]; // Use the best model
-    const url = 'https://api.groq.com/openai/v1/chat/completions';
-    
+    const model = task === 'curriculum' ? config.ai.cohereCurriculumModel : config.ai.cohereTutorModel;
+    const url = 'https://api.cohere.com/v2/chat';
     const requestBody = {
       model,
       messages: [
         { role: 'system', content: system + '\n\nRespond with ONLY valid JSON matching the requested schema.' },
-        { role: 'user', content: prompt }
+        { role: 'user', content: prompt },
       ],
       temperature: 0.3,
       max_tokens: maxTokens,
-      response_format: { type: 'json_object' } // Force JSON output
+      response_format: { type: 'json_object' },
     };
-    
-    console.log('[Groq] Request:', { model, url, hasApiKey: !!config.ai.groqApiKey });
-    
+
+    console.log('[Cohere] Request:', { model, task, url, keyPoolSize: config.ai.cohereApiKeys.length });
     const res = await fetch(url, {
       method: 'POST',
       signal: ctrl.signal,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.ai.groqApiKey}`
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify(requestBody)
     });
-    
+
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
-      console.error('[Groq] Error response:', detail.slice(0, 500));
-      throw new Error(`GROQ_HTTP_${res.status}: ${detail.slice(0, 160)}`);
+      console.error('[Cohere] Error response:', detail.slice(0, 500));
+      throw new Error(`COHERE_HTTP_${res.status}: ${detail.slice(0, 160)}`);
     }
-    
+
     const data = await res.json();
-    const text = data?.choices?.[0]?.message?.content || '';
-    
+    const text = data?.message?.content?.map((part) => part.text || '').join('') || '';
     if (!text) {
-      console.error('[Groq] Empty response:', data);
-      throw new Error('GROQ_EMPTY_RESPONSE');
+      console.error('[Cohere] Empty response:', data);
+      throw new Error('COHERE_EMPTY_RESPONSE');
     }
-    
-    console.log('[Groq] Success! Response length:', text.length);
-    
-    // Parse JSON
+
+    console.log('[Cohere] Success! Response length:', text.length);
     const cleanedJson = extractJson(text);
     try {
       return JSON.parse(cleanedJson);
     } catch (parseError) {
-      console.error('[Groq] JSON parse failed. Raw:', text.slice(0, 500));
-      throw new Error(`GROQ_INVALID_JSON: ${parseError.message}`);
+      console.error('[Cohere] JSON parse failed. Raw:', text.slice(0, 500));
+      throw new Error(`COHERE_INVALID_JSON: ${parseError.message}`);
     }
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function callCohereEmbed({ texts, inputType, apiKey }) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    const response = await fetch('https://api.cohere.com/v2/embed', {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.ai.cohereEmbedModel,
+        texts,
+        input_type: inputType,
+        embedding_types: ['float'],
+        output_dimension: config.ai.cohereEmbedDimension,
+      }),
+    });
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      throw new Error(`COHERE_HTTP_${response.status}: ${detail.slice(0, 160)}`);
+    }
+    const data = await response.json();
+    const embeddings = data?.embeddings?.float;
+    if (!Array.isArray(embeddings) || embeddings.length !== texts.length) {
+      throw new Error('COHERE_INVALID_EMBEDDINGS');
+    }
+    return embeddings;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function isRateLimitError(error) {
+  return /COHERE_HTTP_(408|409|429)\b|rate.?limit|too many requests/i.test(error?.message || '');
 }
 
 async function callGemini({ system, prompt, maxTokens, model }) {

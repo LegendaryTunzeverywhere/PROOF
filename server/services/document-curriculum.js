@@ -6,7 +6,7 @@
 import { store } from '../index.js';
 import { uid, now } from '../util.js';
 import { generateLearningPath, generateLesson } from '../ai/service.js';
-import { llmEnabled, llmJson } from '../ai/providers.js';
+import { cohereEmbed, cohereEmbeddingsEnabled, llmEnabled, llmJson } from '../ai/providers.js';
 import { checkLearningPath } from '../ai/curriculum-quality.js';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -324,13 +324,13 @@ function normalizeDocumentCurriculum(curriculum, userGoal = '') {
   return normalized;
 }
 
-async function analyzeDocumentWithAI(text, userGoal = '') {
+async function analyzeDocumentWithAI(text, userGoal = '', retrievedContext = '') {
   if (!llmEnabled()) return localDocumentCurriculum(text, userGoal);
 
   const systemPrompt = `You are PROOF's document-learning architect. Read the supplied document as the source of truth before designing the curriculum. Extract its central thesis, named people and organizations, definitions, claims, examples, procedures, and evidence. Build a progressive 7-day path from those facts. Do not invent facts, citations, topics, or examples that are not supported by the document. Keep JSON complete, valid, and concise.`;
 
   // Reduced from 8000 to 4000 chars to prevent HTTP 413 (Request Too Large)
-  const textSample = text.slice(0, 4000);
+  const textSample = retrievedContext || text.slice(0, 4000);
   const userPrompt = `
 Read this document carefully, create a compact internal digest, then create a 7-day curriculum from that digest.
 
@@ -372,7 +372,8 @@ Keep it complete and valid. 7 days exactly.`;
     const curriculum = await llmJson({
       system: systemPrompt,
       prompt: userPrompt,
-      maxTokens: 2500 // Increased for 7 days
+      maxTokens: 2500, // Increased for 7 days
+      task: 'curriculum',
     });
     
     // Validate structure
@@ -402,7 +403,17 @@ Keep it complete and valid. 7 days exactly.`;
 
 async function createCurriculumFromDocument(userId, file, userGoal = '') {
   const text = await parseDocument(file);
-  const curriculum = normalizeDocumentCurriculum(await analyzeDocumentWithAI(text, userGoal), userGoal);
+  const sourceContent = text.slice(0, 50000);
+  const embeddingChunks = await createDocumentEmbeddings(sourceContent);
+  const curriculumContext = await retrieveDocumentContext(
+    { chunks: embeddingChunks },
+    userGoal || 'document thesis, key concepts, definitions, examples, and procedures',
+    8,
+  );
+  const curriculum = normalizeDocumentCurriculum(
+    await analyzeDocumentWithAI(text, userGoal, curriculumContext),
+    userGoal,
+  );
   const qualityErrors = checkLearningPath(curriculum);
   if (qualityErrors.length) throw new Error(`CURRICULUM_QUALITY: ${qualityErrors.join('; ')}`);
 
@@ -427,7 +438,10 @@ async function createCurriculumFromDocument(userId, file, userGoal = '') {
       size: file.size,
       uploadedAt: now(),
       textLength: text.length,
-      content: text.slice(0, 50000), // Store first 50k chars for lesson generation
+      content: sourceContent,
+      embeddingModel: embeddingChunks.length ? 'embed-v4.0' : null,
+      embeddingDimension: embeddingChunks[0]?.embedding?.length || null,
+      chunks: embeddingChunks,
     },
     isFromDocument: true,
     createdAt: now(),
@@ -489,6 +503,78 @@ async function createCurriculumFromDocument(userId, file, userGoal = '') {
   return { path: pathRecord, curriculum };
 }
 
+function splitDocumentIntoChunks(text, maxLength = 1400) {
+  const paragraphs = String(text || '')
+    .split(/\n\s*\n|(?<=[.!?])\s+/)
+    .map((part) => part.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  const chunks = [];
+  let current = '';
+
+  for (const paragraph of paragraphs) {
+    if (current && `${current} ${paragraph}`.length > maxLength) {
+      chunks.push(current);
+      current = '';
+    }
+    if (paragraph.length > maxLength) {
+      for (let index = 0; index < paragraph.length; index += maxLength) {
+        chunks.push(paragraph.slice(index, index + maxLength).trim());
+      }
+    } else {
+      current = current ? `${current} ${paragraph}` : paragraph;
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
+
+async function createDocumentEmbeddings(text) {
+  if (!cohereEmbeddingsEnabled()) return [];
+  const texts = splitDocumentIntoChunks(text);
+  if (!texts.length) return [];
+
+  try {
+    const embeddings = await cohereEmbed(texts, 'search_document');
+    return texts.map((chunk, index) => ({ text: chunk, embedding: embeddings[index] }));
+  } catch (error) {
+    console.warn('[DocumentEmbeddings] Indexing skipped:', error.message);
+    return [];
+  }
+}
+
+function cosineSimilarity(left, right) {
+  let dot = 0;
+  let leftMagnitude = 0;
+  let rightMagnitude = 0;
+  for (let index = 0; index < Math.min(left.length, right.length); index++) {
+    dot += left[index] * right[index];
+    leftMagnitude += left[index] ** 2;
+    rightMagnitude += right[index] ** 2;
+  }
+  return leftMagnitude && rightMagnitude
+    ? dot / (Math.sqrt(leftMagnitude) * Math.sqrt(rightMagnitude))
+    : 0;
+}
+
+async function retrieveDocumentContext(sourceDocument, query, limit = 5) {
+  const chunks = sourceDocument?.chunks;
+  if (!cohereEmbeddingsEnabled() || !Array.isArray(chunks) || !chunks.length) return '';
+
+  try {
+    const [queryEmbedding] = await cohereEmbed([query], 'search_query');
+    return chunks
+      .map((chunk) => ({ text: chunk.text, score: cosineSimilarity(queryEmbedding, chunk.embedding || []) }))
+      .sort((left, right) => right.score - left.score)
+      .slice(0, limit)
+      .filter((chunk) => chunk.score >= 0.2)
+      .map((chunk) => chunk.text)
+      .join('\n\n');
+  } catch (error) {
+    console.warn('[DocumentEmbeddings] Retrieval skipped:', error.message);
+    return '';
+  }
+}
+
 async function getUserDocumentCurricula(userId) {
   const paths = await store.filter('paths', (p) => p.userId === userId && p.isFromDocument);
   return paths.sort((a, b) => b.createdAt - a.createdAt);
@@ -543,9 +629,8 @@ async function generateDocumentLesson(skillSlug, topicSlug) {
   
   // Keep enough source text for the model to find the requested topic and
   // cross-check quiz answers without sending the entire upload.
-  const documentExcerpt = path.sourceDocument?.content 
-    ? path.sourceDocument.content.slice(0, 12000)
-    : '';
+  const documentExcerpt = (await retrieveDocumentContext(path.sourceDocument, lessonTitle, 6))
+    || (path.sourceDocument?.content ? path.sourceDocument.content.slice(0, 12000) : '');
   
   if (!documentExcerpt) {
     throw new Error('Document content not available');
@@ -617,7 +702,8 @@ Make it educational and complete: 3 sections, 4 key points, 3 practice questions
     const lesson = await llmJson({
       system: systemPrompt,
       prompt: userPrompt,
-      maxTokens: 1500 // Increased from 500 for complete lessons with quizzes
+      maxTokens: 1500, // Increased from 500 for complete lessons with quizzes
+      task: 'curriculum',
     });
     
     return lesson;
@@ -704,7 +790,9 @@ async function documentTutorReply({ skillSlug, topicSlug, pathId = '', question,
 
   const item = (path.days || []).flatMap((day) => day.items || []).find((candidate) => candidate.topic === topicSlug);
   const lessonTitle = item?.title || topicSlug.replace(/-/g, ' ');
-  const documentExcerpt = path.sourceDocument?.content?.slice(0, 5000) || '';
+  const documentExcerpt = (await retrieveDocumentContext(path.sourceDocument, question, 5))
+    || path.sourceDocument?.content?.slice(0, 5000)
+    || '';
   const localLesson = lessonContext || buildDocumentLessonFallback(documentExcerpt, topicSlug, lessonTitle);
 
   if (!llmEnabled()) {
@@ -722,6 +810,7 @@ async function documentTutorReply({ skillSlug, topicSlug, pathId = '', question,
         history: history.slice(-6),
       }),
       maxTokens: 700,
+      task: 'tutor',
     });
     if (!response || typeof response.reply !== 'string' || !response.reply.trim()) {
       throw new Error('INVALID_TUTOR_RESPONSE');

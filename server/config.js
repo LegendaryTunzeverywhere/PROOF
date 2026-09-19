@@ -55,11 +55,19 @@ export const config = {
     .filter(Boolean),
 
   ai: {
-    provider: process.env.AI_PROVIDER || 'auto',   // auto | engine | gemini | groq
+    provider: process.env.AI_PROVIDER || 'auto',   // auto | engine | gemini | cohere
     apiKey: process.env.AI_API_KEY || '',          // Google Gemini API key
-    groqApiKey: process.env.GROQ_API_KEY || '',    // Groq API key
+    cohereApiKey: process.env.COHERE_API_KEY || '', // Cohere API key
+    cohereApiKeys: [process.env.COHERE_API_KEY || '', ...(process.env.COHERE_API_KEYS || '').split(',')]
+      .map((value) => value.trim())
+      .filter(Boolean),
     baseUrl: process.env.AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta',
     model: process.env.AI_MODEL || 'gemini-3.6-flash',
+    cohereCurriculumModel: process.env.COHERE_MODEL_CURRICULUM || 'command-r-plus-08-2024',
+    cohereTutorModel: process.env.COHERE_MODEL_TUTOR || 'command-r-08-2024',
+    cohereEmbedModel: process.env.COHERE_EMBED_MODEL || 'embed-v4.0',
+    cohereEmbedDimension: Number(process.env.COHERE_EMBED_DIMENSION || 1024),
+    cohereEmbeddingsEnabled: process.env.COHERE_EMBEDDINGS_ENABLED === 'true',
   },
 
   nimiq: {

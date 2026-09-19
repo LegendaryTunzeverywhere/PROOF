@@ -42,6 +42,7 @@ export async function generateLearningPath(input) {
         task: 'Return JSON: { "title": string (max 60 chars), "description": string (max 200 chars), "dayTitles": string[] (one per day, max 40 chars each) }',
       }),
       maxTokens: 600,
+      task: 'curriculum',
     });
     const errs = validate(out, {
       type: 'object',
@@ -80,6 +81,7 @@ export async function generateLesson(domain, topicSlug, language = 'en') {
       system: `You translate structured learning lessons for PROOF. Translate every learner-facing string into ${language}. Preserve meaning, educational accuracy, array order, quiz answerIdx values, code, FEN, language tags, and all JSON structure. Return only the translated lesson JSON.`,
       prompt: JSON.stringify(lesson),
       maxTokens: 5000,
+      task: 'curriculum',
     });
     if (!translated || typeof translated !== 'object' || typeof translated.title !== 'string' || !Array.isArray(translated.sections)) {
       throw new Error('INVALID_TRANSLATED_LESSON');
@@ -113,6 +115,7 @@ export async function tutorReply({ domain, topicSlug, question, history = [], le
       system: `You are PROOF’s AI tutor. Teach like a great teacher: concise, warm, practical. NEVER give the final answer to exercises — guide with hints. Ground every reply in the provided lesson context. If the learner asks something unrelated, steer back kindly. Reply JSON: { "reply": string (max 900 chars, plain text, newlines allowed), "intent": "explain|simplify|example|exercise|hint|debug|coach" }`,
       prompt: JSON.stringify({ lessonContext: ground, recentHistory: history.slice(-6), learnerQuestion: question }),
       maxTokens: 500,
+      task: 'tutor',
     });
     const errs = validate(out, {
       type: 'object', required: ['reply'],
@@ -148,6 +151,7 @@ export async function evaluateSubmission(payload, challenge, ctx = {}) {
         task: 'Return JSON: { "strengths": string[] (max 4, each max 120 chars), "improvements": string[] (max 4, each max 120 chars), "nextStep": string (max 140 chars) }',
       }),
       maxTokens: 500,
+      task: 'tutor',
     });
     const errs = validate(out, {
       type: 'object',
