@@ -54,10 +54,35 @@ test('marketplace: zero-score requirements do not block applicants without a pro
   assert.equal(app.status, 'accepted', 'demo clients auto-accept and the zero-score gate should not block');
 });
 
-test('marketplace: verified proofer can apply; demo client auto-accepts; completion pays', async (t) => {
+test('marketplace: delivery review gates escrow release to the approved applicant', async (t) => {
+  const tb = await testbed();
+  const client = await tb.users.createUser({ username: 'client-review', walletMode: 'nimiqpay' });
+  const applicant = await tb.users.createUser({ username: 'applicant-review', walletMode: 'nimiqpay' });
+  await tb.rewards.credit(client.id, 5000000, 'reward', 'seed');
+  await tb.skills.ensureUserSkill(applicant.id, 'ui-design');
+  await tb.skills.applyProofResult(applicant.id, 'ui-design', { score: 80, passed: true });
+  const task = await tb.market.postTask(tb.users.get(client.id), { title: 'Brand refresh', description: 'd', budgetNim: 20, skillSlug: 'ui-design', minScore: 60 });
+  const app = await tb.market.apply(task.id, tb.users.get(applicant.id), 'I can polish this');
+  await tb.market.acceptApplication(task.id, app.id, tb.users.get(client.id));
+
+  const delivery = await tb.market.submitDelivery(task.id, tb.users.get(applicant.id), {
+    note: 'Delivered concept board', url: 'https://example.com/mock-board', attachment: 'board.pdf',
+  });
+  assert.equal(delivery.status, 'submitted');
+
+  const before = tb.users.get(applicant.id).balanceLuna;
+  const result = await tb.market.reviewDelivery(task.id, tb.users.get(client.id), {
+    approved: true, feedback: 'Looks good — approved',
+  });
+
+  assert.equal(result.approved, true);
+  assert.ok(tb.users.get(applicant.id).balanceLuna > before);
+  assert.equal(tb.store.get('marketplace_tasks', task.id).status, 'completed');
+});
+
+test('marketplace: verified proofer can apply; demo client auto-accepts; delivery approval releases escrow', async (t) => {
   const tb = await testbed();
   const pro = await tb.users.createUser({});
-  // prove the skill first — the only way in
   const ch = tb.challenges.createFromTemplate({
     skillSlug: 'web-development',
     template: {
@@ -73,11 +98,17 @@ test('marketplace: verified proofer can apply; demo client auto-accepts; complet
   tb.store.save();
   const app2 = await tb.market.apply(task.id, pro, 'I just proved this at ' + res.evaluation.score);
   assert.equal(app2.status, 'accepted', 'demo client auto-accepts');
+
   const before = tb.users.get(pro.id).balanceLuna;
-  const pay = await tb.market.completeTask(task.id, tb.users.get(pro.id));
-  assert.ok(pay.netLuna > 4800000);
+  const delivery = await tb.market.submitDelivery(task.id, tb.users.get(pro.id), {
+    note: 'Landing page ready', url: 'https://example.com/landing', attachment: 'landing.zip',
+  });
+  assert.equal(delivery.status, 'submitted');
+
+  const pay = await tb.market.reviewDelivery(task.id, tb.users.get(task.clientId), { approved: true, feedback: 'Looks good' });
+  assert.equal(pay.approved, true);
   assert.ok(tb.users.get(pro.id).balanceLuna > before);
-  assert.ok(tb.users.get(pro.id).reputation > 50, 'reputation rises on completed work');
+  assert.ok(tb.users.get(pro.id).reputation > 50, 'reputation rises on approved work');
 });
 
 test('marketplace: postTask forwards escrowed treasury deposit when configured', async (t) => {
@@ -127,7 +158,7 @@ test('marketplace: task review updates separate client and applicant reputation'
   assert.ok(tb.users.get(client.id).clientReputation >= clientRepBefore || tb.users.get(client.id).clientReputation === clientRepBefore);
 });
 
-test('marketplace: escrow payout grows client and applicant reputation with NIM rewarded', async (t) => {
+test('marketplace: escrow payout grows client and applicant reputation with NIM rewarded after approval', async (t) => {
   const tb = await testbed();
   const client = await tb.users.createUser({ username: 'client-trust', walletMode: 'nimiqpay' });
   const applicant = await tb.users.createUser({ username: 'applicant-trust', walletMode: 'nimiqpay' });
@@ -140,7 +171,8 @@ test('marketplace: escrow payout grows client and applicant reputation with NIM 
 
   const clientRepBefore = tb.users.get(client.id).clientReputation;
   const applicantRepBefore = tb.users.get(applicant.id).applicantReputation;
-  await tb.market.completeTask(task.id, tb.users.get(applicant.id));
+  await tb.market.submitDelivery(task.id, tb.users.get(applicant.id), { note: 'Brand assets ready' });
+  await tb.market.reviewDelivery(task.id, tb.users.get(client.id), { approved: true, feedback: 'Approved' });
 
   assert.ok(tb.users.get(client.id).clientReputation > clientRepBefore, 'client trust rises after escrow payout');
   assert.ok(tb.users.get(applicant.id).applicantReputation > applicantRepBefore, 'applicant trust rises after reward payout');

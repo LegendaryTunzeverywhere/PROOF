@@ -154,40 +154,97 @@ export class MarketplaceService {
     return await this.store.get('task_applications', app.id);
   }
 
-  async completeTask(taskId, user) {
+  async submitDelivery(taskId, user, { note = '', url = '', attachment = '' } = {}) {
     const account = await this.users.get(user.id);
     if (account?.isDemo || account?.walletMode === 'demo') {
-      throw Object.assign(new Error('Demo wallets cannot earn real NIM. Connect Nimiq Pay to continue.'), { code: 'DEMO_WALLET_REQUIRED', status: 403 });
+      throw Object.assign(new Error('Demo wallets cannot complete real work. Connect Nimiq Pay to continue.'), { code: 'DEMO_WALLET_REQUIRED', status: 403 });
     }
 
     const task = await this.store.get('marketplace_tasks', taskId);
     if (!task) throw Object.assign(new Error('Task not found.'), { code: 'NOT_FOUND', status: 404 });
-    const app = await this.store.find('task_applications', (a) => a.taskId === taskId && a.userId === user.id && a.status === 'accepted');
+    const app = await this.store.find('task_applications', (a) => a.taskId === taskId && a.userId === user.id && ['accepted', 'submitted'].includes(a.status));
     if (!app) throw Object.assign(new Error('You need an accepted application first.'), { code: 'NOT_ACCEPTED', status: 403 });
     if (task.status === 'completed') throw Object.assign(new Error('Task already completed.'), { code: 'DONE', status: 409 });
 
+    const normalizedNote = String(note || '').slice(0, 500);
+    const normalizedUrl = String(url || '').slice(0, 250);
+    const normalizedAttachment = String(attachment || '').slice(0, 250);
+
+    await this.store.update('task_applications', app.id, {
+      status: 'submitted',
+      deliveredAt: now(),
+      deliveryNote: normalizedNote,
+      deliveryUrl: normalizedUrl,
+      deliveryAttachment: normalizedAttachment,
+      reviewedAt: null,
+    });
+    await this.store.update('marketplace_tasks', taskId, { status: 'assigned', completedAt: null });
+    this.notify.push(task.clientId, {
+      type: 'task_delivery_submitted', emoji: '📦', title: `Delivery submitted: ${task.title}`,
+      body: 'The applicant submitted their work for review.', href: '#/work',
+    });
+    this.store.save();
+    return this.store.get('task_applications', app.id);
+  }
+
+  async completeTask(taskId, user, payload = {}) {
+    return this.submitDelivery(taskId, user, payload);
+  }
+
+  async reviewDelivery(taskId, user, { approved = false, feedback = '' } = {}) {
+    const task = await this.store.get('marketplace_tasks', taskId);
+    if (!task) throw Object.assign(new Error('Task not found.'), { code: 'NOT_FOUND', status: 404 });
+    if (task.clientId !== user.id) {
+      throw Object.assign(new Error('Only the client can approve or reject a delivery.'), { code: 'FORBIDDEN', status: 403 });
+    }
+
+    const app = await this.store.find('task_applications', (a) => a.taskId === taskId && a.status === 'submitted' && a.userId !== user.id);
+    if (!app) {
+      throw Object.assign(new Error('No submitted delivery is waiting for review.'), { code: 'NO_DELIVERY', status: 409 });
+    }
+
+    if (!approved) {
+      await this.store.update('task_applications', app.id, {
+        status: 'accepted',
+        deliveredAt: null,
+        reviewFeedback: String(feedback || '').slice(0, 500),
+      });
+      this.notify.push(app.userId, {
+        type: 'task_revision_requested', emoji: '📝', title: `Revision requested: ${task.title}`,
+        body: feedback || 'The client requested changes before approval.', href: '#/work',
+      });
+      this.store.save();
+      return { approved: false, message: 'Delivery returned for revision.' };
+    }
+
     await this.store.update('marketplace_tasks', taskId, { status: 'completed', completedAt: now() });
-    await this.store.update('task_applications', app.id, { status: 'completed', completedAt: now() });
+    await this.store.update('task_applications', app.id, {
+      status: 'completed', completedAt: now(), reviewFeedback: String(feedback || '').slice(0, 500),
+    });
     const { net, fee } = await this.rewards.releaseEscrow({
-      fromUserId: task.clientId, toUserId: user.id,
+      fromUserId: task.clientId, toUserId: app.userId,
       amountNim: task.budgetLuna / 100000,
       kind: 'task_payment', note: `Task: ${task.title}`,
-      meta: { taskId },
+      meta: { taskId, reviewApproved: true },
     });
     const rewardedNim = Number((task.budgetLuna || 0) / 100000);
     const applicantTrustDelta = Math.max(1, Math.round(rewardedNim / 5));
     const clientTrustDelta = Math.max(1, Math.round(rewardedNim / 10));
 
-    this.notify.push(user.id, {
+    this.notify.push(app.userId, {
       type: 'task_paid', emoji: '💰', title: `Task complete: ${task.title}`,
-      body: `You earned ${(net / 100000).toFixed(2)} NIM.`, href: '#/profile',
+      body: `Your work was approved and you earned ${(net / 100000).toFixed(2)} NIM.`, href: '#/profile',
     });
-    await this.users.addReputation(user.id, +3);
-    await this.users.updateRoleReputation(user.id, 'applicant', applicantTrustDelta);
+    this.notify.push(task.clientId, {
+      type: 'task_approved', emoji: '✅', title: `Work approved: ${task.title}`,
+      body: 'The funded task has been released to the applicant.', href: '#/work',
+    });
+    await this.users.addReputation(app.userId, +3);
+    await this.users.updateRoleReputation(app.userId, 'applicant', applicantTrustDelta);
     await this.users.updateRoleReputation(task.clientId, 'client', clientTrustDelta);
-    await this.users.checkAchievements(user.id);
+    await this.users.checkAchievements(app.userId);
     this.store.save();
-    return { netLuna: net, feeLuna: fee };
+    return { approved: true, netLuna: net, feeLuna: fee, message: 'Delivery approved and escrow released.' };
   }
 
   async reviewTask(taskId, user, { rating, feedback = '' } = {}) {

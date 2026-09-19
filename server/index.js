@@ -1946,8 +1946,12 @@ route('POST', '/api/market/tasks/:id/applications/:applicationId/accept', async 
   json(res, 200, { application: await market.acceptApplication(params.id, params.applicationId, user) });
 });
 route('POST', '/api/market/tasks/:id/complete', async (ctx) => {
-  const { user, params, res } = ctx;
-  json(res, 200, await market.completeTask(params.id, user));
+  const { user, params, body, res } = ctx;
+  json(res, 200, await market.completeTask(params.id, user, body || {}));
+});
+route('POST', '/api/market/tasks/:id/review-delivery', async (ctx) => {
+  const { user, params, body, res } = ctx;
+  json(res, 200, await market.reviewDelivery(params.id, user, body || {}));
 });
 route('POST', '/api/market/tasks', async (ctx) => {
   const { user, body, res } = ctx;

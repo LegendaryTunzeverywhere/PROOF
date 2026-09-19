@@ -61,8 +61,12 @@ export const marketplaceService = {
     return api.post(`/api/market/tasks/${taskId}/applications/${applicationId}/accept`);
   },
 
-  async completeTask(taskId: string): Promise<{ netLuna: number; feeLuna: number }> {
-    return api.post(`/api/market/tasks/${taskId}/complete`);
+  async completeTask(taskId: string, payload?: { note?: string; url?: string; attachment?: string }): Promise<{ status: string; delivery: any }> {
+    return api.post(`/api/market/tasks/${taskId}/complete`, payload || {});
+  },
+
+  async reviewDelivery(taskId: string, payload: { approved: boolean; feedback?: string }): Promise<{ approved: boolean; netLuna?: number; feeLuna?: number; message?: string }> {
+    return api.post(`/api/market/tasks/${taskId}/review-delivery`, payload);
   },
 
   /**

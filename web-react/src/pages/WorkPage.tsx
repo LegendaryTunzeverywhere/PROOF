@@ -56,6 +56,10 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
   const [expandedPostedTask, setExpandedPostedTask] = useState<string | null>(null);
   const [acceptingApplication, setAcceptingApplication] = useState<string | null>(null);
   const [completingTask, setCompletingTask] = useState<string | null>(null);
+  const [submittingDelivery, setSubmittingDelivery] = useState<string | null>(null);
+  const [reviewingDelivery, setReviewingDelivery] = useState<string | null>(null);
+  const [deliveryDrafts, setDeliveryDrafts] = useState<Record<string, { note: string; url: string; attachment: string }>>({});
+  const [reviewDrafts, setReviewDrafts] = useState<Record<string, string>>({});
   const [treasuryAddress, setTreasuryAddress] = useState<string>('');
   const [postForm, setPostForm] = useState({
     title: '',
@@ -217,6 +221,12 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
   };
 
   const openCreateSessionModal = () => {
+    if (!verifiedSkills.length) {
+      setError('You need a verified skill at 70%+ before creating a teaching session.');
+      setShowCreateSession(false);
+      return;
+    }
+
     const defaultSkill = verifiedSkills[0]?.skillSlug || '';
     setCreateSessionForm({
       title: '',
@@ -242,8 +252,14 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
       const duration = Number(createSessionForm.duration);
       const maxStudents = Number(createSessionForm.maxStudents);
 
+      if (!verifiedSkills.length) {
+        throw new Error('You need a verified skill at 70%+ before creating a teaching session.');
+      }
       if (!title || !description || !skillSlug) {
-        throw new Error('Title, description, and skill are required.');
+        throw new Error('Title, description, and a verified skill are required.');
+      }
+      if (!verifiedSkills.some((skill) => skill.skillSlug === skillSlug)) {
+        throw new Error('Please choose one of your verified skills for this session.');
       }
       if (!Number.isFinite(priceNim) || priceNim <= 0) {
         throw new Error('Price must be greater than 0 NIM.');
@@ -339,19 +355,43 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
     }
   };
 
-  const completeAcceptedTask = async (taskId: string) => {
+  const completeAcceptedTask = async (taskId: string | null | undefined) => {
+    if (!taskId || taskId === 'undefined') {
+      setError('This task is missing its ID. Refresh and try again.');
+      return;
+    }
     if (completingTask) return;
     try {
       setCompletingTask(taskId);
       setError(null);
       setNotice(null);
-      await marketplaceService.completeTask(taskId);
-      setNotice('Work marked complete — escrow has been released to the applicant.');
+      const draft = deliveryDrafts[taskId] || { note: '', url: '', attachment: '' };
+      await marketplaceService.completeTask(taskId, draft);
+      setNotice('Delivery submitted — the client will review it before escrow is released.');
+      setDeliveryDrafts((prev) => ({ ...prev, [taskId]: { note: '', url: '', attachment: '' } }));
       await loadWorkData();
     } catch (err: any) {
       setError(err.message || 'The task could not be marked complete.');
     } finally {
       setCompletingTask(null);
+    }
+  };
+
+  const reviewDelivery = async (taskId: string, approved: boolean) => {
+    if (!taskId || reviewingDelivery) return;
+    try {
+      setReviewingDelivery(taskId);
+      setError(null);
+      setNotice(null);
+      const feedback = reviewDrafts[taskId] || '';
+      const result = await marketplaceService.reviewDelivery(taskId, { approved, feedback });
+      setNotice(result.approved ? 'Delivery approved and escrow released.' : 'Revision requested — the applicant can update the work.');
+      setReviewDrafts((prev) => ({ ...prev, [taskId]: '' }));
+      await loadWorkData();
+    } catch (err: any) {
+      setError(err.message || 'The delivery review could not be saved.');
+    } finally {
+      setReviewingDelivery(null);
     }
   };
 
@@ -820,8 +860,48 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                                       Waiting for delivery
                                     </span>
                                   )}
+                                  {application.status === 'submitted' && (
+                                    <span className="rounded-lg border border-warn bg-warn-soft px-3 py-2 text-xs font-bold text-warn">
+                                      Delivery in review
+                                    </span>
+                                  )}
+                                  {application.status === 'completed' && (
+                                    <span className="rounded-lg border border-ok bg-ok-soft px-3 py-2 text-xs font-bold text-ok">
+                                      Approved and paid
+                                    </span>
+                                  )}
                                 </div>
                                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted">{application.pitch}</p>
+                                {application.status === 'submitted' && (
+                                  <div className="mt-3 space-y-3 rounded-xl border border-warn bg-warn-soft/30 p-3">
+                                    <div className="text-sm font-semibold text-warn">Delivery waiting for approval</div>
+                                    <textarea
+                                      value={reviewDrafts[task.id] || ''}
+                                      onChange={(event) => setReviewDrafts((prev) => ({ ...prev, [task.id]: event.target.value.slice(0, 500) }))}
+                                      placeholder="Optional approval notes or revision feedback..."
+                                      rows={3}
+                                      className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
+                                    />
+                                    <div className="flex gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => reviewDelivery(task.id, true)}
+                                        disabled={reviewingDelivery !== null}
+                                        className="rounded-lg bg-ok px-3 py-2 text-xs font-bold text-white hover:bg-ok/90 disabled:cursor-wait disabled:opacity-60"
+                                      >
+                                        {reviewingDelivery === task.id ? 'Approving…' : 'Approve delivery'}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => reviewDelivery(task.id, false)}
+                                        disabled={reviewingDelivery !== null}
+                                        className="rounded-lg border border-line bg-surface px-3 py-2 text-xs font-bold text-muted hover:bg-elevated disabled:cursor-wait disabled:opacity-60"
+                                      >
+                                        Needs revision
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             )) : (
                               <p className="text-sm text-muted">No applicants yet.</p>
@@ -846,7 +926,9 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                       const task = application.task;
                       if (!task) return null;
                       const isAccepted = application.status === 'accepted';
+                      const isSubmitted = application.status === 'submitted';
                       const isCompleted = application.status === 'completed';
+                      const draft = deliveryDrafts[task.id] || { note: '', url: '', attachment: '' };
 
                       return (
                         <div key={application.id} className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
@@ -857,6 +939,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                               </span>
                               <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${
                                 isAccepted ? 'bg-brand-soft text-brand' :
+                                isSubmitted ? 'bg-warn-soft text-warn' :
                                 isCompleted ? 'bg-ok-soft text-ok' : 'bg-elevated text-muted'
                               }`}>
                                 {application.status}
@@ -872,26 +955,64 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                             </div>
                           </div>
 
-                          <div className="mt-3 flex items-center justify-between gap-3">
-                            <div className="text-xs text-muted">
-                              {isAccepted ? 'Deliver the finished work and mark the task complete.' : isCompleted ? 'Client review is pending.' : 'Application status'}
+                          {(isAccepted || isSubmitted) && (
+                            <div className="mt-4 space-y-3 rounded-xl border border-line bg-elevated p-3">
+                              <div className="text-sm font-semibold text-ink">
+                                {isAccepted ? 'Submit your delivery' : 'Delivery sent for review'}
+                              </div>
+                              <label className="grid gap-1 text-xs font-semibold text-muted">
+                                Notes
+                                <textarea
+                                  value={draft.note}
+                                  onChange={(event) => setDeliveryDrafts((prev) => ({ ...prev, [task.id]: { ...draft, note: event.target.value.slice(0, 500) } }))}
+                                  placeholder="What was completed, and what should the client review?"
+                                  rows={3}
+                                  className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
+                                />
+                              </label>
+                              <div className="grid gap-3 md:grid-cols-2">
+                                <label className="grid gap-1 text-xs font-semibold text-muted">
+                                  Link
+                                  <input
+                                    value={draft.url}
+                                    onChange={(event) => setDeliveryDrafts((prev) => ({ ...prev, [task.id]: { ...draft, url: event.target.value.slice(0, 250) } }))}
+                                    placeholder="https://example.com"
+                                    className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
+                                  />
+                                </label>
+                                <label className="grid gap-1 text-xs font-semibold text-muted">
+                                  Attachment
+                                  <input
+                                    value={draft.attachment}
+                                    onChange={(event) => setDeliveryDrafts((prev) => ({ ...prev, [task.id]: { ...draft, attachment: event.target.value.slice(0, 250) } }))}
+                                    placeholder="doc.pdf / mockup.png"
+                                    className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
+                                  />
+                                </label>
+                              </div>
+                              {isAccepted && (
+                                <button
+                                  type="button"
+                                  onClick={() => completeAcceptedTask(task.id)}
+                                  disabled={completingTask !== null || submittingDelivery !== null}
+                                  className="rounded-lg bg-ok px-3 py-2 text-xs font-bold text-white hover:bg-ok/90 disabled:cursor-wait disabled:opacity-60"
+                                >
+                                  {completingTask === task.id ? 'Submitting…' : 'Submit delivery'}
+                                </button>
+                              )}
+                              {isSubmitted && (
+                                <span className="inline-flex rounded-lg border border-warn bg-warn-soft px-3 py-2 text-xs font-bold text-warn">
+                                  Awaiting client approval
+                                </span>
+                              )}
                             </div>
-                            {isAccepted && (
-                              <button
-                                type="button"
-                                onClick={() => completeAcceptedTask(task.id)}
-                                disabled={completingTask !== null}
-                                className="rounded-lg bg-ok px-3 py-2 text-xs font-bold text-white hover:bg-ok/90 disabled:cursor-wait disabled:opacity-60"
-                              >
-                                {completingTask === task.id ? 'Submitting…' : 'Mark complete'}
-                              </button>
-                            )}
-                            {isCompleted && (
-                              <span className="rounded-lg border border-ok bg-ok-soft px-3 py-2 text-xs font-bold text-ok">
-                                Awaiting client review
-                              </span>
-                            )}
-                          </div>
+                          )}
+
+                          {!isAccepted && !isSubmitted && (
+                            <div className="mt-3 text-xs text-muted">
+                              {isCompleted ? 'Client approved the delivery and escrow released.' : 'Application status'}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
