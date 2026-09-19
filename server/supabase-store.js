@@ -364,18 +364,21 @@ export class SupabaseStore {
       return this.convertFromDatabase(data, table);
     };
 
-    try {
-      return await runUpdate(basePatch);
-    } catch (error) {
-      const missingColumns = this.extractMissingColumnsFromError(error);
-      if (!missingColumns.length) throw error;
+    let workingPatch = basePatch;
+    while (true) {
+      try {
+        return await runUpdate(workingPatch);
+      } catch (error) {
+        const missingColumns = this.extractMissingColumnsFromError(error);
+        if (!missingColumns.length) throw error;
 
-      const compatiblePatch = this.stripMissingColumnsFromPatch(basePatch, missingColumns);
-      if (Object.keys(compatiblePatch || {}).length === 0 || Object.keys(compatiblePatch).length === Object.keys(basePatch).length) {
-        throw error;
+        const compatiblePatch = this.stripMissingColumnsFromPatch(workingPatch, missingColumns);
+        if (!compatiblePatch || Object.keys(compatiblePatch).length === 0 || Object.keys(compatiblePatch).length === Object.keys(workingPatch).length) {
+          throw error;
+        }
+
+        workingPatch = compatiblePatch;
       }
-
-      return await runUpdate(compatiblePatch);
     }
   }
 
