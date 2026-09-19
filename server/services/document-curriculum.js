@@ -219,6 +219,66 @@ function ensureDocumentRecall(lesson, lessonTitle) {
   return { ...lesson, recall: recall.slice(0, 4) };
 }
 
+function ensureDocumentPractice(lesson, lessonTitle) {
+  const normalizeItem = (item) => {
+    const choices = Array.isArray(item?.choices)
+      ? item.choices
+      : Array.isArray(item?.options)
+        ? item.options
+        : [];
+    const answerIdx = Number.isInteger(item?.answerIdx)
+      ? item.answerIdx
+      : Number.isInteger(item?.correctIndex) ? item.correctIndex : 0;
+    if (!item?.q && !item?.question) return null;
+    if (choices.length < 2 || answerIdx < 0 || answerIdx >= choices.length) return null;
+    return {
+      q: item.q || item.question,
+      choices,
+      answerIdx,
+      why: item.why || item.explanation || item.hint,
+    };
+  };
+
+  const existing = Array.isArray(lesson?.practice)
+    ? lesson.practice.map(normalizeItem).filter(Boolean)
+    : [];
+  if (existing.length) return { ...lesson, practice: existing.slice(0, 5) };
+
+  const quizPractice = Array.isArray(lesson?.quiz)
+    ? lesson.quiz.map(normalizeItem).filter(Boolean)
+    : [];
+  if (quizPractice.length) return { ...lesson, practice: quizPractice.slice(0, 3) };
+
+  const keyPoint = lesson?.keyPoints?.[0] || `the main idea of ${lessonTitle}`;
+  return {
+    ...lesson,
+    practice: [
+      {
+        q: `Which statement best captures ${lessonTitle}?`,
+        choices: [
+          `It explains ${keyPoint}.`,
+          'It is unrelated to the uploaded document.',
+          'It only matters after the final assessment.',
+          'It is a label to memorize without context.',
+        ],
+        answerIdx: 0,
+        why: 'The first option connects the topic to the lesson evidence and key point.',
+      },
+      {
+        q: `How should you apply what you learned about ${lessonTitle}?`,
+        choices: [
+          'Explain it in your own words and connect it to an example from the document.',
+          'Skip the explanation and memorize the title only.',
+          'Use an unrelated example that is not in the document.',
+          'Wait until the end of the path before practicing.',
+        ],
+        answerIdx: 0,
+        why: 'Explaining and applying the idea creates a practical proof of understanding.',
+      },
+    ],
+  };
+}
+
 function localDocumentCurriculum(text, userGoal = '') {
   const sections = String(text || '')
     .split(/\n+|(?<=[.!?])\s+/)
@@ -707,9 +767,9 @@ Return JSON:
   "keyPoints": ["Key takeaway 1", "Key takeaway 2", "Key takeaway 3", "Key takeaway 4"],
   "recall": ["Recall prompt 1", "Recall prompt 2", "Recall prompt 3"],
   "practice": [
-    {"question": "Practice question 1?", "hint": "Helpful hint"},
-    {"question": "Practice question 2?", "hint": "Helpful hint"},
-    {"question": "Challenge question?", "hint": "Helpful hint"}
+    {"question": "Practice question 1?", "options": ["Correct answer", "Plausible distractor", "Plausible distractor", "Plausible distractor"], "correctIndex": 0, "explanation": "Why this is correct"},
+    {"question": "Practice question 2?", "options": ["Correct answer", "Plausible distractor", "Plausible distractor", "Plausible distractor"], "correctIndex": 0, "explanation": "Why this is correct"},
+    {"question": "Challenge question?", "options": ["Correct answer", "Plausible distractor", "Plausible distractor", "Plausible distractor"], "correctIndex": 0, "explanation": "Why this is correct"}
   ],
   "quiz": [
     {
@@ -738,7 +798,7 @@ Quiz rules:
 Make it educational and complete: 3 sections, 4 key points, 3 practice questions, and up to 5 evidence-based quiz questions.`;
 
   if (!llmEnabled()) {
-    return ensureDocumentRecall(buildDocumentLessonFallback(documentExcerpt, topicSlug, lessonTitle), lessonTitle);
+    return ensureDocumentPractice(ensureDocumentRecall(buildDocumentLessonFallback(documentExcerpt, topicSlug, lessonTitle), lessonTitle), lessonTitle);
   }
 
   try {
@@ -749,10 +809,10 @@ Make it educational and complete: 3 sections, 4 key points, 3 practice questions
       task: 'document-curriculum',
     });
     
-    return ensureDocumentRecall(lesson, lessonTitle);
+    return ensureDocumentPractice(ensureDocumentRecall(lesson, lessonTitle), lessonTitle);
   } catch (e) {
     console.error('[DocumentLesson] Failed to generate lesson:', e);
-    return ensureDocumentRecall(buildDocumentLessonFallback(documentExcerpt, topicSlug, lessonTitle), lessonTitle);
+    return ensureDocumentPractice(ensureDocumentRecall(buildDocumentLessonFallback(documentExcerpt, topicSlug, lessonTitle), lessonTitle), lessonTitle);
   }
 }
 
