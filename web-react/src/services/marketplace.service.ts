@@ -61,6 +61,10 @@ export const marketplaceService = {
     return api.post(`/api/market/tasks/${taskId}/applications/${applicationId}/accept`);
   },
 
+  async completeTask(taskId: string): Promise<{ netLuna: number; feeLuna: number }> {
+    return api.post(`/api/market/tasks/${taskId}/complete`);
+  },
+
   /**
    * Get user's applications
    */

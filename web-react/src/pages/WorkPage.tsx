@@ -21,6 +21,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [tasks, setTasks] = useState<MarketplaceTask[]>([]);
   const [postedTasks, setPostedTasks] = useState<MarketplaceTask[]>([]);
+  const [appliedTasks, setAppliedTasks] = useState<any[]>([]);
   const [sessions, setSessions] = useState<TeachingSession[]>([]);
   const [sponsoredChallenges, setSponsoredChallenges] = useState<SponsoredChallenge[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
@@ -28,6 +29,16 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showPostTask, setShowPostTask] = useState(false);
+  const [showCreateSession, setShowCreateSession] = useState(false);
+  const [createSessionForm, setCreateSessionForm] = useState({
+    title: '',
+    description: '',
+    skillSlug: '',
+    priceNim: '10',
+    duration: '60',
+    maxStudents: '5',
+  });
+  const [createSessionLoading, setCreateSessionLoading] = useState(false);
   const [escrowConfirmation, setEscrowConfirmation] = useState<{
     budget: number;
     title: string;
@@ -44,6 +55,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
   const [applicationLoading, setApplicationLoading] = useState(false);
   const [expandedPostedTask, setExpandedPostedTask] = useState<string | null>(null);
   const [acceptingApplication, setAcceptingApplication] = useState<string | null>(null);
+  const [completingTask, setCompletingTask] = useState<string | null>(null);
   const [treasuryAddress, setTreasuryAddress] = useState<string>('');
   const [postForm, setPostForm] = useState({
     title: '',
@@ -81,6 +93,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
         ]);
         setTasks(tasksRes.tasks);
         setPostedTasks(mineRes.posted);
+        setAppliedTasks(mineRes.applied || []);
         setSkills(userRes.skills);
       } else if (activeTab === 'teach') {
         const [sessionsRes, userRes] = await Promise.all([
@@ -203,6 +216,65 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
     }
   };
 
+  const openCreateSessionModal = () => {
+    const defaultSkill = verifiedSkills[0]?.skillSlug || '';
+    setCreateSessionForm({
+      title: '',
+      description: '',
+      skillSlug: defaultSkill,
+      priceNim: '10',
+      duration: '60',
+      maxStudents: '5',
+    });
+    setError(null);
+    setShowCreateSession(true);
+  };
+
+  const submitCreateSession = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      setCreateSessionLoading(true);
+      setError(null);
+      const title = createSessionForm.title.trim();
+      const description = createSessionForm.description.trim();
+      const skillSlug = createSessionForm.skillSlug.trim();
+      const priceNim = Number(createSessionForm.priceNim);
+      const duration = Number(createSessionForm.duration);
+      const maxStudents = Number(createSessionForm.maxStudents);
+
+      if (!title || !description || !skillSlug) {
+        throw new Error('Title, description, and skill are required.');
+      }
+      if (!Number.isFinite(priceNim) || priceNim <= 0) {
+        throw new Error('Price must be greater than 0 NIM.');
+      }
+      if (!Number.isFinite(duration) || duration < 10) {
+        throw new Error('Session duration must be at least 10 minutes.');
+      }
+      if (!Number.isFinite(maxStudents) || maxStudents < 1) {
+        throw new Error('At least 1 student slot is required.');
+      }
+
+      await teachingService.createSession({
+        title,
+        description,
+        skillSlug,
+        priceNim,
+        duration: String(Math.round(duration)),
+        maxStudents: Math.round(maxStudents),
+      });
+
+      setShowCreateSession(false);
+      setNotice('Teaching session created successfully.');
+      await loadWorkData();
+    } catch (err: any) {
+      console.error('Failed to create teaching session:', err);
+      setError(err.message || 'The session could not be created.');
+    } finally {
+      setCreateSessionLoading(false);
+    }
+  };
+
   const formatNim = (amount: number) => amount.toFixed(1);
   const timeAgo = (timestamp: string | number) => {
     const postedAt = typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime();
@@ -261,6 +333,22 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
       setError(err.message || 'The applicant could not be accepted.');
     } finally {
       setAcceptingApplication(null);
+    }
+  };
+
+  const completeAcceptedTask = async (taskId: string) => {
+    if (completingTask) return;
+    try {
+      setCompletingTask(taskId);
+      setError(null);
+      setNotice(null);
+      await marketplaceService.completeTask(taskId);
+      setNotice('Work marked complete — escrow has been released to the applicant.');
+      await loadWorkData();
+    } catch (err: any) {
+      setError(err.message || 'The task could not be marked complete.');
+    } finally {
+      setCompletingTask(null);
     }
   };
 
@@ -335,6 +423,111 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
             <p className="text-xs leading-relaxed text-muted">Share relevant experience, your approach, and when you can deliver.</p>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        isOpen={showCreateSession}
+        onClose={() => {
+          if (!createSessionLoading) setShowCreateSession(false);
+        }}
+        title="Create a teaching session"
+        size="md"
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowCreateSession(false)}
+              disabled={createSessionLoading}
+              className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={submitCreateSession as any}
+              disabled={createSessionLoading}
+              className="rounded-lg bg-brand px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-deep disabled:cursor-wait disabled:opacity-60"
+            >
+              {createSessionLoading ? 'Creating…' : 'Publish session'}
+            </button>
+          </>
+        }
+      >
+        <form className="space-y-4" onSubmit={submitCreateSession}>
+          <label className="grid gap-1 text-sm font-semibold text-muted">
+            Session title
+            <input
+              value={createSessionForm.title}
+              onChange={(e) => setCreateSessionForm({ ...createSessionForm, title: e.target.value })}
+              className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink"
+              placeholder="Intro to HTML"
+              required
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-semibold text-muted">
+            Skill
+            <select
+              value={createSessionForm.skillSlug}
+              onChange={(e) => setCreateSessionForm({ ...createSessionForm, skillSlug: e.target.value })}
+              className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink"
+              required
+            >
+              <option value="">Select a verified skill</option>
+              {verifiedSkills.map((skill) => (
+                <option key={skill.skillSlug} value={skill.skillSlug}>
+                  {skill.skillSlug.replace(/-/g, ' ')}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm font-semibold text-muted">
+            Description
+            <textarea
+              value={createSessionForm.description}
+              onChange={(e) => setCreateSessionForm({ ...createSessionForm, description: e.target.value })}
+              className="min-h-28 rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink"
+              placeholder="What will students learn?"
+              required
+            />
+          </label>
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="grid gap-1 text-sm font-semibold text-muted">
+              Price (NIM)
+              <input
+                type="number"
+                min="1"
+                step="0.1"
+                value={createSessionForm.priceNim}
+                onChange={(e) => setCreateSessionForm({ ...createSessionForm, priceNim: e.target.value })}
+                className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink"
+                required
+              />
+            </label>
+            <label className="grid gap-1 text-sm font-semibold text-muted">
+              Duration (min)
+              <input
+                type="number"
+                min="10"
+                value={createSessionForm.duration}
+                onChange={(e) => setCreateSessionForm({ ...createSessionForm, duration: e.target.value })}
+                className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink"
+                required
+              />
+            </label>
+            <label className="grid gap-1 text-sm font-semibold text-muted">
+              Max students
+              <input
+                type="number"
+                min="1"
+                max="50"
+                value={createSessionForm.maxStudents}
+                onChange={(e) => setCreateSessionForm({ ...createSessionForm, maxStudents: e.target.value })}
+                className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink"
+                required
+              />
+            </label>
+          </div>
+        </form>
       </Modal>
 
       <Modal
@@ -619,6 +812,11 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                                       {acceptingApplication === application.id ? 'Accepting…' : 'Accept'}
                                     </button>
                                   )}
+                                  {application.status === 'accepted' && task.status === 'assigned' && (
+                                    <span className="rounded-lg border border-brand bg-brand-soft px-3 py-2 text-xs font-bold text-brand">
+                                      Waiting for delivery
+                                    </span>
+                                  )}
                                 </div>
                                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted">{application.pitch}</p>
                               </div>
@@ -631,6 +829,60 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                     ))}
                   </div>
               </Reveal>
+
+              {appliedTasks.length > 0 && (
+                <Reveal delay={0.15}>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-lg font-bold text-ink">My applications</h2>
+                        <p className="text-sm text-muted">Track accepted work and the next delivery step.</p>
+                      </div>
+                    </div>
+                    {appliedTasks.map((application) => {
+                      const task = application.task;
+                      if (!task) return null;
+                      const isAccepted = application.status === 'accepted';
+                      const isCompleted = application.status === 'completed';
+
+                      return (
+                        <div key={application.id} className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <h3 className="font-bold text-ink">{task.title}</h3>
+                              <p className="mt-1 text-sm text-muted">{task.description}</p>
+                            </div>
+                            <span className="rounded-lg bg-gold/10 px-3 py-1.5 text-sm font-bold text-gold">{formatNim(task.budgetNim)} NIM</span>
+                          </div>
+                          <div className="mt-3 flex items-center justify-between gap-3">
+                            <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                              isAccepted ? 'bg-brand-soft text-brand' :
+                              isCompleted ? 'bg-ok-soft text-ok' : 'bg-elevated text-muted'
+                            }`}>
+                              {application.status}
+                            </span>
+                            {isAccepted && (
+                              <button
+                                type="button"
+                                onClick={() => completeAcceptedTask(task.id)}
+                                disabled={completingTask !== null}
+                                className="rounded-lg bg-ok px-3 py-2 text-xs font-bold text-white hover:bg-ok/90 disabled:cursor-wait disabled:opacity-60"
+                              >
+                                {completingTask === task.id ? 'Submitting…' : 'Mark complete'}
+                              </button>
+                            )}
+                            {isCompleted && (
+                              <span className="rounded-lg border border-ok bg-ok-soft px-3 py-2 text-xs font-bold text-ok">
+                                Awaiting client review
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Reveal>
+              )}
 
               {/* Recommended Tasks */}
               <Reveal delay={0.15}>
@@ -795,6 +1047,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                     </p>
                     <button
                       type="button"
+                      onClick={openCreateSessionModal}
                       className="mt-4 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-deep"
                     >
                       Create a Session
