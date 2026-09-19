@@ -99,6 +99,34 @@ function buildTopicQuiz(topicTitle, contextSentence) {
   ];
 }
 
+function buildDocumentQuiz(documentText, fallbackTitle, fallbackSentence) {
+  const sourceQuestions = [...String(documentText || '').matchAll(/\bMCQ\s*\d+\s*:\s*([\s\S]*?)(?=\bMCQ\s*\d+\s*:|$)/gi)]
+    .map((match) => match[1].replace(/\s+/g, ' ').trim())
+    .map((entry) => {
+      const answerMatch = entry.match(/^([\s\S]*?)\bAnswer\s*:\s*([\s\S]*)$/i);
+      if (!answerMatch) return null;
+      const question = answerMatch[1].replace(/[_-]{2,}/g, '').replace(/\s+/g, ' ').trim();
+      const answer = answerMatch[2].replace(/\s+/g, ' ').trim();
+      return question && answer ? { question, answer } : null;
+    })
+    .filter(Boolean);
+
+  const answers = [...new Set(sourceQuestions.map((item) => item.answer))];
+  if (sourceQuestions.length >= 1 && answers.length >= 4) {
+    return sourceQuestions.slice(0, 5).map((item) => {
+      const options = [item.answer, ...answers.filter((answer) => answer !== item.answer).slice(0, 3)];
+      return {
+        q: item.question,
+        choices: options,
+        answerIdx: 0,
+        why: `The uploaded document identifies "${item.answer}" as the answer.`,
+      };
+    });
+  }
+
+  return buildTopicQuiz(fallbackTitle, fallbackSentence);
+}
+
 function buildDocumentLessonFallback(documentText, topicSlug, lessonTitle) {
   const cleanText = String(documentText || '').replace(/\s+/g, ' ').trim();
   const sourceSentences = cleanText
@@ -157,7 +185,7 @@ function buildDocumentLessonFallback(documentText, topicSlug, lessonTitle) {
     }
   ];
 
-  const quiz = buildTopicQuiz(lessonTitle, conceptLine);
+  const quiz = buildDocumentQuiz(cleanText, lessonTitle, conceptLine);
 
   return {
     topic: topicSlug,
@@ -513,10 +541,10 @@ async function generateDocumentLesson(skillSlug, topicSlug) {
   // Generate lesson content using AI with document context
   const { llmJson } = await import('../ai/providers.js');
   
-  // Limit document excerpt to prevent HTTP 413 errors
-  // Groq has strict request size limits, so we use a small excerpt
+  // Keep enough source text for the model to find the requested topic and
+  // cross-check quiz answers without sending the entire upload.
   const documentExcerpt = path.sourceDocument?.content 
-    ? path.sourceDocument.content.slice(0, 3000) // Reduced from 6000 to 3000 chars
+    ? path.sourceDocument.content.slice(0, 12000)
     : '';
   
   if (!documentExcerpt) {
@@ -557,7 +585,7 @@ Return JSON:
   ],
   "quiz": [
     {
-      "question": "Quiz question 1?",
+      "question": "A question answered by the document",
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correctIndex": 0,
       "explanation": "Why this is correct"
@@ -572,7 +600,14 @@ Return JSON:
   "summary": "Comprehensive 2-3 sentence summary of what was learned"
 }
 
-Make it educational and complete - 3 sections, 4 key points, 3 practice questions, 2 quiz questions.`;
+Quiz rules:
+- Prefer extracting the document's own MCQ questions when they exist.
+- Preserve each source question's meaning and correct answer.
+- Build three plausible distractors from related facts in the same document; never use filler options such as "none of the above" or unrelated generic statements.
+- Every option must be a concise answer to the question, and exactly one option must be correct.
+- If the document does not contain enough evidence for a quiz question, do not invent one.
+
+Make it educational and complete: 3 sections, 4 key points, 3 practice questions, and up to 5 evidence-based quiz questions.`;
 
   if (!llmEnabled()) {
     return buildDocumentLessonFallback(documentExcerpt, topicSlug, lessonTitle);
