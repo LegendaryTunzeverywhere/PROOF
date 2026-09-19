@@ -275,7 +275,7 @@ class WalletServiceClass {
     return state.mode === 'demo';
   }
   get connected() {
-    return !!state.mode;
+    return !!state.mode || (!!windowWithMiniApp.nimiq && environment().inNimiqPay);
   }
 
   restore() {
@@ -287,6 +287,9 @@ class WalletServiceClass {
       state.address = w.address || null;
       state.addresses = Array.isArray(w.addresses) ? w.addresses : state.address ? [state.address] : [];
       state.demoKey = w.demoKey || null;
+      if (state.mode === 'nimiqpay' && !state.nimiq && windowWithMiniApp.nimiq) {
+        state.nimiq = windowWithMiniApp.nimiq;
+      }
       return w;
     } catch {
       return null;
@@ -480,7 +483,7 @@ class WalletServiceClass {
   async sendNim({ recipient, nim, note = '' }: { recipient: string; nim: number; note?: string }) {
     const value = Math.round(nim * 100000); // luna
     const transactionData = note ? `${TRANSACTION_LABEL}: ${note}` : TRANSACTION_LABEL;
-    
+
     if (state.mode === 'hub') {
       const hubApi = await getHubApi();
       const result = await hubApi.checkout({
@@ -492,20 +495,35 @@ class WalletServiceClass {
       });
       return result.hash;
     }
-    
-    if (state.mode !== 'nimiqpay' || !state.nimiq) throw new Error('WALLET_NOT_CONNECTED');
-    
-    const tx = await state.nimiq.sendBasicTransactionWithData({
-      recipient,
-      value,
-      data: transactionData,
-    });
-    
-    return assertNotErrorResponse(tx, 'sendBasicTransaction');
+
+    if (state.mode === 'nimiqpay' || environment().inNimiqPay) {
+      if (!state.nimiq && windowWithMiniApp.nimiq) {
+        state.nimiq = windowWithMiniApp.nimiq;
+      }
+      if (!state.nimiq) {
+        state.nimiq = await loadNimiqSdk();
+      }
+      const tx = await state.nimiq.sendBasicTransactionWithData({
+        recipient,
+        value,
+        data: transactionData,
+      });
+      return assertNotErrorResponse(tx, 'sendBasicTransaction');
+    }
+
+    throw new Error('WALLET_NOT_CONNECTED');
   }
 
   async signMessage(message: string) {
-    if (state.mode === 'nimiqpay' && state.nimiq) return state.nimiq.sign(message);
+    if (state.mode === 'nimiqpay' || environment().inNimiqPay) {
+      if (!state.nimiq && windowWithMiniApp.nimiq) {
+        state.nimiq = windowWithMiniApp.nimiq;
+      }
+      if (!state.nimiq) {
+        state.nimiq = await loadNimiqSdk();
+      }
+      return state.nimiq.sign(message);
+    }
     
     if (state.mode === 'hub' && state.address) {
       const hubApi = await getHubApi();

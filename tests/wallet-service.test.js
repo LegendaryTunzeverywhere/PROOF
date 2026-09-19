@@ -48,6 +48,41 @@ test('connectedWalletBalance skips HTLC scanning for Hub and keeps normal balanc
   }
 });
 
+test('connectedWalletBalance keeps the last good balance instead of dropping to fallback during 429s', async () => {
+  const originalFetch = globalThis.fetch;
+  config.nimiq.rpcUrl = 'https://example.com/rpc';
+  let calls = 0;
+  const responses = [
+    { ok: true, json: async () => ({ result: { data: { balance: '5000000', type: 'basic' } } }) },
+    { ok: false, status: 429, json: async () => ({ error: { message: 'rate limited' } }) },
+  ];
+  globalThis.fetch = async () => {
+    const response = responses[Math.min(calls, responses.length - 1)];
+    calls += 1;
+    return response;
+  };
+
+  try {
+    const { connectedWalletBalance } = await import('../server/wallet-balance.js');
+    const user = {
+      id: 'u-rate-limit',
+      walletMode: 'hub',
+      walletAddress: 'NQ00 0000 0000 0000 0000 0000 0000 0000 0000',
+      prefs: { walletAddresses: ['NQ00 0000 0000 0000 0000 0000 0000 0000 0000'] },
+      balanceLuna: 0,
+    };
+
+    const first = await connectedWalletBalance(user, config);
+    const second = await connectedWalletBalance(user, config);
+
+    assert.equal(first, 50, 'first fetch should return the live NIM balance');
+    assert.equal(second, 50, 'second fetch should retain the last good balance instead of dropping to zero during rate limits');
+    assert.ok(calls <= 2, 'the cache should avoid a noisy retry loop while a 429 is still cooling down');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('WalletService (server): messages cannot be replayed across nonces', async (t) => {
   const tb = await testbed();
   const demo = tb.auth.createDemoWallet();
