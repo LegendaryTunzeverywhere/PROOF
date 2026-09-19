@@ -876,7 +876,8 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                                   <div className="mt-3 space-y-3 rounded-xl border border-warn bg-warn-soft/30 p-3">
                                     <div className="rounded-xl border border-warn/30 bg-surface p-3">
                                       <div className="text-[10px] font-bold uppercase tracking-wide text-warn">Reviewing this job</div>
-                                      <div className="mt-1 font-bold text-ink">{task.title}</div>
+                                      <div className="mt-1 font-bold text-ink">{task.title || 'Task in progress'}</div>
+                                      <div className="mt-1 text-sm text-muted">{task.description || 'This job is waiting for review.'}</div>
                                       <div className="mt-1 text-sm text-muted">Applicant: {application.username}</div>
                                     </div>
                                     <div className="text-sm font-semibold text-warn">Delivery waiting for approval</div>
@@ -930,6 +931,8 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                     {appliedTasks.map((application) => {
                       const task = application.task;
                       const taskId = task?.id ?? application.taskId ?? null;
+                      const jobTitle = task?.title || application.title || application.taskTitle || 'Task in progress';
+                      const jobDescription = task?.description || application.description || application.taskDescription || 'Deliver your completed work to the client.';
                       if (!task && !taskId) return null;
                       const isAccepted = application.status === 'accepted';
                       const isSubmitted = application.status === 'submitted';
@@ -951,13 +954,13 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                                 {application.status}
                               </span>
                             </div>
-                            <span className="rounded-lg bg-gold/10 px-3 py-1.5 text-sm font-bold text-gold">{formatNim(task.budgetNim)} NIM</span>
+                            <span className="rounded-lg bg-gold/10 px-3 py-1.5 text-sm font-bold text-gold">{formatNim(task?.budgetNim ?? application.budgetNim ?? 0)} NIM</span>
                           </div>
 
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
-                              <h3 className="font-bold text-ink">{task.title || 'Task in progress'}</h3>
-                              <p className="mt-1 line-clamp-2 text-sm text-muted">{task.description || 'Deliver your completed work to the client.'}</p>
+                              <h3 className="font-bold text-ink">{jobTitle}</h3>
+                              <p className="mt-1 line-clamp-2 text-sm text-muted">{jobDescription}</p>
                             </div>
                           </div>
 
@@ -965,8 +968,8 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                             <div className="mt-4 space-y-3 rounded-xl border border-line bg-elevated p-3">
                               <div className="rounded-xl border border-brand/20 bg-brand-soft/40 p-3">
                                 <div className="text-[10px] font-bold uppercase tracking-wide text-brand">Delivering to this job</div>
-                                <div className="mt-1 font-bold text-ink">{task.title || 'Task in progress'}</div>
-                                <div className="mt-1 text-sm text-muted">{task.description || 'Work for this task has been accepted and is awaiting delivery.'}</div>
+                                <div className="mt-1 font-bold text-ink">{jobTitle}</div>
+                                <div className="mt-1 text-sm text-muted">{jobDescription}</div>
                               </div>
                               <div className="text-sm font-semibold text-ink">
                                 {isAccepted ? 'Submit your delivery' : 'Delivery sent for review'}

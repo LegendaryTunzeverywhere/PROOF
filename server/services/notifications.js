@@ -34,9 +34,18 @@ export class NotificationService {
     return n;
   }
 
-  async list(userId, limit = 40) {
+  async list(userId, options = {}) {
+    const limit = Number(options.limit ?? 40);
+    const page = Math.max(1, Number(options.page ?? 1));
     const filtered = await this.store.filter('notifications', (n) => n.userId === userId);
-    return filtered.sort((a, b) => b.createdAt - a.createdAt).slice(0, limit);
+    const sorted = filtered.sort((a, b) => b.createdAt - a.createdAt);
+    const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 40;
+    const total = sorted.length;
+    const totalPages = Math.max(1, Math.ceil(total / safeLimit));
+    const currentPage = Math.min(page, totalPages);
+    const startIndex = (currentPage - 1) * safeLimit;
+    const items = sorted.slice(startIndex, startIndex + safeLimit);
+    return { items, total, totalPages, page: currentPage, limit: safeLimit };
   }
 
   async unreadCount(userId) {

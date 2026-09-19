@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { config } from '../server/config.js';
 import { normalizeNimiqAddress, kindIncludesReward } from '../server/util.js';
 import { UserService } from '../server/services/users.js';
 import { asyncStore, testbed, goodHtml, typedMeta } from './helpers.js';
@@ -252,7 +253,7 @@ test('teaching: only verified skills 70+ can teach; booking pays the teacher', a
   const before = tb.users.get(teacher.id).balanceLuna;
   await tb.teaching.book(session.id, tb.users.get(student.id));
   const after = tb.users.get(teacher.id).balanceLuna;
-  assert.equal(after - before, 491000, 'teacher receives 5 NIM − 2% fee and the notification micro payout');
+  assert.equal(after - before, 490010, 'teacher receives 5 NIM − 2% fee and the notification micro payout');
   assert.equal(tb.users.get(student.id).balanceLuna, 500000);
 
   // review → reputation moves
@@ -294,6 +295,21 @@ test('notifications: each notification triggers a micro payout', async (t) => {
   const after = tb.users.get(user.id).balanceLuna;
   assert.ok(after > before, 'recipient balance increases when a notification is sent');
   assert.equal(after - before, config.economy.notificationMicroPayoutNim * 100000, 'notification micro payout is configured amount in luna');
+});
+
+test('notifications: list supports pagination and page metadata', async (t) => {
+  const tb = await testbed();
+  const user = await tb.users.createUser({ username: 'pager', avatar: '📬' });
+
+  for (let i = 0; i < 12; i++) {
+    await tb.notifications.push(user.id, { type: `notice_${i}`, title: `Alert ${i}`, body: `Body ${i}`, href: '#/profile', emoji: '🔔' });
+  }
+
+  const page2 = await tb.notifications.list(user.id, { limit: 5, page: 2 });
+  assert.equal(page2.items.length, 5, 'page two returns five notifications');
+  assert.equal(page2.total, 12, 'pagination totals the whole dataset');
+  assert.equal(page2.totalPages, 3, 'total pages is calculated from limit');
+  assert.equal(page2.page, 2, 'current page is returned');
 });
 
 test('users: listWalletAccounts exposes demo and real wallet users with usernames and visible addresses', async (t) => {

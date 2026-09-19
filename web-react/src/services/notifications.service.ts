@@ -10,8 +10,8 @@ export const notificationsService = {
   /**
    * Get all notifications for current user
    */
-  async getNotifications(): Promise<{ notifications: Notification[]; unread: number }> {
-    return api.get('/api/notifications');
+  async getNotifications(page = 1, limit = 10): Promise<{ notifications: Notification[]; unread: number; page: number; limit: number; total: number; totalPages: number }> {
+    return api.get(`/api/notifications?page=${page}&limit=${limit}`);
   },
 
   /**

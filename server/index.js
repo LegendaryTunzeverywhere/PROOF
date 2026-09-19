@@ -2010,10 +2010,19 @@ route('GET', '/api/achievements', async (ctx) => {
 });
 
 route('GET', '/api/notifications', async (ctx) => {
-  const { user, res } = ctx;
-  const list = await notifications.list(user.id);
+  const { user, query, res } = ctx;
+  const page = Math.max(1, Number(query.get('page') || '1'));
+  const limit = Math.max(1, Math.min(50, Number(query.get('limit') || '10')));
+  const list = await notifications.list(user.id, { page, limit });
   const unread = await notifications.unreadCount(user.id);
-  json(res, 200, { notifications: list, unread });
+  json(res, 200, {
+    notifications: list.items,
+    unread,
+    page: list.page,
+    limit: list.limit,
+    total: list.total,
+    totalPages: list.totalPages,
+  });
 });
 route('POST', '/api/notifications/read', async (ctx) => {
   const { user, res } = ctx;
