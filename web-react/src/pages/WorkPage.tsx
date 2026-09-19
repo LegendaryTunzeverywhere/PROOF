@@ -557,7 +557,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <h3 className="font-bold text-ink">{task.title}</h3>
-                            <p className="mt-1 text-sm text-muted">{timeAgo(task.postedAt)} · {task.applicants} applicant{task.applicants === 1 ? '' : 's'}</p>
+                            <p className="mt-1 text-sm text-muted">{timeAgo(task.postedAt)} · {task.applicants ?? 0} applicant{task.applicants === 1 ? '' : 's'}</p>
                           </div>
                           <span className="rounded-lg bg-gold/10 px-3 py-1.5 text-sm font-bold text-gold">{formatNim(task.budgetNim)} NIM</span>
                         </div>
@@ -571,7 +571,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                             onClick={() => setExpandedPostedTask(expandedPostedTask === task.id ? null : task.id)}
                             className="rounded-lg bg-brand px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-brand-deep"
                           >
-                            {expandedPostedTask === task.id ? 'Hide applicants' : `View applicants (${task.applicants})`}
+                            {expandedPostedTask === task.id ? 'Hide applicants' : `View applicants (${task.applicants ?? 0})`}
                           </button>
                         </div>
                         {expandedPostedTask === task.id && (

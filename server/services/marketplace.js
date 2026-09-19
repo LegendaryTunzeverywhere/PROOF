@@ -55,6 +55,7 @@ export class MarketplaceService {
       client: client ? { username: client.username, avatar: client.avatar, reputation: client.reputation } : null,
       minProof: task.minProof,
       applications: apps.length,
+      applicants: apps.length,
       qualification: !task.minProof ? { qualified: true, reason: 'Open to all proofers' } : {
         yourScore: us?.score ?? 0,
         required: task.minProof.min,
