@@ -252,7 +252,7 @@ test('teaching: only verified skills 70+ can teach; booking pays the teacher', a
   const before = tb.users.get(teacher.id).balanceLuna;
   await tb.teaching.book(session.id, tb.users.get(student.id));
   const after = tb.users.get(teacher.id).balanceLuna;
-  assert.equal(after - before, 490000, 'teacher receives 5 NIM − 2% fee');
+  assert.equal(after - before, 491000, 'teacher receives 5 NIM − 2% fee and the notification micro payout');
   assert.equal(tb.users.get(student.id).balanceLuna, 500000);
 
   // review → reputation moves
@@ -260,6 +260,40 @@ test('teaching: only verified skills 70+ can teach; booking pays the teacher', a
   await tb.teaching.review(session.id, tb.users.get(student.id), { rating: 5, text: 'brilliant' });
   assert.ok(tb.users.get(teacher.id).reputation > repBefore);
   await assert.rejects(() => tb.teaching.review(session.id, tb.users.get(student.id), { rating: 5 }), (e) => e.code === 'ALREADY_REVIEWED');
+});
+
+test('teaching: blank description and missing verified skill are rejected', async (t) => {
+  const tb = await testbed();
+  const teacher = await tb.users.createUser({});
+
+  await assert.rejects(
+    () => tb.teaching.createSession(tb.users.get(teacher.id), { title: 'X', description: '', durationMin: 20, priceNim: 5, maxStudents: 5, skillSlug: 'python' }),
+    (e) => e.code === 'BAD_INPUT',
+  );
+
+  await tb.skills.applyProofResult(teacher.id, 'python', { score: 92, passed: true });
+  await assert.rejects(
+    () => tb.teaching.createSession(tb.users.get(teacher.id), { title: 'X', description: 'd', durationMin: 20, priceNim: 5, maxStudents: 5, skillSlug: 'writing' }),
+    (e) => e.code === 'NOT_VERIFIED',
+  );
+});
+
+test('notifications: each notification triggers a micro payout', async (t) => {
+  const tb = await testbed();
+  const user = await tb.users.createUser({ username: 'notifier', avatar: '🔔' });
+  const before = tb.users.get(user.id).balanceLuna;
+
+  await tb.notifications.push(user.id, {
+    type: 'test_notice',
+    title: 'Micro payout check',
+    body: 'A small reward for reading this alert.',
+    href: '#/profile',
+    emoji: '💡',
+  });
+
+  const after = tb.users.get(user.id).balanceLuna;
+  assert.ok(after > before, 'recipient balance increases when a notification is sent');
+  assert.equal(after - before, config.economy.notificationMicroPayoutNim * 100000, 'notification micro payout is configured amount in luna');
 });
 
 test('users: listWalletAccounts exposes demo and real wallet users with usernames and visible addresses', async (t) => {

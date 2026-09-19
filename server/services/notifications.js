@@ -1,17 +1,36 @@
 /**
  * NotificationService — in-app notification feed (spec §46).
+ * Each delivered notification can optionally trigger a tiny reward payout so
+ * users are compensated for attention without turning the feed into spam.
  */
-import { uid, now } from '../util.js';
+import { uid, now, luna } from '../util.js';
 
 export class NotificationService {
-  constructor(store) { this.store = store; }
+  constructor(store, { rewards = null, config = null } = {}) {
+    this.store = store;
+    this.rewards = rewards;
+    this.config = config;
+    this.microPayoutNim = this.config?.economy?.notificationMicroPayoutNim ?? 0.01;
+  }
 
-  push(userId, { type, title, body = '', href = null, emoji = '🔔' }) {
+  async push(userId, { type, title, body = '', href = null, emoji = '🔔' }) {
     const n = this.store.insert('notifications', {
       id: uid('nt'), userId, type, title, body, href, emoji,
       read: false, createdAt: now(),
     });
     this.store.save();
+
+    if (Number(this.microPayoutNim) > 0 && this.rewards && userId) {
+      try {
+        const user = await this.store.get('users', userId);
+        if (user) {
+          await this.rewards.credit(userId, luna(Number(this.microPayoutNim)), 'notification', `Notification: ${title || 'new alert'}`, { notificationId: n.id, type });
+        }
+      } catch (error) {
+        console.warn('[notifications] micro-payout failed:', error?.message || error);
+      }
+    }
+
     return n;
   }
 

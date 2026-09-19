@@ -23,7 +23,7 @@ export async function testbed() {
   const users = new UserService(store, config);
   const skills = new SkillService(store, config);
   const rewards = new RewardService(store, config);
-  const notifications = new NotificationService(store);
+  const notifications = new NotificationService(store, { rewards, config });
   const challenges = new ChallengeService(store, config, { users, skills, rewards, notifications });
   const market = new MarketplaceService(store, config, { users, skills, rewards, notifications });
   const teaching = new TeachingService(store, config, { users, skills, rewards, notifications });

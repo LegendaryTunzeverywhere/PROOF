@@ -376,6 +376,7 @@ export class MarketplaceService {
     
     // Batch fetch all applications ONCE
     const allApplications = await this.store.all('task_applications');
+    const allTasks = await this.store.all('marketplace_tasks');
     
     // Batch fetch user skills ONCE
     const userSkillsArray = await this.skills.userSkills(userId);
@@ -388,7 +389,45 @@ export class MarketplaceService {
       const task = this.store.get('marketplace_tasks', a.taskId);
       return { ...a, task: task ? await this.taskView(task, userId, allApplications, userSkillsMap) : null };
     }));
+
+    const relationships = [];
+    for (const task of allTasks) {
+      const isRelevant = task.clientId === userId || allApplications.some((a) => a.taskId === task.id && a.userId === userId);
+      if (!isRelevant) continue;
+
+      const client = this.users.get(task.clientId);
+      const acceptedApplication = allApplications.find((a) => a.taskId === task.id && ['accepted', 'submitted', 'completed'].includes(a.status) && a.userId !== task.clientId);
+      const applicant = acceptedApplication ? this.users.get(acceptedApplication.userId) : null;
+
+      const relationship = {
+        taskId: task.id,
+        title: task.title,
+        description: task.description,
+        taskStatus: task.status,
+        budgetNim: Math.round((task.budgetLuna || 0) / 100000 * 100) / 100,
+        client: client ? {
+          id: client.id,
+          username: client.username,
+          avatar: client.avatar,
+          reputation: client.reputation,
+        } : null,
+        applicant: applicant ? {
+          id: applicant.id,
+          username: applicant.username,
+          avatar: applicant.avatar,
+          reputation: applicant.reputation,
+        } : null,
+        applicationId: acceptedApplication?.id ?? null,
+        applicationStatus: acceptedApplication?.status ?? null,
+      };
+
+      if (task.clientId === userId || relationship.applicant?.id === userId || relationship.client?.id === userId) {
+        relationships.push(relationship);
+      }
+    }
+
+    relationships.sort((a, b) => (b.taskId > a.taskId ? 1 : -1));
     
-    return { posted, applied };
+    return { posted, applied, relationships };
   }
 }

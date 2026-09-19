@@ -56,7 +56,6 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
   const [expandedPostedTask, setExpandedPostedTask] = useState<string | null>(null);
   const [acceptingApplication, setAcceptingApplication] = useState<string | null>(null);
   const [completingTask, setCompletingTask] = useState<string | null>(null);
-  const [submittingDelivery, setSubmittingDelivery] = useState<string | null>(null);
   const [reviewingDelivery, setReviewingDelivery] = useState<string | null>(null);
   const [deliveryDrafts, setDeliveryDrafts] = useState<Record<string, { note: string; url: string; attachment: string }>>({});
   const [reviewDrafts, setReviewDrafts] = useState<Record<string, string>>({});
@@ -276,7 +275,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
         description,
         skillSlug,
         priceNim,
-        duration: String(Math.round(duration)),
+        durationMin: String(Math.round(duration)),
         maxStudents: Math.round(maxStudents),
       });
 
@@ -875,6 +874,11 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted">{application.pitch}</p>
                                 {application.status === 'submitted' && (
                                   <div className="mt-3 space-y-3 rounded-xl border border-warn bg-warn-soft/30 p-3">
+                                    <div className="rounded-xl border border-warn/30 bg-surface p-3">
+                                      <div className="text-[10px] font-bold uppercase tracking-wide text-warn">Reviewing this job</div>
+                                      <div className="mt-1 font-bold text-ink">{task.title}</div>
+                                      <div className="mt-1 text-sm text-muted">Applicant: {application.username}</div>
+                                    </div>
                                     <div className="text-sm font-semibold text-warn">Delivery waiting for approval</div>
                                     <textarea
                                       value={reviewDrafts[task.id] || ''}
@@ -1001,7 +1005,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                                 <button
                                   type="button"
                                   onClick={() => completeAcceptedTask(taskId)}
-                                  disabled={completingTask !== null || submittingDelivery !== null}
+                                  disabled={completingTask !== null}
                                   className="rounded-lg bg-ok px-3 py-2 text-xs font-bold text-white hover:bg-ok/90 disabled:cursor-wait disabled:opacity-60"
                                 >
                                   {completingTask === taskId ? 'Submitting…' : 'Submit delivery'}

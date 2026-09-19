@@ -96,6 +96,7 @@ export const config = {
     streakReminderPayoutsEnabled: process.env.STREAK_REMINDER_PAYOUTS_ENABLED === 'true',
     streakReminderAmountLuna: int(process.env.STREAK_REMINDER_AMOUNT_LUNA, 100),
     streakReminderCooldownDays: int(process.env.STREAK_REMINDER_COOLDOWN_DAYS, 7),
+    notificationMicroPayoutNim: Number(process.env.NOTIFICATION_MICRO_PAYOUT_NIM || 0.0001),
     /** Skill tiers. Derived from completed proofs — never user-selected. */
     skillTiers: [
       { max: 20, name: 'Novice' },

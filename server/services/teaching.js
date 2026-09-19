@@ -18,21 +18,31 @@ export class TeachingService {
     store.declareUniques('reviews', []);
   }
 
-  async createSession(user, { title, description, durationMin, priceNim, maxStudents, skillSlug }) {
-    const us = await this.skills.userSkill(user.id, skillSlug);
+  async createSession(user, { title, description, durationMin, duration, priceNim, maxStudents, skillSlug } = {}) {
+    const cleanTitle = String(title || '').trim();
+    const cleanDescription = String(description || '').trim();
+    const cleanSkillSlug = String(skillSlug || '').trim();
+    const normalizedDurationMin = Number(durationMin ?? duration ?? 0);
+    const normalizedPriceNim = Number(priceNim);
+    const normalizedMaxStudents = Number(maxStudents ?? 5);
+
+    if (!cleanTitle || !cleanDescription || !cleanSkillSlug)
+      throw Object.assign(new Error('Title, description, and a verified skill are required.'), { code: 'BAD_INPUT', status: 400 });
+
+    const us = await this.skills.userSkill(user.id, cleanSkillSlug);
     if (!us || !us.verified || us.score < 70)
-      throw Object.assign(new Error(`You can teach ${skillSlug.replace('-', ' ')} once it's verified at 70+. Prove it first — you're ${us ? `at ${us.score}` : 'not started'}.`), { code: 'NOT_VERIFIED', status: 403 });
-    if (!title || !(priceNim > 0) || !(durationMin >= 10))
-      throw Object.assign(new Error('Title, duration (≥10 min) and a positive price are required.'), { code: 'BAD_INPUT', status: 400 });
+      throw Object.assign(new Error(`You can teach ${cleanSkillSlug.replace('-', ' ')} once it's verified at 70+. Prove it first — you're ${us ? `at ${us.score}` : 'not started'}.`), { code: 'NOT_VERIFIED', status: 403 });
+    if (!(normalizedPriceNim > 0) || !(normalizedDurationMin >= 10))
+      throw Object.assign(new Error('Duration (≥10 min) and a positive price are required.'), { code: 'BAD_INPUT', status: 400 });
 
     const session = this.store.insert('teaching_sessions', {
       id: uid('ts'),
-      teacherId: user.id, skillSlug,
-      title: String(title).slice(0, 120),
-      description: String(description || '').slice(0, 800),
-      durationMin: Math.min(durationMin, 240),
-      priceLuna: Math.round(priceNim * 100000),
-      maxStudents: Math.min(Math.max(maxStudents || 5, 1), 50),
+      teacherId: user.id, skillSlug: cleanSkillSlug,
+      title: cleanTitle.slice(0, 120),
+      description: cleanDescription.slice(0, 800),
+      durationMin: Math.min(normalizedDurationMin, 240),
+      priceLuna: Math.round(normalizedPriceNim * 100000),
+      maxStudents: Math.min(Math.max(normalizedMaxStudents || 5, 1), 50),
       bookings: 0, rating: null, ratingCount: 0,
       createdAt: now(),
     });

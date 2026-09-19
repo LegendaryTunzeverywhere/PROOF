@@ -36,7 +36,7 @@ export const teachingService = {
     skillSlug: string;
     description: string;
     priceNim: number;
-    duration: string;
+    durationMin: string | number;
     maxStudents: number;
   }): Promise<{ session: TeachingSession }> {
     return api.post('/api/teach/sessions', data);
