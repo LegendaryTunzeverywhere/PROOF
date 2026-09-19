@@ -107,14 +107,8 @@ const upload = multer({
 });
 
 async function seedRelations({ users, skills, market, teaching }) {
-  // Keep the marketplace task table empty unless a real poster creates a task.
-  // Clear any stale persisted rows from older seeded/mock fixtures so the
-  // work feed never reports fabricated open task counts at startup.
-  const tasks = await store.all('marketplace_tasks');
-  for (const task of tasks) {
-    await store.remove('marketplace_tasks', task.id);
-  }
-  await store.save();
+  // Marketplace tasks are user-owned production data. Never clear them during
+  // startup or deployment; only explicit marketplace actions may change them.
 }
 
 /* ── tiny routing framework ────────────────────────────────────────── */
