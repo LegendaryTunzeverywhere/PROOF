@@ -266,7 +266,7 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
         </Link>
       </div>
 
-      <Reveal>
+      <Reveal className="reveal-in">
         <div className="rounded-2xl border border-line bg-surface p-6 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
@@ -523,7 +523,7 @@ function ProveHubView() {
 
   return (
     <div className="space-y-6">
-      <Reveal>
+      <Reveal className="reveal-in">
         <div>
           <h1 className="text-3xl font-bold text-ink">{copy.title}</h1>
           <p className="mt-2 text-base text-muted">
@@ -533,13 +533,13 @@ function ProveHubView() {
       </Reveal>
 
       {/* Daily Proof - Prominent */}
-      <Reveal delay={0.05}>
+      <Reveal delay={0.05} className="reveal-in">
         <DailyChallenge />
       </Reveal>
 
       {/* Your Proof Checkpoints */}
       {hasCheckpoints && (
-        <Reveal delay={0.1}>
+        <Reveal delay={0.1} className="reveal-in">
           <div className="space-y-4">
             <PanelHeader 
               title={copy.checkpoints}
@@ -631,7 +631,7 @@ function ProveHubView() {
 
       {/* Empty State for Checkpoints */}
       {!hasCheckpoints && (
-        <Reveal delay={0.1}>
+        <Reveal delay={0.1} className="reveal-in">
           <div className="rounded-2xl border border-line bg-surface p-8 text-center shadow-sm">
             <ProveIcon className="mx-auto mb-3 h-10 w-10 text-brand" />
             <h3 className="text-lg font-semibold text-ink">{copy.emptyTitle}</h3>
@@ -649,7 +649,7 @@ function ProveHubView() {
       )}
 
       {/* Sponsored Challenges */}
-      <Reveal delay={0.15}>
+      <Reveal delay={0.15} className="reveal-in">
         <div className="space-y-4">
           <PanelHeader 
             title={copy.sponsored}
@@ -716,7 +716,7 @@ function ProveHubView() {
       </Reveal>
 
       {/* Trending Proofs */}
-      <Reveal delay={0.2}>
+      <Reveal delay={0.2} className="reveal-in">
         <TrendingProofs skills={[]} />
       </Reveal>
     </div>
