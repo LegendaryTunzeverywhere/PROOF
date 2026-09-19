@@ -44,7 +44,7 @@ export class MarketplaceService {
     const us = userId && task.minProof 
       ? (userSkillsMap ? userSkillsMap.get(task.minProof.skillSlug) || null : this.skills.userSkill(userId, task.minProof.skillSlug))
       : null;
-    return {
+    const view = {
       id: task.id,
       title: task.title,
       description: task.description,
@@ -64,6 +64,21 @@ export class MarketplaceService {
       },
       myApplication: userId ? apps.find((a) => a.userId === userId) || null : null,
     };
+    if (userId === task.clientId) {
+      view.applicationDetails = await Promise.all(apps.map(async (application) => {
+        const applicant = await this.users.get(application.userId);
+        return {
+          id: application.id,
+          userId: application.userId,
+          username: applicant?.username || 'Proofer',
+          avatar: applicant?.avatar || '🙂',
+          pitch: application.pitch,
+          status: application.status,
+          appliedAt: application.appliedAt,
+        };
+      }));
+    }
+    return view;
   }
 
   async listTasks(userId, { onlyQualified = false } = {}) {
@@ -161,6 +176,37 @@ export class MarketplaceService {
     await this.users.checkAchievements(user.id);
     this.store.save();
     return { netLuna: net, feeLuna: fee };
+  }
+
+  async acceptApplication(taskId, applicationId, user) {
+    const task = await this.store.get('marketplace_tasks', taskId);
+    if (!task || task.clientId !== user.id) {
+      throw Object.assign(new Error('Only the task poster can accept applicants.'), { code: 'FORBIDDEN', status: 403 });
+    }
+    if (task.status !== 'open') {
+      throw Object.assign(new Error('This task is no longer available.'), { code: 'NOT_OPEN', status: 409 });
+    }
+    const application = await this.store.get('task_applications', applicationId);
+    if (!application || application.taskId !== taskId || application.status !== 'pending') {
+      throw Object.assign(new Error('Application is no longer pending.'), { code: 'APPLICATION_NOT_PENDING', status: 409 });
+    }
+
+    await this.store.update('task_applications', application.id, { status: 'accepted', respondedAt: now() });
+    const applications = await this.store.filter('task_applications', (item) => item.taskId === taskId && item.id !== application.id && item.status === 'pending');
+    for (const other of applications) {
+      await this.store.update('task_applications', other.id, { status: 'rejected', respondedAt: now() });
+      this.notify.push(other.userId, {
+        type: 'task_application_rejected', emoji: '📭', title: `Task filled: ${task.title}`,
+        body: 'Another applicant was selected for this task.', href: '#/work',
+      });
+    }
+    await this.store.update('marketplace_tasks', taskId, { status: 'assigned' });
+    this.notify.push(application.userId, {
+      type: 'task_application_accepted', emoji: '🤝', title: `Application accepted: ${task.title}`,
+      body: 'The task poster accepted your application. You can now deliver the work.', href: '#/work',
+    });
+    await this.store.save();
+    return this.store.get('task_applications', application.id);
   }
 
   async postTask(user, { title, description, budgetNim, skillSlug = null, minScore = 0, tags = [], escrowTxId = '' }) {

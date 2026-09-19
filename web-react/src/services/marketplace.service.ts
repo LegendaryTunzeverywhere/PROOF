@@ -57,10 +57,18 @@ export const marketplaceService = {
     return api.post(`/api/market/tasks/${taskId}/apply`, { pitch });
   },
 
+  async acceptApplication(taskId: string, applicationId: string): Promise<{ application: unknown }> {
+    return api.post(`/api/market/tasks/${taskId}/applications/${applicationId}/accept`);
+  },
+
   /**
    * Get user's applications
    */
   async getMyApplications(): Promise<{ applications: any[] }> {
     return api.get('/api/market/my');
+  },
+
+  async getMyTasks(): Promise<{ posted: MarketplaceTask[]; applied: any[] }> {
+    return api.get<{ posted: MarketplaceTask[]; applied: any[] }>('/api/market/my');
   },
 };

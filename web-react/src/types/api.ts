@@ -208,8 +208,18 @@ export interface MarketplaceTask {
     reputation?: number;
   } | null;
   budgetNim: number;
+  status: 'open' | 'assigned' | 'completed' | 'cancelled' | string;
   postedAt: string | number;
   applicants: number;
+  applicationDetails?: Array<{
+    id: string;
+    userId: string;
+    username: string;
+    avatar: string;
+    pitch: string;
+    status: string;
+    appliedAt: string | number;
+  }>;
   minProof?: {
     skillSlug: string;
     min: number;

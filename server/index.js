@@ -1953,6 +1953,10 @@ route('POST', '/api/market/tasks/:id/apply', async (ctx) => {
   const { user, params, body, res } = ctx;
   json(res, 201, { application: await market.apply(params.id, user, body?.pitch) });
 });
+route('POST', '/api/market/tasks/:id/applications/:applicationId/accept', async (ctx) => {
+  const { user, params, res } = ctx;
+  json(res, 200, { application: await market.acceptApplication(params.id, params.applicationId, user) });
+});
 route('POST', '/api/market/tasks/:id/complete', async (ctx) => {
   const { user, params, res } = ctx;
   json(res, 200, await market.completeTask(params.id, user));

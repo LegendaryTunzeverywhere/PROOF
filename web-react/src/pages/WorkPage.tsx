@@ -20,6 +20,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
   const copy = getPageCopy(language).work;
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [tasks, setTasks] = useState<MarketplaceTask[]>([]);
+  const [postedTasks, setPostedTasks] = useState<MarketplaceTask[]>([]);
   const [sessions, setSessions] = useState<TeachingSession[]>([]);
   const [sponsoredChallenges, setSponsoredChallenges] = useState<SponsoredChallenge[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
@@ -39,6 +40,8 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
   const [applicationTask, setApplicationTask] = useState<MarketplaceTask | null>(null);
   const [applicationPitch, setApplicationPitch] = useState('');
   const [applicationLoading, setApplicationLoading] = useState(false);
+  const [expandedPostedTask, setExpandedPostedTask] = useState<string | null>(null);
+  const [acceptingApplication, setAcceptingApplication] = useState<string | null>(null);
   const [treasuryAddress, setTreasuryAddress] = useState<string>('');
   const [postForm, setPostForm] = useState({
     title: '',
@@ -69,11 +72,13 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
       setError(null);
       
       if (activeTab === 'work') {
-        const [tasksRes, userRes] = await Promise.all([
+        const [tasksRes, mineRes, userRes] = await Promise.all([
           marketplaceService.getTasks(),
+          marketplaceService.getMyTasks(),
           userService.getMe(),
         ]);
         setTasks(tasksRes.tasks);
+        setPostedTasks(mineRes.posted);
         setSkills(userRes.skills);
       } else if (activeTab === 'teach') {
         const [sessionsRes, userRes] = await Promise.all([
@@ -232,6 +237,20 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
       setError(err.message || 'Your application could not be sent.');
     } finally {
       setApplicationLoading(false);
+    }
+  };
+
+  const acceptApplication = async (taskId: string, applicationId: string) => {
+    if (acceptingApplication) return;
+    try {
+      setAcceptingApplication(applicationId);
+      setError(null);
+      await marketplaceService.acceptApplication(taskId, applicationId);
+      await loadWorkData();
+    } catch (err: any) {
+      setError(err.message || 'The applicant could not be accepted.');
+    } finally {
+      setAcceptingApplication(null);
     }
   };
 
@@ -514,6 +533,76 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                         </button>
                       </div>
                     </form>
+                  </div>
+                </Reveal>
+              )}
+
+              {postedTasks.length > 0 && (
+                <Reveal delay={0.14}>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-lg font-bold text-ink">My posted work</h2>
+                        <p className="text-sm text-muted">Track applicants and active task deposits.</p>
+                      </div>
+                      <span className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-bold text-brand">
+                        {postedTasks.length} post{postedTasks.length === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                    {postedTasks.map((task) => (
+                      <div key={task.id} className="rounded-2xl border border-brand-soft bg-brand-soft/20 p-4 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h3 className="font-bold text-ink">{task.title}</h3>
+                            <p className="mt-1 text-sm text-muted">{timeAgo(task.postedAt)} · {task.applicants} applicant{task.applicants === 1 ? '' : 's'}</p>
+                          </div>
+                          <span className="rounded-lg bg-gold/10 px-3 py-1.5 text-sm font-bold text-gold">{formatNim(task.budgetNim)} NIM</span>
+                        </div>
+                        <p className="mt-3 line-clamp-2 text-sm text-muted">{task.description}</p>
+                        <div className="mt-4 flex items-center justify-between gap-3">
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${task.status === 'open' ? 'bg-ok-soft text-ok' : 'bg-elevated text-muted'}`}>
+                            {task.status === 'open' ? 'Accepting applicants' : task.status}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedPostedTask(expandedPostedTask === task.id ? null : task.id)}
+                            className="rounded-lg bg-brand px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-brand-deep"
+                          >
+                            {expandedPostedTask === task.id ? 'Hide applicants' : `View applicants (${task.applicants})`}
+                          </button>
+                        </div>
+                        {expandedPostedTask === task.id && (
+                          <div className="mt-4 space-y-3 border-t border-brand-soft pt-4">
+                            {task.applicationDetails?.length ? task.applicationDetails.map((application) => (
+                              <div key={application.id} className="rounded-xl border border-line bg-surface p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xl">{application.avatar}</span>
+                                    <div>
+                                      <p className="text-sm font-bold text-ink">{application.username}</p>
+                                      <p className="text-xs text-muted">{application.status}</p>
+                                    </div>
+                                  </div>
+                                  {application.status === 'pending' && task.status === 'open' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => acceptApplication(task.id, application.id)}
+                                      disabled={acceptingApplication !== null}
+                                      className="rounded-lg bg-ok px-3 py-2 text-xs font-bold text-white hover:bg-ok/90 disabled:cursor-wait disabled:opacity-60"
+                                    >
+                                      {acceptingApplication === application.id ? 'Accepting…' : 'Accept'}
+                                    </button>
+                                  )}
+                                </div>
+                                <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted">{application.pitch}</p>
+                              </div>
+                            )) : (
+                              <p className="text-sm text-muted">No applicants yet.</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </Reveal>
               )}
