@@ -11,7 +11,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "test": "node --test tests/*.test.js",
+    "test": "node --env-file=.env --test tests/*.test.js",
     "smoke": "node tests/smoke.js",
     "import:chess": "node --env-file=.env scripts/import-lichess-puzzles.js",
     "clear:chess-data": "node --env-file=.env scripts/reset-chess-import.js --clear-only --all",

@@ -28,9 +28,9 @@ export class Store {
     this.file = path.join(this.dataDir, opts.file || 'proof.json');
     /** @type {Record<string, Record<string, any>>} */
     this.tables = {};
-    /** @type {Map<string, Set<string>>} uniqueIndex:"table:field" -> set of values */
+    /** @type {Map<string, Set<string>>} uniqueIndex:"table:fields" -> set of values */
     this.uniques = new Map();
-    this.uniqueDefs = new Map(); // table -> [fields]
+      this.uniqueDefs = new Map(); // table -> [[field], [fieldA, fieldB]]
     this.#queue = Promise.resolve();
   }
 
@@ -62,14 +62,15 @@ export class Store {
   }
 
   declareUniques(table, fields) {
-    this.uniqueDefs.set(table, fields);
-    for (const f of fields) {
-      const key = `${table}:${f}`;
-      if (!this.uniques.has(key)) {
-        const set = new Set();
-        for (const row of Object.values(this.tables[table] || {}))
-          if (row[f] !== undefined) set.add(String(row[f]));
-        this.uniques.set(key, set);
+    const definitions = fields.length ? [fields] : [];
+    this.uniqueDefs.set(table, definitions);
+    for (const definition of definitions) {
+      const key = `${table}:${definition.join('|')}`;
+      if (!this.uniques.has(key)) this.uniques.set(key, new Set());
+      for (const row of Object.values(this.tables[table] || {})) {
+        if (definition.every((field) => row[field] !== undefined)) {
+          this.uniques.get(key).add(definition.map((field) => String(row[field])).join('|'));
+        }
       }
     }
   }
@@ -85,10 +86,10 @@ export class Store {
       : `_${Object.keys(this.tables[table]).length + 1}`;
     const id = doc.id || fallbackId;
     if (this.tables[table][id]) throw new Error(`DUPLICATE_ID ${table}/${id}`);
-    for (const f of this.uniqueDefs.get(table) || []) {
-      if (doc[f] === undefined) continue;
-      const key = `${table}:${f}`;
-      const v = String(doc[f]);
+    for (const definition of this.uniqueDefs.get(table) || []) {
+      if (!definition.every((field) => doc[field] !== undefined)) continue;
+      const key = `${table}:${definition.join('|')}`;
+      const v = definition.map((field) => String(doc[field])).join('|');
       if (this.uniques.get(key)?.has(v))
         throw new Error(`UNIQUE_VIOLATION ${key}=${v}`);
       (this.uniques.get(key) || this.uniques.set(key, new Set()).get(key)).add(v);
@@ -103,11 +104,18 @@ export class Store {
     const row = this.get(table, id);
     if (!row) return null;
     // unique re-checks
-    for (const f of this.uniqueDefs.get(table) || []) {
-      if (patch[f] === undefined || patch[f] === row[f]) continue;
-      const key = `${table}:${f}`, v = String(patch[f]);
+    for (const definition of this.uniqueDefs.get(table) || []) {
+      if (definition.every((field) => patch[field] === undefined || patch[field] === row[field])) continue;
+      if (!definition.every((field) => patch[field] !== undefined || row[field] !== undefined)) continue;
+      const key = `${table}:${definition.join('|')}`;
+      const next = { ...row, ...patch };
+      if (!definition.every((field) => next[field] !== undefined)) continue;
+      const v = definition.map((field) => String(next[field])).join('|');
       if (this.uniques.get(key)?.has(v)) throw new Error(`UNIQUE_VIOLATION ${key}=${v}`);
-      this.uniques.get(key)?.delete(String(row[f]));
+      const previous = definition.every((field) => row[field] !== undefined)
+        ? definition.map((field) => String(row[field])).join('|')
+        : null;
+      if (previous !== null) this.uniques.get(key)?.delete(previous);
       this.uniques.get(key)?.add(v);
     }
     Object.assign(row, patch);
@@ -117,8 +125,13 @@ export class Store {
   remove(table, id) {
     const row = this.get(table, id);
     if (!row) return false;
-    for (const f of this.uniqueDefs.get(table) || [])
-      this.uniques.get(`${table}:${f}`)?.delete(String(row[f]));
+    for (const definition of this.uniqueDefs.get(table) || []) {
+      if (definition.every((field) => row[field] !== undefined)) {
+        const key = `${table}:${definition.join('|')}`;
+        const value = definition.map((field) => String(row[field])).join('|');
+        this.uniques.get(key)?.delete(value);
+      }
+    }
     delete this.tables[table][id];
     return true;
   }

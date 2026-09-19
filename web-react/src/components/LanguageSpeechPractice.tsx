@@ -27,11 +27,132 @@ const localeFor = (language: string) => ({
   fr: 'fr-FR', es: 'es-ES', de: 'de-DE', pt: 'pt-PT', zh: 'zh-CN',
 }[language] || language || 'en-US');
 
+export interface SpeechPlaybackCallbacks {
+  onStart?: () => void;
+  onEnd?: () => void;
+  onError?: (error: unknown) => void;
+  onAudio?: (audio: HTMLAudioElement | null) => void;
+}
+
+const waitForVoices = (synthesis: SpeechSynthesis, timeoutMs = 350) => new Promise<SpeechSynthesisVoice[]>((resolve) => {
+  const initial = synthesis.getVoices();
+  if (initial.length > 0) {
+    resolve(initial);
+    return;
+  }
+
+  let settled = false;
+  const finish = () => {
+    if (settled) return;
+    settled = true;
+    synthesis.removeEventListener('voiceschanged', finish);
+    window.clearTimeout(timeout);
+    resolve(synthesis.getVoices());
+  };
+  const timeout = window.setTimeout(finish, timeoutMs);
+  synthesis.addEventListener('voiceschanged', finish, { once: true });
+});
+
+const playServerAudio = async (text: string, lang: string, speed: number, callbacks: SpeechPlaybackCallbacks) => {
+  const audio = new Audio(`/api/tts?text=${encodeURIComponent(text)}&lang=${encodeURIComponent(lang)}&speed=${speed}`);
+  audio.preload = 'auto';
+  callbacks.onAudio?.(audio);
+
+  return new Promise<void>((resolve, reject) => {
+    let started = false;
+    const start = () => {
+      if (started) return;
+      started = true;
+      callbacks.onStart?.();
+    };
+    audio.onplay = start;
+    audio.onended = () => {
+      callbacks.onAudio?.(null);
+      callbacks.onEnd?.();
+      resolve();
+    };
+    audio.onerror = (event) => {
+      callbacks.onAudio?.(null);
+      reject(event);
+    };
+
+    audio.play().then(() => {
+      // Some WebViews resolve play() without dispatching play immediately.
+      start();
+    }).catch((error) => {
+      callbacks.onAudio?.(null);
+      reject(error);
+    });
+  });
+};
+
+const speakNativeLanguageText = async (text: string, language: string, speed: number, callbacks: SpeechPlaybackCallbacks) => {
+  const locale = localeFor(language);
+  const synthesis = typeof window !== 'undefined' ? window.speechSynthesis : null;
+
+  if (!synthesis || typeof window.SpeechSynthesisUtterance !== 'function') throw new Error('Native speech is unavailable.');
+  const voices = await waitForVoices(synthesis);
+  const voice = voices.find((candidate) => candidate.lang.toLowerCase() === locale.toLowerCase())
+    || voices.find((candidate) => candidate.lang.toLowerCase().startsWith(locale.slice(0, 2).toLowerCase()));
+  if (!voice) throw new Error(`No native voice is available for ${locale}.`);
+
+  synthesis.cancel();
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    let started = false;
+    let watchdog = 0;
+    const settle = (error?: unknown) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(watchdog);
+      if (error) reject(error);
+      else resolve();
+    };
+    const utterance = new window.SpeechSynthesisUtterance(text);
+    utterance.lang = locale;
+    utterance.voice = voice;
+    utterance.rate = 0.78 * speed;
+    utterance.pitch = 1;
+    utterance.onstart = () => {
+      started = true;
+      callbacks.onStart?.();
+      window.clearTimeout(watchdog);
+    };
+    utterance.onend = () => {
+      callbacks.onEnd?.();
+      settle();
+    };
+    utterance.onerror = (event) => {
+      if (event.error !== 'canceled' && event.error !== 'interrupted') settle(event);
+    };
+    if (synthesis.paused) synthesis.resume();
+    synthesis.speak(utterance);
+    watchdog = window.setTimeout(() => {
+      if (!started) settle(new Error('Native speech did not start.'));
+    }, 900);
+  });
+};
+
+export async function speakLanguageText(text: string, language: string, speed = 1, callbacks: SpeechPlaybackCallbacks = {}) {
+  const locale = localeFor(language);
+  try {
+    await playServerAudio(text, locale, speed, callbacks);
+  } catch (piperError) {
+    try {
+      await speakNativeLanguageText(text, language, speed, callbacks);
+    } catch (nativeError) {
+      callbacks.onError?.(nativeError || piperError);
+      throw nativeError || piperError;
+    }
+  }
+}
+
 const normalizeSpeech = (value: string) =>
   value
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u2018\u2019'`]/g, ' ')
     .replace(/[.,!?;:]/g, ' ')
     .replace(/["“”]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -75,6 +196,7 @@ export function LanguageSpeechPractice({
   compact = false,
 }: LanguageSpeechPracticeProps) {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [supported, setSupported] = useState(true);
@@ -110,53 +232,27 @@ export function LanguageSpeechPractice({
   useEffect(() => () => {
     recognitionRef.current?.stop();
     window.speechSynthesis?.cancel();
+    audioRef.current?.pause();
   }, []);
 
-  const listen = () => {
+  const listen = async (speed = 1) => {
     setError(null);
-    if (!('speechSynthesis' in window) || typeof window.SpeechSynthesisUtterance !== 'function') {
-      setError('Audio playback is not available in this browser.');
-      return;
-    }
-    const synthesis = window.speechSynthesis;
-    synthesis.cancel();
-    const locale = localeFor(language);
-    const speakNow = () => {
-      const voices = synthesis.getVoices();
-      const voice = voices.find((candidate) => candidate.lang.toLowerCase() === locale.toLowerCase())
-        || voices.find((candidate) => candidate.lang.toLowerCase().startsWith(locale.slice(0, 2).toLowerCase()));
-      const utterance = new window.SpeechSynthesisUtterance(target);
-      utterance.lang = locale;
-      if (voice) utterance.voice = voice;
-      utterance.rate = 0.78;
-      utterance.pitch = 1;
-      utterance.onstart = () => setSpeaking(true);
-      utterance.onend = () => setSpeaking(false);
-      utterance.onerror = (event) => {
-        setSpeaking(false);
-        if (event.error !== 'canceled' && event.error !== 'interrupted') {
+    audioRef.current?.pause();
+    try {
+      await speakLanguageText(target, language, speed, {
+        onStart: () => setSpeaking(true),
+        onEnd: () => setSpeaking(false),
+        onError: () => {
+          setSpeaking(false);
           setError('Audio playback failed. Tap the speaker button again.');
-        }
-      };
-      // Mobile Chrome/Safari can reject speak() if called in the same tick as
-      // cancel(), or while the WebView is still loading its voice list.
-      if (synthesis.paused) synthesis.resume();
-      synthesis.speak(utterance);
-    };
-
-    if (synthesis.getVoices().length > 0) {
-      window.setTimeout(speakNow, 50);
-    } else {
-      const loadVoices = () => {
-        synthesis.removeEventListener('voiceschanged', loadVoices);
-        window.setTimeout(speakNow, 50);
-      };
-      synthesis.addEventListener('voiceschanged', loadVoices, { once: true });
-      // Some mobile WebViews never emit voiceschanged but still become ready.
-      window.setTimeout(() => {
-        synthesis.removeEventListener('voiceschanged', loadVoices);
-        speakNow();
-      }, 500);
+        },
+        onAudio: (audio) => {
+          audioRef.current = audio;
+        },
+      });
+    } catch {
+      setSpeaking(false);
+      setError('Audio playback failed. Tap the speaker button again.');
     }
   };
 
@@ -202,13 +298,24 @@ export function LanguageSpeechPractice({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={listen}
+            onClick={() => listen()}
             disabled={disabled}
             aria-label={speaking ? 'Stop audio' : 'Listen to the phrase'}
             title={speaking ? 'Stop audio' : 'Listen to the phrase'}
             className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-brand/30 bg-surface text-lg text-brand transition hover:bg-brand-soft disabled:opacity-50"
           >
             <span aria-hidden="true">{speaking ? '⏹' : '🔊'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => listen(0.65)}
+            disabled={disabled}
+            aria-label="Listen slowly"
+            title="Listen slowly"
+            className="inline-flex h-11 items-center justify-center gap-1 rounded-lg border border-brand/30 bg-surface px-3 text-sm font-semibold text-brand transition hover:bg-brand-soft disabled:opacity-50"
+          >
+            <span aria-hidden="true">🐢</span>
+            Slow
           </button>
           <button
             type="button"

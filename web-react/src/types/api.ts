@@ -23,6 +23,7 @@ export interface User {
     address?: string;
     connected: boolean;
   };
+  walletAccounts?: string[];
   streak: {
     current: number;
     longest: number;

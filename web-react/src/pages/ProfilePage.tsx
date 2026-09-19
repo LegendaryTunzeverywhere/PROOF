@@ -165,6 +165,16 @@ export function ProfilePage() {
               <div className="text-xs text-white/80">Skills Verified</div>
             </div>
           </div>
+          {user.wallet?.connected && user.walletBalanceNim !== undefined && (
+            <div className="mt-3 space-y-1 text-xs text-white/75">
+              <p>Connected wallet: {formatNim(user.walletBalanceNim)} NIM</p>
+              {!!user.walletAccounts?.length && user.walletAccounts.map((address) => (
+                <p key={address} className="break-all font-mono text-[10px] text-white/60">
+                  {address}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       </Reveal>
 

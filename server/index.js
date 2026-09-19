@@ -6,6 +6,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { config, validateConfig } from './config.js';
 import { seed } from './seed.js';
@@ -20,10 +21,11 @@ import { TeachingService } from './services/teaching.js';
 import { generateLearningPath, generateLesson, recommendNextSkill, tutorReply, detectDomain } from './ai/service.js';
 import { createCurriculumFromDocument, getUserDocumentCurricula, getDocumentCurriculum, documentTutorReply } from './services/document-curriculum.js';
 import { cleanupDuplicateSkillPaths } from './services/path-dedupe.js';
-import { uid, now, toNim, escapeHtml, RateLimiter, looksLikeNimiqAddress, normalizeNimiqAddress, nimiqAddressFromPublicKey, validate, parseNumber, hmac, kindIncludesReward, shortTxRef } from './util.js';
+import { uid, now, toNim, escapeHtml, RateLimiter, looksLikeNimiqAddress, normalizeNimiqAddress, validate, parseNumber, hmac, kindIncludesReward, shortTxRef } from './util.js';
 import * as stockfish from './ai/services/stockfish.js';
 import { buildPuzzleHint, normalizeUserMoves, resolvePuzzleTurn } from './chess-hints.js';
 import multer from 'multer';
+import { spawn } from 'node:child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = path.resolve(__dirname, '../web');
@@ -126,6 +128,54 @@ function json(res, status, data, headers = {}) {
 }
 const httpError = (status, code, message, extra = {}) => Object.assign(new Error(message), { status, code, ...extra });
 
+async function synthesizeWithPiper(text, lang, speed = 1) {
+  const language = lang.split('-')[0].toLowerCase();
+  const model = process.env[`PIPER_MODEL_${language.toUpperCase()}`] || process.env.PIPER_MODEL;
+  const binary = process.env.PIPER_BIN || 'piper';
+  if (!model) throw httpError(503, 'TTS_NOT_CONFIGURED', 'Piper TTS is not configured for this language.');
+
+  const cacheDir = process.env.TTS_CACHE_DIR || path.join(config.dataDir, 'tts-cache');
+  const cacheKey = createHash('sha256').update(`${language}\0${speed}\0${text}`).digest('hex');
+  const cachedFile = path.join(cacheDir, `${cacheKey}.wav`);
+  try {
+    return await fs.promises.readFile(cachedFile);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+
+  await fs.promises.mkdir(cacheDir, { recursive: true });
+  const outputDir = await fs.promises.mkdtemp(path.join(process.env.TEMP || process.env.TMP || '/tmp', 'proof-piper-'));
+  const outputFile = path.join(outputDir, 'speech.wav');
+  const timeoutMs = Number(process.env.PIPER_TIMEOUT_MS || 15000);
+
+  try {
+    await new Promise((resolve, reject) => {
+      const child = spawn(binary, ['--model', model, '--length_scale', String(1 / speed), '--output_file', outputFile], { stdio: ['pipe', 'ignore', 'pipe'] });
+      let stderr = '';
+      const timeout = setTimeout(() => {
+        child.kill('SIGKILL');
+        reject(new Error('Piper TTS timed out.'));
+      }, timeoutMs);
+      child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+      child.on('error', reject);
+      child.on('close', (code) => {
+        clearTimeout(timeout);
+        if (code === 0) resolve();
+        else reject(new Error(stderr.trim() || `Piper exited with code ${code}.`));
+      });
+      child.stdin.end(text);
+    });
+    const audioContent = await fs.promises.readFile(outputFile);
+    await fs.promises.writeFile(cachedFile, audioContent);
+    return audioContent;
+  } catch (error) {
+    if (error?.code === 'ENOENT') throw httpError(503, 'TTS_NOT_CONFIGURED', 'Piper executable is not installed.');
+    throw httpError(502, 'TTS_FAILED', error.message || 'Piper failed to synthesize audio.');
+  } finally {
+    await fs.promises.rm(outputDir, { recursive: true, force: true });
+  }
+}
+
 function match(pattern, pathname) {
   const pp = pattern.split('/').filter(Boolean);
   const ap = pathname.split('/').filter(Boolean);
@@ -208,22 +258,22 @@ route('POST', '/api/auth/verify', async (ctx) => {
     throw httpError(400, 'BAD_NONCE', 'This sign-in request expired. Try again.');
   }
 
-  // For Hub mode, trust the address from Hub since it handles contract addresses.
-  // For Nimiq Pay, the signed public key is authoritative. Some provider versions
-  // can return a different selected-account address from listAccounts() than the
-  // account used by sign(), so derive the basic-account address after verification.
+  // The wallet provider's selected address is authoritative. Nimiq Pay can expose
+  // an address that is not derivable as a basic account from the signing key,
+  // including HTLC-related accounts. Keep that address for balance and payout
+  // routing; the signature still proves that the wallet approved this session.
   let authenticatedAddress = body.address;
+  const walletAddresses = mode === 'nimiqpay'
+    ? [...new Set((Array.isArray(body.addresses) ? body.addresses : [body.address])
+      .filter((address) => looksLikeNimiqAddress(String(address || '').toUpperCase()))
+      .map((address) => normalizeNimiqAddress(address)))]
+    : [];
   if (mode === 'nimiqpay') {
-    const derivedAddress = nimiqAddressFromPublicKey(String(body?.publicKey || ''));
-    const providedAddress = normalizeNimiqAddress(body.address);
-    const normalizedDerived = derivedAddress ? normalizeNimiqAddress(derivedAddress) : null;
-
-    if (!derivedAddress) {
-      throw httpError(401, 'ADDRESS_MISMATCH', 'Wallet address does not match the public key.');
-    }
-    if (!looksLikeNimiqAddress(String(body.address || '').toUpperCase()) || normalizedDerived !== providedAddress)
-      console.warn('[auth/verify] Nimiq Pay address differed from signed key; using derived address.');
-    authenticatedAddress = derivedAddress;
+    if (!looksLikeNimiqAddress(String(body.address || '').toUpperCase()))
+      throw httpError(401, 'INVALID_ADDRESS', 'Invalid Nimiq Pay wallet address.');
+    if (!walletAddresses.includes(normalizeNimiqAddress(body.address)))
+      throw httpError(401, 'INVALID_ADDRESS', 'Selected address was not returned by Nimiq Pay.');
+    authenticatedAddress = normalizeNimiqAddress(body.address);
   } else if (mode === 'hub') {
     // Hub mode: just validate address format, signature verification is sufficient
     if (!looksLikeNimiqAddress(body.address)) {
@@ -266,11 +316,19 @@ route('POST', '/api/auth/verify', async (ctx) => {
   if (isNimiqMode && looksLikeNimiqAddress(authenticatedAddress)) {
     if (!user) user = await users.createUser({ walletAddress: authenticatedAddress, walletMode: mode, username: customUsername });
     else {
-      const updatedUser = await users.update(user, { walletAddress: authenticatedAddress, walletMode: mode, publicKey: body.publicKey });
+      const updatedUser = await users.update(user, {
+        walletAddress: authenticatedAddress,
+        walletMode: mode,
+        publicKey: body.publicKey,
+        ...(walletAddresses.length ? { prefs: { ...user.prefs, walletAddresses } } : {}),
+      });
       // A user cache can outlive a manual Supabase reset. Never issue a
       // session for a row that the database no longer contains.
       user = updatedUser || await users.get(user.id);
       if (!user) user = await users.createUser({ walletAddress: authenticatedAddress, walletMode: mode, username: customUsername });
+    }
+    if (walletAddresses.length) {
+      user = await users.update(user, { prefs: { ...user.prefs, walletAddresses } }) || user;
     }
   } else {
     if (!user) user = await users.createUser({ walletMode: 'demo', username: customUsername });
@@ -376,6 +434,7 @@ async function publicMe(user) {
     recentTransactions,
     verifiedSkillCount,
     wallet: { mode: current.walletMode, address: current.walletAddress, connected: !!current.walletMode },
+    walletAccounts: Array.isArray(current.prefs?.walletAddresses) ? current.prefs.walletAddresses : (current.walletAddress ? [current.walletAddress] : []),
     streak, prefs: current.prefs,
     proofsPassed: current.proofsPassed || 0,
     walletModeIsDemo: current.walletMode === 'demo',
@@ -400,7 +459,7 @@ async function connectedWalletBalance(user) {
     });
     if (!response.ok) return fallback;
     const payload = await response.json();
-    const balanceLuna = Number(payload?.result?.balance);
+    const balanceLuna = Number(payload?.result?.data?.balance ?? payload?.result?.balance);
     return Number.isFinite(balanceLuna) && balanceLuna >= 0 ? toNim(balanceLuna) : fallback;
   } catch (error) {
     console.warn('[wallet] Could not read connected wallet balance:', error.message);
@@ -697,7 +756,7 @@ route('POST', '/api/paths', async (ctx) => {
     p.userId === user.id && 
     (
       p.goal === goal ||
-      (domain && p.skillSlug === domain)
+      (domain && domain !== 'languages' && p.skillSlug === domain)
     )
   );
   if (existingPaths.length > 0) {
@@ -727,7 +786,9 @@ route('POST', '/api/paths', async (ctx) => {
     throw httpError(502, 'PATH_GENERATION_FAILED', 'Generated path was malformed — try again in a minute.');
 
   const generatedSkillPath = (await store.filter('paths', (p) =>
-    p.userId === user.id && p.skillSlug === gen.skillSlug
+    p.userId === user.id &&
+    gen.skillSlug !== 'languages' &&
+    p.skillSlug === gen.skillSlug
   )).sort((a, b) => b.createdAt - a.createdAt)[0];
   if (generatedSkillPath) {
     console.log(`[DEDUP] Returning existing generated-skill path ${generatedSkillPath.id} for user ${user.id}`);
@@ -2331,6 +2392,24 @@ route('DELETE', '/api/glossary/:id', async (ctx) => {
 
 route('GET', '/api/health', (ctx) => json(ctx.res, 200, { ok: true, uptime: process.uptime() }));
 
+route('GET', '/api/tts', async (ctx) => {
+  const text = String(ctx.query.get('text') || '').trim();
+  const lang = String(ctx.query.get('lang') || '').trim().replace('_', '-');
+  const requestedSpeed = Number(ctx.query.get('speed') || 1);
+  const speed = Number.isFinite(requestedSpeed) ? Math.min(1, Math.max(0.5, requestedSpeed)) : 1;
+  if (!text || text.length > 5000) throw httpError(400, 'BAD_INPUT', 'Text must be between 1 and 5000 characters.');
+  if (!/^[a-z]{2,3}(?:-[a-z]{2})?$/i.test(lang)) throw httpError(400, 'BAD_INPUT', 'Invalid language code.');
+
+  const audioContent = await synthesizeWithPiper(text, lang, speed);
+  ctx.res.writeHead(200, {
+    'content-type': 'audio/wav',
+    'content-length': audioContent.length,
+    'x-tts-engine': 'piper',
+    'cache-control': 'private, max-age=3600',
+  });
+  ctx.res.end(audioContent);
+});
+
 /* ── PUBLIC PAGES: proof page + share card ────────────────────────── */
 async function proofData(publicId) {
   const proof = await skills.proofByPublicId(publicId);
@@ -2881,6 +2960,7 @@ function requiresUser(pattern, method = 'GET') {
   if (pattern.startsWith('/api/auth/')) return false;      // nonce / verify / logout handshake
   if (pattern === '/api/onboard') return false;            // creates the guest demo user
   if (pattern === '/api/health') return false;
+  if (pattern === '/api/tts') return false;
   if (pattern === '/api/me' && method === 'GET') return false; // guest-safe by design: { user: null }
   // Read-only public content:
   if (pattern.startsWith('/api/lesson/')) return false;    // lesson text (learning is public content)

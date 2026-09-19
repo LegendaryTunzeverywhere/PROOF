@@ -1,4 +1,6 @@
 node_modules
+web-react/node_modules
+web-react/dist
 .git
 .gitignore
 .env
@@ -8,3 +10,4 @@ data
 tests
 .kiro
 .impeccable
+*.log

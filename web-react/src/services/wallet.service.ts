@@ -26,6 +26,7 @@ interface WalletState {
   mode: 'nimiqpay' | 'hub' | 'demo' | null;
   nimiq: any;
   address: string | null;
+  addresses: string[];
   demoKey: { publicKey: string; privateKey: string } | null;
   sessionUser: any;
 }
@@ -34,6 +35,7 @@ const state: WalletState = {
   mode: null,
   nimiq: null,
   address: null,
+  addresses: [],
   demoKey: null,
   sessionUser: null,
 };
@@ -282,6 +284,7 @@ class WalletServiceClass {
       const w = JSON.parse(raw);
       state.mode = w.mode;
       state.address = w.address || null;
+      state.addresses = Array.isArray(w.addresses) ? w.addresses : state.address ? [state.address] : [];
       state.demoKey = w.demoKey || null;
       return w;
     } catch {
@@ -295,6 +298,7 @@ class WalletServiceClass {
       JSON.stringify({
         mode: state.mode,
         address: state.address,
+        addresses: state.addresses,
         demoKey: state.demoKey,
       })
     );
@@ -303,6 +307,7 @@ class WalletServiceClass {
   disconnect() {
     state.mode = null;
     state.address = null;
+    state.addresses = [];
     state.demoKey = null;
     state.nimiq = null;
     safeStorage.del('proof_wallet');
@@ -315,15 +320,18 @@ class WalletServiceClass {
       'listAccounts'
     );
     
-    const address = Array.isArray(accounts)
-      ? accounts.find((a: any) => typeof a === 'string' && a.trim())
-      : null;
+    const addresses = Array.isArray(accounts)
+      ? accounts.filter((a: any): a is string => typeof a === 'string' && a.trim()).map((a) => a.trim())
+      : [];
+    const address = addresses[0] || null;
     if (!address) throw new Error('NO_ACCOUNTS');
+    console.debug('[wallet] Nimiq Pay accounts returned', { count: addresses.length, addresses });
     
     const authResult = await this.authenticate(
       'nimiqpay',
       {
         address,
+        addresses,
         signMessage: async (m: string) => {
           const result = assertNotErrorResponse(
             await withTimeout(nimiq.sign(m), 15000, 'NIMIQ_SIGN_TIMEOUT'),
@@ -341,9 +349,10 @@ class WalletServiceClass {
     
     state.mode = 'nimiqpay';
     state.address = address;
+    state.addresses = addresses;
     state.nimiq = nimiq;
     this.persist();
-    return { mode: 'nimiqpay' as const, address, isNewUser: Boolean(authResult?.isNewUser) };
+    return { mode: 'nimiqpay' as const, address, addresses, isNewUser: Boolean(authResult?.isNewUser) };
   }
 
   async connectDemo(username: string | null = null) {
@@ -445,6 +454,7 @@ class WalletServiceClass {
               mode,
               nonce,
               address: signer.address,
+              addresses: signer.addresses,
               publicKey: signed.publicKey,
               signature: signed.signature,
             }
@@ -522,6 +532,7 @@ class WalletServiceClass {
       sdkLoaded: !!state.nimiq,
       provider: state.mode,
       address: state.address,
+      addresses: state.addresses,
       authenticated: !!state.sessionUser,
     };
   }
