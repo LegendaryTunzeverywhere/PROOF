@@ -296,20 +296,37 @@ function normalizeDocumentCurriculum(curriculum, userGoal = '') {
     days: Array.isArray(curriculum.days) ? curriculum.days.slice(0, 14) : [],
   };
 
+  const usedTopics = new Set();
   normalized.days = normalized.days.map((day, dayIndex) => {
     const sourceItems = Array.isArray(day.items) ? day.items.slice(0, 3) : [];
-    const items = sourceItems.map((item, itemIndex) => ({
-      ...item,
-      topic: item.topic || slugify(`${dayIndex + 1}-${item.title || `document-concept-${itemIndex + 1}`}`),
-      title: item.title || `Document concept ${dayIndex + 1}.${itemIndex + 1}`,
-      kind: itemIndex === sourceItems.length - 1 ? 'proof' : 'study',
-      estMin: Number(item.estMin) || (itemIndex === sourceItems.length - 1 ? 18 : 15),
-      xp: Number(item.xp) || (itemIndex === sourceItems.length - 1 ? 50 : 20),
-    }));
+    const items = sourceItems.map((item, itemIndex) => {
+      const kind = itemIndex === sourceItems.length - 1 ? 'proof' : 'study';
+      const title = item.title || `Document concept ${dayIndex + 1}.${itemIndex + 1}`;
+      const baseTopic = slugify(item.topic || `${dayIndex + 1}-${title}`);
+      let topic = baseTopic;
+      let suffix = 2;
+      while (usedTopics.has(`${topic}:${kind}`)) {
+        topic = `${baseTopic}-${suffix++}`;
+      }
+      usedTopics.add(`${topic}:${kind}`);
+      return {
+        ...item,
+        topic,
+        title,
+        kind,
+        estMin: Number(item.estMin) || (kind === 'proof' ? 18 : 15),
+        xp: Number(item.xp) || (kind === 'proof' ? 50 : 20),
+      };
+    });
 
     if (items.length < 3) {
+      const baseTopic = slugify(`${dayIndex + 1}-document-proof`);
+      let topic = baseTopic;
+      let suffix = 2;
+      while (usedTopics.has(`${topic}:proof`)) topic = `${baseTopic}-${suffix++}`;
+      usedTopics.add(`${topic}:proof`);
       items.push({
-        topic: slugify(`${dayIndex + 1}-document-proof`),
+        topic,
         title: `Day ${dayIndex + 1} document proof`,
         kind: 'proof', estMin: 18, xp: 50,
       });
@@ -729,7 +746,7 @@ Make it educational and complete: 3 sections, 4 key points, 3 practice questions
       system: systemPrompt,
       prompt: userPrompt,
       maxTokens: 1500, // Increased from 500 for complete lessons with quizzes
-      task: 'curriculum',
+      task: 'document-curriculum',
     });
     
     return ensureDocumentRecall(lesson, lessonTitle);

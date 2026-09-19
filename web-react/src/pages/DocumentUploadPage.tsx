@@ -208,6 +208,7 @@ export default function DocumentUploadPage() {
   const confirmDelete = async () => {
     const pathId = deleteConfirm.pathId;
     setDeletingPathId(pathId);
+    setDeleteConfirm({ show: false, pathId: '', title: '' });
     try {
       const response = await fetch(`/api/curriculum/documents/${pathId}`, {
         method: 'DELETE',
@@ -220,13 +221,11 @@ export default function DocumentUploadPage() {
 
       // Remove from UI
       setDocuments((current) => current.filter(doc => doc.id !== pathId));
-      setDeleteConfirm({ show: false, pathId: '', title: '' });
     } catch (error) {
       setErrorModal({
         show: true,
         message: 'Failed to delete curriculum. Please try again.'
       });
-      setDeleteConfirm({ show: false, pathId: '', title: '' });
     } finally {
       setDeletingPathId(null);
     }
