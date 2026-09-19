@@ -356,19 +356,20 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
   };
 
   const completeAcceptedTask = async (taskId: string | null | undefined) => {
-    if (!taskId || taskId === 'undefined') {
+    const resolvedTaskId = typeof taskId === 'string' ? taskId.trim() : '';
+    if (!resolvedTaskId || resolvedTaskId === 'undefined') {
       setError('This task is missing its ID. Refresh and try again.');
       return;
     }
     if (completingTask) return;
     try {
-      setCompletingTask(taskId);
+      setCompletingTask(resolvedTaskId);
       setError(null);
       setNotice(null);
-      const draft = deliveryDrafts[taskId] || { note: '', url: '', attachment: '' };
-      await marketplaceService.completeTask(taskId, draft);
+      const draft = deliveryDrafts[resolvedTaskId] || { note: '', url: '', attachment: '' };
+      await marketplaceService.completeTask(resolvedTaskId, draft);
       setNotice('Delivery submitted — the client will review it before escrow is released.');
-      setDeliveryDrafts((prev) => ({ ...prev, [taskId]: { note: '', url: '', attachment: '' } }));
+      setDeliveryDrafts((prev) => ({ ...prev, [resolvedTaskId]: { note: '', url: '', attachment: '' } }));
       await loadWorkData();
     } catch (err: any) {
       setError(err.message || 'The task could not be marked complete.');
@@ -924,11 +925,12 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                     </div>
                     {appliedTasks.map((application) => {
                       const task = application.task;
-                      if (!task) return null;
+                      const taskId = task?.id ?? application.taskId ?? null;
+                      if (!task && !taskId) return null;
                       const isAccepted = application.status === 'accepted';
                       const isSubmitted = application.status === 'submitted';
                       const isCompleted = application.status === 'completed';
-                      const draft = deliveryDrafts[task.id] || { note: '', url: '', attachment: '' };
+                      const draft = deliveryDrafts[taskId || ''] || { note: '', url: '', attachment: '' };
 
                       return (
                         <div key={application.id} className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
@@ -990,14 +992,14 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                                   />
                                 </label>
                               </div>
-                              {isAccepted && (
+                              {isAccepted && taskId && (
                                 <button
                                   type="button"
-                                  onClick={() => completeAcceptedTask(task.id)}
+                                  onClick={() => completeAcceptedTask(taskId)}
                                   disabled={completingTask !== null || submittingDelivery !== null}
                                   className="rounded-lg bg-ok px-3 py-2 text-xs font-bold text-white hover:bg-ok/90 disabled:cursor-wait disabled:opacity-60"
                                 >
-                                  {completingTask === task.id ? 'Submitting…' : 'Submit delivery'}
+                                  {completingTask === taskId ? 'Submitting…' : 'Submit delivery'}
                                 </button>
                               )}
                               {isSubmitted && (
