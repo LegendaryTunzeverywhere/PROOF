@@ -390,8 +390,8 @@ Keep it complete and valid. 7 days exactly.`;
     const curriculum = await llmJson({
       system: systemPrompt,
       prompt: userPrompt,
-      maxTokens: 2500, // Increased for 7 days
-      task: 'curriculum',
+      maxTokens: 2500,
+      task: 'document-curriculum',
     });
     
     // Validate structure
@@ -415,7 +415,8 @@ Keep it complete and valid. 7 days exactly.`;
       stack: e.stack,
       name: e.name
     });
-    throw new Error(`Failed to generate curriculum: ${e.message}`);
+    console.warn('[DocumentCurriculum] Using local fallback after AI failure:', e.message);
+    return localDocumentCurriculum(text, userGoal);
   }
 }
 
@@ -428,10 +429,16 @@ async function createCurriculumFromDocument(userId, file, userGoal = '') {
     userGoal || 'document thesis, key concepts, definitions, examples, and procedures',
     8,
   );
-  const curriculum = normalizeDocumentCurriculum(
-    await analyzeDocumentWithAI(text, userGoal, curriculumContext),
-    userGoal,
-  );
+  let curriculum;
+  try {
+    curriculum = normalizeDocumentCurriculum(
+      await analyzeDocumentWithAI(text, userGoal, curriculumContext),
+      userGoal,
+    );
+  } catch (error) {
+    console.warn('[DocumentCurriculum] Falling back during curriculum assembly:', error.message);
+    curriculum = normalizeDocumentCurriculum(localDocumentCurriculum(text, userGoal), userGoal);
+  }
   const qualityErrors = checkLearningPath(curriculum);
   if (qualityErrors.length) throw new Error(`CURRICULUM_QUALITY: ${qualityErrors.join('; ')}`);
 
