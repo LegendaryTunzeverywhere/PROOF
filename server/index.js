@@ -22,7 +22,8 @@ import { generateLearningPath, generateLesson, recommendNextSkill, tutorReply, d
 import { languageSpeechTargets } from './ai/engine.js';
 import { createCurriculumFromDocument, getUserDocumentCurricula, getDocumentCurriculum, documentTutorReply } from './services/document-curriculum.js';
 import { cleanupDuplicateSkillPaths } from './services/path-dedupe.js';
-import { uid, now, toNim, escapeHtml, RateLimiter, looksLikeNimiqAddress, normalizeNimiqAddress, validate, parseNumber, hmac, kindIncludesReward, shortTxRef } from './util.js';
+import { connectedWalletBalance } from './wallet-balance.js';
+import { uid, now, toNim, escapeHtml, RateLimiter, looksLikeNimiqAddress, normalizeNimiqAddress, formatNimiqAddress, validate, parseNumber, hmac, kindIncludesReward, shortTxRef } from './util.js';
 import * as stockfish from './ai/services/stockfish.js';
 import { buildPuzzleHint, normalizeUserMoves, resolvePuzzleTurn } from './chess-hints.js';
 import multer from 'multer';
@@ -315,7 +316,14 @@ route('POST', '/api/auth/verify', async (ctx) => {
   }
   
   if (isNimiqMode && looksLikeNimiqAddress(authenticatedAddress)) {
-    if (!user) user = await users.createUser({ walletAddress: authenticatedAddress, walletMode: mode, username: customUsername });
+    if (!user) {
+      user = await users.createUser({
+        walletAddress: authenticatedAddress,
+        walletMode: mode,
+        username: customUsername,
+        prefs: walletAddresses.length ? { walletAddresses } : undefined,
+      });
+    }
     else {
       const updatedUser = await users.update(user, {
         walletAddress: authenticatedAddress,
@@ -326,7 +334,14 @@ route('POST', '/api/auth/verify', async (ctx) => {
       // A user cache can outlive a manual Supabase reset. Never issue a
       // session for a row that the database no longer contains.
       user = updatedUser || await users.get(user.id);
-      if (!user) user = await users.createUser({ walletAddress: authenticatedAddress, walletMode: mode, username: customUsername });
+      if (!user) {
+        user = await users.createUser({
+          walletAddress: authenticatedAddress,
+          walletMode: mode,
+          username: customUsername,
+          prefs: walletAddresses.length ? { walletAddresses } : undefined,
+        });
+      }
     }
     if (walletAddresses.length) {
       user = await users.update(user, { prefs: { ...user.prefs, walletAddresses } }) || user;
@@ -411,7 +426,7 @@ async function publicMe(user) {
     atRisk: false,
   };
   const unreadNotifications = await notifications.unreadCount(user.id);
-  const walletBalanceNim = await connectedWalletBalance(current);
+  const walletBalanceNim = await connectedWalletBalance(current, config);
   const recentTransactions = (await rewards.txHistory(current.id, 8))
     .filter((transaction) => !(transaction.kind === 'payout' && transaction.direction === 'debit'))
     .map((transaction) => ({
@@ -443,30 +458,9 @@ async function publicMe(user) {
   };
 }
 
-async function connectedWalletBalance(user) {
-  const fallback = toNim(user.balanceLuna);
-  if (!user.walletAddress || user.walletMode === 'demo' || !config.nimiq.rpcUrl) return fallback;
-
-  try {
-    const response = await fetch(config.nimiq.rpcUrl, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: `balance-${user.id}`,
-        method: 'getAccountByAddress',
-        params: [normalizeNimiqAddress(user.walletAddress)],
-      }),
-    });
-    if (!response.ok) return fallback;
-    const payload = await response.json();
-    const balanceLuna = Number(payload?.result?.data?.balance ?? payload?.result?.balance);
-    return Number.isFinite(balanceLuna) && balanceLuna >= 0 ? toNim(balanceLuna) : fallback;
-  } catch (error) {
-    console.warn('[wallet] Could not read connected wallet balance:', error.message);
-    return fallback;
-  }
-}
+/* connectedWalletBalance is implemented in ./wallet-balance.js so Hub-only
+ * checks stay on standard account balances while Nimiq Pay may include HTLC
+ * balances from related accounts. */
 
 route('GET', '/api/me', async (ctx) => {
   const { user, res } = ctx;
@@ -1809,7 +1803,7 @@ route('POST', '/api/chess/challenge/:id/submit', async (ctx) => {
 route('GET', '/api/wallet', async (ctx) => {
   const { user, res } = ctx;
   const current = await users.get(user.id) || user;
-  const walletBalanceNim = await connectedWalletBalance(current);
+  const walletBalanceNim = await connectedWalletBalance(current, config);
   json(res, 200, {
     mode: current.walletMode || 'disconnected',
     network: config.nimiq.rpcUrl ? 'nimiq-mainnet' : 'demo-ledger',

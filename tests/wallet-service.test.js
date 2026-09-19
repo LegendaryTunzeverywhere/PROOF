@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { testbed } from './helpers.js';
+import { config } from '../server/config.js';
 import { generateKeyPair, signBytes, nimiqMessageDigest, nimiqAddressFromPublicKey, looksLikeNimiqAddress } from '../server/util.js';
 
 test('WalletService (server): demo wallet sign-in issues a verified session', async (t) => {
@@ -9,6 +10,42 @@ test('WalletService (server): demo wallet sign-in issues a verified session', as
   const { nonce, message } = await tb.auth.issueNonce(demo.publicKey);
   const signature = tb.auth.signDemoMessage(demo.privateKey, message);
   assert.equal(tb.auth.verifySignature({ mode: 'demo', publicKey: demo.publicKey, signature, message }), true, 'demo signature must verify with real Ed25519');
+});
+
+test('connectedWalletBalance skips HTLC scanning for Hub and keeps normal balance checks', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  config.nimiq.rpcUrl = 'https://example.com/rpc';  // dummy URL to avoid using the real RPC in tests
+  globalThis.fetch = async (_url, options) => {
+    const body = JSON.parse(options.body || '{}');
+    calls.push(body.method);
+    if (body.method === 'getAccountByAddress') {
+      return {
+        ok: true,
+        json: async () => ({ result: { data: { balance: '1000000000', type: 'basic' } } }),
+      };
+    }
+    if (body.method === 'getTransactionsByAddress') {
+      throw new Error('HTLC scan should be skipped for Hub');
+    }
+    throw new Error(`unexpected RPC method: ${body.method}`);
+  };
+
+  try {
+    const { connectedWalletBalance } = await import('../server/wallet-balance.js');
+    const balance = await connectedWalletBalance({
+      id: 'u-hub',
+      walletMode: 'hub',
+      walletAddress: 'NQ00 0000 0000 0000 0000 0000 0000 0000 0000',
+      prefs: { walletAddresses: ['NQ00 0000 0000 0000 0000 0000 0000 0000 0000'] },
+      balanceLuna: 0,
+    }, config);
+
+    assert.equal(balance, 10000, 'Hub balance should sum the standard account balance without HTLC scanning');
+    assert.equal(calls.includes('getTransactionsByAddress'), false, 'Hub should not inspect HTLC history');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('WalletService (server): messages cannot be replayed across nonces', async (t) => {

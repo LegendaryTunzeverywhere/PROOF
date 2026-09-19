@@ -173,6 +173,12 @@ export const looksLikeNimiqAddress = (s) =>
 export const normalizeNimiqAddress = (s) =>
   typeof s === 'string' ? s.replace(/\s+/g, '').toUpperCase() : '';
 
+export const formatNimiqAddress = (s) => {
+  const compact = normalizeNimiqAddress(s);
+  if (!compact.startsWith('NQ') || compact.length < 4) return compact;
+  return `${compact.slice(0, 4)} ${compact.slice(4).match(/.{1,4}/g)?.join(' ') || ''}`.trim();
+};
+
 export function kindIncludesReward(kind) {
   return typeof kind === 'string' && kind.toLowerCase().includes('reward');
 }
