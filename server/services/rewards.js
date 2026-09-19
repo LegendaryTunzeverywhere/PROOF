@@ -349,12 +349,14 @@ export class RewardService {
         entry.userId === user.id && entry.type === 'streak_reminder' && Number(entry.createdAt) >= cooldownStart
       );
       const existingTransfer = await this.store.find('wallet_txs', (entry) =>
-        entry.userId === user.id && entry.kind === 'streak_reminder' && Number(entry.createdAt) >= cooldownStart
+        entry.userId === user.id && entry.kind === 'payout' && String(entry.note || '').startsWith('PROOF streak reminder') && Number(entry.createdAt) >= cooldownStart
       );
-      if (existingNotification || existingTransfer) continue;
+      if (existingNotification) continue;
 
       let payoutSent = false;
-      if (streakAtRisk && eco.streakReminderPayoutsEnabled && this.treasury.isConfigured()) {
+      if (existingTransfer) {
+        payoutSent = true;
+      } else if (streakAtRisk && eco.streakReminderPayoutsEnabled && this.treasury.isConfigured()) {
         const amountLuna = Math.max(1, Number(eco.streakReminderAmountLuna) || 1);
         const { hash } = await this.treasury.send({
           recipient: normalizeNimiqAddress(user.walletAddress),
@@ -362,7 +364,7 @@ export class RewardService {
           data: `PROOF: protect your ${streak}-day streak`,
         });
         await this.store.insert('wallet_txs', {
-          id: uid('tx'), userId: user.id, kind: 'streak_reminder', direction: 'credit',
+          id: uid('tx'), userId: user.id, kind: 'payout', direction: 'credit',
           amountLuna, status: 'confirmed', ref: hash,
           note: `PROOF streak reminder: ${streak}-day streak`,
           meta: { reminderKey, streak }, network: 'nimiq', createdAt: now(), confirmedAt: now(),
