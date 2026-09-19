@@ -202,10 +202,13 @@ export interface SponsoredChallenge {
 export interface MarketplaceTask {
   id: string;
   title: string;
-  clientUsername: string;
-  clientAvatar: string;
+  client?: {
+    username: string;
+    avatar: string;
+    reputation?: number;
+  } | null;
   budgetNim: number;
-  timePosted: string;
+  postedAt: string | number;
   applicants: number;
   minProof?: {
     skillSlug: string;

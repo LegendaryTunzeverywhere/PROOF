@@ -36,6 +36,9 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
     recipient: string;
   } | null>(null);
   const [postTaskLoading, setPostTaskLoading] = useState(false);
+  const [applicationTask, setApplicationTask] = useState<MarketplaceTask | null>(null);
+  const [applicationPitch, setApplicationPitch] = useState('');
+  const [applicationLoading, setApplicationLoading] = useState(false);
   const [treasuryAddress, setTreasuryAddress] = useState<string>('');
   const [postForm, setPostForm] = useState({
     title: '',
@@ -194,9 +197,11 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
   };
 
   const formatNim = (amount: number) => amount.toFixed(1);
-  const timeAgo = (timestamp: string) => {
-    const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
-    if (seconds < 60) return 'just now';
+  const timeAgo = (timestamp: string | number) => {
+    const postedAt = typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime();
+    if (!Number.isFinite(postedAt)) return '1 sec ago';
+    const seconds = Math.max(1, Math.floor((Date.now() - postedAt) / 1000));
+    if (seconds < 60) return `${seconds} sec ago`;
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m ago`;
     const hours = Math.floor(minutes / 60);
@@ -209,14 +214,24 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
   const canTeach = verifiedSkills.length > 0;
   const walletModeIsDemo = Boolean(user.walletModeIsDemo || user.wallet?.mode === 'demo');
 
-  const applyToTask = async (taskId: string) => {
-    const pitch = window.prompt('Briefly introduce yourself and explain how you can help.');
-    if (!pitch?.trim()) return;
+  const openApplicationModal = (task: MarketplaceTask) => {
+    setApplicationTask(task);
+    setApplicationPitch('');
+    setError(null);
+  };
+
+  const applyToTask = async () => {
+    if (!applicationTask || !applicationPitch.trim() || applicationLoading) return;
     try {
-      await marketplaceService.applyToTask(taskId, pitch.trim());
+      setApplicationLoading(true);
+      await marketplaceService.applyToTask(applicationTask.id, applicationPitch.trim());
+      setApplicationTask(null);
+      setApplicationPitch('');
       await loadWorkData();
     } catch (err: any) {
       setError(err.message || 'Your application could not be sent.');
+    } finally {
+      setApplicationLoading(false);
     }
   };
 
@@ -231,6 +246,60 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
 
   return (
     <div className="space-y-6">
+      <Modal
+        isOpen={Boolean(applicationTask)}
+        onClose={() => {
+          if (!applicationLoading) setApplicationTask(null);
+        }}
+        title="Apply to this task"
+        size="md"
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setApplicationTask(null)}
+              disabled={applicationLoading}
+              className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={applyToTask}
+              disabled={applicationLoading || applicationPitch.trim().length < 10}
+              className="rounded-lg bg-brand px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {applicationLoading ? 'Sending application…' : 'Send application'}
+            </button>
+          </>
+        }
+      >
+        {applicationTask && (
+          <div className="space-y-5">
+            <div className="rounded-xl border border-brand-soft bg-brand-soft/30 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-brand">You are applying for</p>
+              <h3 className="mt-1 text-lg font-bold text-ink">{applicationTask.title}</h3>
+              <p className="mt-1 text-sm text-muted">{applicationTask.description}</p>
+            </div>
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-ink">Your introduction</span>
+              <textarea
+                autoFocus
+                value={applicationPitch}
+                onChange={(event) => setApplicationPitch(event.target.value.slice(0, 600))}
+                placeholder="Briefly introduce yourself and explain how you can help..."
+                rows={5}
+                maxLength={600}
+                disabled={applicationLoading}
+                className="w-full resize-none rounded-xl border border-line bg-elevated px-4 py-3 text-sm leading-relaxed text-ink outline-none transition-colors placeholder:text-muted focus:border-brand focus:ring-4 focus:ring-brand-soft disabled:opacity-60"
+              />
+              <span className="mt-1 block text-right text-xs text-muted">{applicationPitch.length}/600</span>
+            </label>
+            <p className="text-xs leading-relaxed text-muted">Share relevant experience, your approach, and when you can deliver.</p>
+          </div>
+        )}
+      </Modal>
+
       <Modal
         isOpen={Boolean(escrowConfirmation)}
         onClose={() => {
@@ -469,14 +538,14 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                       >
                         <div className="flex items-start gap-3">
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-elevated text-xl">
-                            {task.clientAvatar}
+                              {task.client?.avatar || '💼'}
                           </div>
                           <div className="flex-1">
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1">
                                 <h3 className="text-base font-bold text-ink">{task.title}</h3>
                                 <div className="mt-1 text-sm text-muted">
-                                  by {task.clientUsername} · {timeAgo(task.timePosted)} · {task.applicants} applicants
+                                  by {task.client?.username || 'Client'} · {timeAgo(task.postedAt)} · {task.applicants} applicants
                                 </div>
                               </div>
                               <div className="shrink-0 rounded-lg bg-gold/10 px-3 py-1.5 text-center">
@@ -552,7 +621,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                                     : 'bg-surface-2 text-muted cursor-not-allowed'
                                 }`}
                                 disabled={!isQualified}
-                                onClick={() => applyToTask(task.id)}
+                                onClick={() => openApplicationModal(task)}
                               >
                                 {isQualified ? 'Apply to Task' : 'Qualification Required'}
                               </button>

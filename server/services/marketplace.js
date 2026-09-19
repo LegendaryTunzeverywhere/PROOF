@@ -67,7 +67,7 @@ export class MarketplaceService {
   }
 
   async listTasks(userId, { onlyQualified = false } = {}) {
-    const filtered = await this.store.filter('marketplace_tasks', (t) => t.status === 'open');
+    const filtered = await this.store.filter('marketplace_tasks', (t) => t.status === 'open' && t.clientId !== userId);
     const sorted = filtered.sort((a, b) => b.postedAt - a.postedAt);
     
     // Batch fetch all applications ONCE instead of querying for each task
@@ -108,6 +108,15 @@ export class MarketplaceService {
       id: uid('app'), taskId, userId: user.id,
       pitch: String(pitch || '').slice(0, 600),
       status: 'pending', appliedAt: now(),
+    });
+
+    const applicant = await this.users.get(user.id);
+    this.notify.push(task.clientId, {
+      type: 'task_application',
+      emoji: '📩',
+      title: `New application: ${task.title}`,
+      body: `${applicant?.username || 'A proofer'} applied with: ${String(pitch || '').slice(0, 180)}`,
+      href: '#/work',
     });
 
     // Demo clients auto-accept qualified proofers (clearly labeled demo behavior)
