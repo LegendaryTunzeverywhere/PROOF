@@ -39,6 +39,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
   const [postTaskLoading, setPostTaskLoading] = useState(false);
   const [applicationTask, setApplicationTask] = useState<MarketplaceTask | null>(null);
   const [applicationPitch, setApplicationPitch] = useState('');
+  const [applicationError, setApplicationError] = useState<string | null>(null);
   const [applicationLoading, setApplicationLoading] = useState(false);
   const [expandedPostedTask, setExpandedPostedTask] = useState<string | null>(null);
   const [acceptingApplication, setAcceptingApplication] = useState<string | null>(null);
@@ -222,6 +223,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
   const openApplicationModal = (task: MarketplaceTask) => {
     setApplicationTask(task);
     setApplicationPitch('');
+    setApplicationError(null);
     setError(null);
   };
 
@@ -229,12 +231,16 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
     if (!applicationTask || !applicationPitch.trim() || applicationLoading) return;
     try {
       setApplicationLoading(true);
+      setApplicationError(null);
       await marketplaceService.applyToTask(applicationTask.id, applicationPitch.trim());
       setApplicationTask(null);
       setApplicationPitch('');
+      setApplicationError(null);
       await loadWorkData();
     } catch (err: any) {
-      setError(err.message || 'Your application could not be sent.');
+      const message = err?.message || 'Your application could not be sent.';
+      setApplicationError(message);
+      setError(message);
     } finally {
       setApplicationLoading(false);
     }
@@ -305,7 +311,10 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
               <textarea
                 autoFocus
                 value={applicationPitch}
-                onChange={(event) => setApplicationPitch(event.target.value.slice(0, 600))}
+                onChange={(event) => {
+                  setApplicationPitch(event.target.value.slice(0, 600));
+                  if (applicationError) setApplicationError(null);
+                }}
                 placeholder="Briefly introduce yourself and explain how you can help..."
                 rows={5}
                 maxLength={600}
@@ -314,6 +323,11 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
               />
               <span className="mt-1 block text-right text-xs text-muted">{applicationPitch.length}/600</span>
             </label>
+            {applicationError && (
+              <div className="rounded-xl border border-bad bg-bad-soft px-3 py-2 text-sm text-bad">
+                {applicationError}
+              </div>
+            )}
             <p className="text-xs leading-relaxed text-muted">Share relevant experience, your approach, and when you can deliver.</p>
           </div>
         )}

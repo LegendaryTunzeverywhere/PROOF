@@ -44,6 +44,9 @@ export class MarketplaceService {
     const us = userId && task.minProof 
       ? (userSkillsMap ? userSkillsMap.get(task.minProof.skillSlug) || null : this.skills.userSkill(userId, task.minProof.skillSlug))
       : null;
+    const minimumScore = Number(task.minProof?.min ?? 0);
+    const isZeroMin = minimumScore <= 0;
+    const qualified = !task.minProof || isZeroMin || (!!us && us.score >= minimumScore);
     const view = {
       id: task.id,
       title: task.title,
@@ -58,10 +61,12 @@ export class MarketplaceService {
       applicants: apps.length,
       qualification: !task.minProof ? { qualified: true, reason: 'Open to all proofers' } : {
         yourScore: us?.score ?? 0,
-        required: task.minProof.min,
+        required: minimumScore,
         skillSlug: task.minProof.skillSlug,
-        qualified: !!us && us.score >= task.minProof.min,
-        reason: us ? (us.score >= task.minProof.min ? 'Your verified skill qualifies you' : `Needs ${task.minProof.skillSlug.replace('-', ' ')} ${task.minProof.min}+ — you’re at ${us.score}`) : `Prove ${task.minProof.skillSlug.replace('-', ' ')} ${task.minProof.min}+ to unlock`,
+        qualified,
+        reason: isZeroMin ? 'No minimum score required for this skill gate' : (
+          us ? (us.score >= minimumScore ? 'Your verified skill qualifies you' : `Needs ${task.minProof.skillSlug.replace('-', ' ')} ${minimumScore}+ — you’re at ${us.score}`) : `Prove ${task.minProof.skillSlug.replace('-', ' ')} ${minimumScore}+ to unlock`
+        ),
       },
       myApplication: userId ? apps.find((a) => a.userId === userId) || null : null,
     };
@@ -112,7 +117,7 @@ export class MarketplaceService {
       throw Object.assign(new Error('This task is no longer open.'), { code: 'NOT_OPEN', status: 409 });
     if (task.clientId === user.id)
       throw Object.assign(new Error('You cannot apply to your own task.'), { code: 'OWN_TASK', status: 400 });
-    if (task.minProof) {
+    if (task.minProof && Number(task.minProof.min) > 0) {
       const us = await this.skills.userSkill(user.id, task.minProof.skillSlug);
       if (!us || us.score < task.minProof.min)
         throw Object.assign(new Error(`You need ${task.minProof.skillSlug.replace('-', ' ')} ${task.minProof.min}+ to apply. Prove it first — then this task is yours to take.`), { code: 'QUALIFICATION_NOT_MET', status: 403 });

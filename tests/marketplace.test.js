@@ -44,6 +44,16 @@ test('marketplace: qualification gate blocks unqualified applicants', async (t) 
   await assert.rejects(() => tb.market.apply(task.id, pro, 'pick me'), (e) => e.code === 'QUALIFICATION_NOT_MET');
 });
 
+test('marketplace: zero-score requirements do not block applicants without a proof record', async (t) => {
+  const tb = await testbed();
+  const pro = await tb.users.createUser({});
+  const task = tb.market.seedTask({ title: 'Simple social post', description: 'x', budgetNim: 10, skillSlug: 'social', minScore: 0, clientName: 'BrandLab' });
+  tb.store.save();
+  const app = await tb.market.apply(task.id, pro, 'I can handle this');
+  assert.equal(app.userId, pro.id);
+  assert.equal(app.status, 'accepted', 'demo clients auto-accept and the zero-score gate should not block');
+});
+
 test('marketplace: verified proofer can apply; demo client auto-accepts; completion pays', async (t) => {
   const tb = await testbed();
   const pro = await tb.users.createUser({});
