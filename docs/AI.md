@@ -53,6 +53,8 @@ Document embeddings are opt-in with `COHERE_EMBEDDINGS_ENABLED=true`. When enabl
 - **path title/copy personalization** (topic sequence stays engine-owned),
 - **feedback wording** for evaluations (score/criteria are engine-fixed; the LLM rewrites strengths/improvements/nextStep, schema-checked).
 
+Built-in catalog skill paths stay engine-only so the Learn page and standard skill creation remain fast and deterministic. Cohere is reserved for free-form learning goals, uploaded-document curricula, tutor conversations, translations, and qualitative evaluation feedback.
+
 With `AI_PROVIDER=auto`, Cohere is preferred, Gemini is used when Cohere is not configured, and the local engine is used when neither key is available. Any provider error falls back to the engine. `AI_PROVIDER=engine` disables LLM entirely.
 
 ## Extending the curriculum

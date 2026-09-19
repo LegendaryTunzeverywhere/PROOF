@@ -26,7 +26,11 @@ export async function generateLearningPath(input) {
     return { ...base, engine: 'proof-engine', quality: { passed: false, errors: qualityErrors } };
   }
 
-  if (!llmEnabled()) return { ...base, engine: 'proof-engine', quality: { passed: true, errors: [] } };
+    // Catalog skills already have curated, deterministic curriculum structure.
+    // Reserve the slower LLM refinement for free-form goals and document paths.
+    if (!llmEnabled() || input.domain) {
+      return { ...base, engine: 'proof-engine', quality: { passed: true, errors: [] } };
+    }
 
   // LLM refinement of titles/copy only — topic sequence stays engine-driven
   // (auditable + guardable). If anything fails, engine output ships as-is.
