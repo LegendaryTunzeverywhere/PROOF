@@ -96,19 +96,19 @@ export function generateExercise(domain, topicSlug) {
 }
 
 /* ────────────────────────── tutor ─────────────────────────────────── */
-export async function tutorReply({ domain, topicSlug, question, history = [] }) {
-  const local = engine.tutorReply({ domain, topicSlug, question, history });
+export async function tutorReply({ domain, topicSlug, question, history = [], lessonContext }) {
+  const local = engine.tutorReply({ domain, topicSlug, question, history, lessonContext });
   if (!llmEnabled()) return { ...local, engine: 'proof-engine' };
 
   try {
     const topic = KB[domain]?.topics?.find((t) => t.slug === topicSlug);
-    const ground = topic ? {
+    const ground = lessonContext || (topic ? {
       title: topic.title,
       tldr: topic.lesson.tldr,
       keyPoints: topic.lesson.keyPoints,
       sections: topic.lesson.sections.map((s) => ({ h: s.h, body: s.body })),
       misconception: topic.lesson.misconception,
-    } : null;
+    } : null);
     const out = await llmJson({
       system: `You are PROOF’s AI tutor. Teach like a great teacher: concise, warm, practical. NEVER give the final answer to exercises — guide with hints. Ground every reply in the provided lesson context. If the learner asks something unrelated, steer back kindly. Reply JSON: { "reply": string (max 900 chars, plain text, newlines allowed), "intent": "explain|simplify|example|exercise|hint|debug|coach" }`,
       prompt: JSON.stringify({ lessonContext: ground, recentHistory: history.slice(-6), learnerQuestion: question }),

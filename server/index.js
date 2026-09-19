@@ -1307,6 +1307,7 @@ route('POST', '/api/tutor', async (ctx) => {
       topicSlug: body.topicSlug || '',
       question: body.question,
       history: Array.isArray(body.history) ? body.history.slice(-8) : [],
+      lessonContext: body.lessonContext,
     });
     return json(res, 200, out);
   }

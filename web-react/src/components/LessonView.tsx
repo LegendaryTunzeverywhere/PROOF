@@ -700,6 +700,16 @@ export function LessonView({ pathId, skill, topic }: LessonViewProps) {
         topicSlug={topic}
         pathId={pathId}
         lessonTitle={lesson?.title || ''}
+        lessonContext={lesson ? {
+          title: lesson.title,
+          tldr: lesson.tldr,
+          sections: lesson.sections,
+          keyPoints: lesson.keyPoints,
+          misconception: lesson.misconception,
+          ask: lesson.ask,
+          example: lesson.example,
+          practice: lesson.practice,
+        } : undefined}
       />
     </>
   );

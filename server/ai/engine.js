@@ -262,19 +262,24 @@ export function lessonFor(domain, topicSlug) {
  * Intent-based tutoring grounded in the lesson content.
  * @returns {{reply:string, exercise?:object, intent:string}}
  */
-export function tutorReply({ domain, topicSlug, question, history = [] }) {
+export function tutorReply({ domain, topicSlug, question, history = [], lessonContext }) {
   const topic = topicBySlug(domain, topicSlug);
-  if (!topic) {
+  const contextTopic = lessonContext ? {
+    title: lessonContext.title || topicSlug || 'this lesson',
+    lesson: lessonContext,
+    practice: lessonContext.practice || [],
+  } : topic;
+  if (!contextTopic) {
     return { intent: 'generic', reply: 'Let’s anchor on the current lesson. Ask me about a specific concept from it — or say “exercise” and I’ll give you something to try.' };
   }
   const q = String(question || '').toLowerCase().trim();
-  const L = topic.lesson;
-  const name = topic.title.replace(/\b\w/g, (m) => m.toLowerCase());
+  const L = contextTopic.lesson;
+  const name = contextTopic.title.replace(/\b\w/g, (m) => m.toLowerCase());
 
   const wants = (arr) => arr.some((w) => q.includes(w));
 
   if (!q || wants(['exercise', 'practice', 'quiz me', 'test me', 'try me'])) {
-    const ex = topic.practice[Math.floor(Math.random() * Math.max(topic.practice.length, 1))] || synthExercise(topic);
+    const ex = contextTopic.practice[Math.floor(Math.random() * Math.max(contextTopic.practice.length, 1))] || synthExercise(contextTopic);
     return {
       intent: 'exercise',
       reply: `Try this one — take your time, and tell me your answer with why:\n\n${ex.q}` +
@@ -288,7 +293,7 @@ export function tutorReply({ domain, topicSlug, question, history = [] }) {
   }
   if (wants(['simpler', 'don’t understand', 'dont understand', 'confus', 'eli5', 'explain differently', 'easier'])) {
     const kp = L.keyPoints[0] || L.tldr;
-    return { intent: 'simplify', reply: `No jargon this time. ${L.misconception ? `First — forget this myth: ${L.misconception}\n\n` : ''}The one-sentence version: ${kp}\n\nNow in plain words: ${plainVersion(topic)}\n\nDoes that land? Say “example” and I’ll show it in action.` };
+    return { intent: 'simplify', reply: `No jargon this time. ${L.misconception ? `First — forget this myth: ${L.misconception}\n\n` : ''}The one-sentence version: ${kp}\n\nNow in plain words: ${plainVersion(contextTopic)}\n\nDoes that land? Say “example” and I’ll show it in action.` };
   }
   if (wants(['example', 'show me', 'demo', 'sample'])) {
     return { intent: 'example', reply: `Here’s a working example:\n\n${codeBlock(L.example)}\n\nNotice how it uses: ${L.keyPoints.slice(0, 2).join('; ').replace(/\.$/, '')}.\n\nWant to try one yourself? Say “exercise”.` };
@@ -300,13 +305,13 @@ export function tutorReply({ domain, topicSlug, question, history = [] }) {
     const section = L.sections.find((s) => q.split(/\s+/).some((w) => w.length > 3 && s.h.toLowerCase().includes(w) || s.body.toLowerCase().includes(w)));
     return {
       intent: 'explain',
-      reply: `${L.tldr}\n\n${section ? `${section.h}: ${section.body}` : L.sections[0].h + ': ' + L.sections[0].body}\n\nKey points:\n${L.keyPoints.map((k) => '• ' + k).join('\n')}\n\nQuick check: ${L.ask}`,
+      reply: `${L.tldr}\n\n${section ? `${section.h}: ${section.body}` : L.sections[0]?.h + ': ' + L.sections[0]?.body}\n\nKey points:\n${L.keyPoints.map((k) => '• ' + k).join('\n')}\n\nQuick check: ${L.ask || 'What part would you like to try next?'}`,
     };
   }
   // default: coach around the goal
   return {
     intent: 'coach',
-    reply: `Good question. In ${name}, the thing to hold onto is: ${L.keyPoints[0]}\n\n${L.sections.map((s) => s.h).join(' → ')} is the mental map.\n\nTo make this concrete, tell me: ${L.ask}`,
+    reply: `Good question. In ${name}, the thing to hold onto is: ${L.keyPoints[0] || L.tldr}\n\n${L.sections.map((s) => s.h).join(' → ')} is the mental map.\n\nTo make this concrete, tell me: ${L.ask || 'Which part should we unpack together?'}`,
   };
 }
 

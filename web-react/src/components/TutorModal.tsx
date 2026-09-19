@@ -14,6 +14,16 @@ interface TutorModalProps {
   topicSlug: string;
   pathId?: string;
   lessonTitle: string;
+  lessonContext?: {
+    title: string;
+    tldr: string;
+    sections: Array<{ h: string; body: string }>;
+    keyPoints: string[];
+    misconception?: string;
+    ask?: string;
+    example?: { lang: string; code?: string; description?: string };
+    practice?: Array<{ q: string; choices?: string[]; hint?: string }>;
+  };
 }
 
 export const TutorModal: React.FC<TutorModalProps> = ({ 
@@ -22,9 +32,10 @@ export const TutorModal: React.FC<TutorModalProps> = ({
   skillSlug, 
   topicSlug, 
   pathId,
-  lessonTitle 
+  lessonTitle,
+  lessonContext,
 }) => {
-  const storageKey = `tutor-${skillSlug}-${topicSlug}`;
+  const storageKey = `tutor-v2-${skillSlug}-${topicSlug}`;
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -87,7 +98,8 @@ export const TutorModal: React.FC<TutorModalProps> = ({
           topicSlug,
           pathId,
           question,
-          history: messages.slice(-6)
+          history: messages.slice(-6),
+          lessonContext,
         })
       });
 
@@ -129,7 +141,7 @@ export const TutorModal: React.FC<TutorModalProps> = ({
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand to-brand-deep flex items-center justify-center">
             <SparklesIcon className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1">
@@ -158,14 +170,14 @@ export const TutorModal: React.FC<TutorModalProps> = ({
               className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {msg.role === 'assistant' && (
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand to-brand-deep flex items-center justify-center flex-shrink-0">
                   <SparklesIcon className="w-4 h-4 text-white" />
                 </div>
               )}
               <div
                 className={`max-w-[75%] rounded-2xl px-4 py-2 ${
                   msg.role === 'user'
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+                    ? 'bg-gradient-to-r from-brand to-brand-deep text-white'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
                 }`}
               >
@@ -175,7 +187,7 @@ export const TutorModal: React.FC<TutorModalProps> = ({
           ))}
           {isLoading && (
             <div className="flex gap-3">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand to-brand-deep flex items-center justify-center flex-shrink-0">
                 <SparklesIcon className="w-4 h-4 text-white" />
               </div>
               <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl px-4 py-2">
@@ -200,7 +212,7 @@ export const TutorModal: React.FC<TutorModalProps> = ({
                   className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm"
                   disabled={isLoading}
                 >
-                  <action.icon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  <action.icon className="w-4 h-4 text-brand-deep dark:text-brand" />
                   <span className="text-gray-900 dark:text-white">{action.label}</span>
                 </button>
               ))}
@@ -218,13 +230,13 @@ export const TutorModal: React.FC<TutorModalProps> = ({
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Ask about this lesson…"
-              className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-white"
+              className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand text-gray-900 dark:text-white"
               disabled={isLoading}
             />
             <button
               onClick={() => sendMessage(input)}
               disabled={isLoading || !input.trim()}
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="px-4 py-2 bg-gradient-to-r from-brand to-brand-deep text-white rounded-lg hover:from-brand-hover hover:to-brand-deep disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               aria-label="Send message"
             >
               <PaperAirplaneIcon className="w-5 h-5" />
