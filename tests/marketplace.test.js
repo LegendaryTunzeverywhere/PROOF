@@ -228,6 +228,49 @@ test('supabase: timestamp range retries convert ms numbers into ISO strings for 
   assert.equal(result.completedAt, 1789825660618);
 });
 
+test('supabase: live Postgres date/time out-of-range message triggers the ISO retry', async () => {
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+
+  const store = new SupabaseStore();
+  let attempts = 0;
+  let seenFirst = null;
+  let seenSecond = null;
+  store.client.from = () => ({
+    update: (patch) => {
+      attempts += 1;
+      if (attempts === 1) seenFirst = patch;
+      if (attempts === 2) seenSecond = patch;
+      return {
+        eq: () => ({
+          select: () => ({
+            single: async () => {
+              if (attempts === 1) {
+                const err = new Error('Update failed: date/time field value out of range: "1789826149481"');
+                err.code = '22008';
+                throw err;
+              }
+              return { data: { id: 'app_1', ...patch }, error: null };
+            },
+          }),
+        }),
+      };
+    },
+  });
+
+  const result = await store.update('task_applications', 'app_1', {
+    status: 'completed',
+    completedAt: 1789826149481,
+    reviewFeedback: 'Looks good',
+  });
+
+  assert.equal(attempts, 2);
+  assert.equal(typeof seenFirst.completedAt, 'number');
+  assert.equal(typeof seenSecond.completedAt, 'string');
+  assert.equal(seenSecond.completedAt, new Date(1789826149481).toISOString());
+  assert.equal(result.completedAt, 1789826149481);
+});
+
 test('users: listWalletAccounts works with async store.all', async (t) => {
   const tb = await testbed();
   await tb.users.createUser({ username: 'demoer', avatar: '🧪', walletMode: 'demo', isDemo: true });

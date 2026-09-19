@@ -348,6 +348,11 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
       setNotice('Applicant accepted — waiting for the work to be delivered.');
       await loadWorkData();
     } catch (err: any) {
+      try {
+        await loadWorkData();
+      } catch {
+        // Ignore refresh failures here; the error below is the actionable message.
+      }
       setError(err.message || 'The applicant could not be accepted.');
     } finally {
       setAcceptingApplication(null);
@@ -371,6 +376,11 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
       setDeliveryDrafts((prev) => ({ ...prev, [resolvedTaskId]: { note: '', url: '', attachment: '' } }));
       await loadWorkData();
     } catch (err: any) {
+      try {
+        await loadWorkData();
+      } catch {
+        // Ignore refresh failures here; we still want the UI to reconcile to the server state.
+      }
       setError(err.message || 'The task could not be marked complete.');
     } finally {
       setCompletingTask(null);
@@ -389,6 +399,11 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
       setReviewDrafts((prev) => ({ ...prev, [taskId]: '' }));
       await loadWorkData();
     } catch (err: any) {
+      try {
+        await loadWorkData();
+      } catch {
+        // Ignore refresh failures here; the backend is the source of truth.
+      }
       setError(err.message || 'The delivery review could not be saved.');
     } finally {
       setReviewingDelivery(null);

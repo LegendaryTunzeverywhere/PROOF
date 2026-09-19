@@ -430,7 +430,7 @@ export class SupabaseStore {
           continue;
         }
 
-        const timestampRangeError = /timestamp out of range|invalid input syntax for type timestamp/i.test(error?.message || '');
+        const timestampRangeError = /timestamp out of range|date\/time field value out of range|invalid input syntax for type timestamp/i.test(error?.message || '');
         if (timestampRangeError) {
           const isoPatch = this.coerceTimestampFieldsToIso(workingPatch, table);
           if (JSON.stringify(isoPatch) !== JSON.stringify(workingPatch)) {
