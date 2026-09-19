@@ -161,22 +161,66 @@ export class MarketplaceService {
     if (!app) throw Object.assign(new Error('You need an accepted application first.'), { code: 'NOT_ACCEPTED', status: 403 });
     if (task.status === 'completed') throw Object.assign(new Error('Task already completed.'), { code: 'DONE', status: 409 });
 
-    await this.store.update('marketplace_tasks', taskId, { status: 'completed' });
-    await this.store.update('task_applications', app.id, { status: 'completed' });
+    await this.store.update('marketplace_tasks', taskId, { status: 'completed', completedAt: now() });
+    await this.store.update('task_applications', app.id, { status: 'completed', completedAt: now() });
     const { net, fee } = await this.rewards.releaseEscrow({
       fromUserId: task.clientId, toUserId: user.id,
       amountNim: task.budgetLuna / 100000,
       kind: 'task_payment', note: `Task: ${task.title}`,
       meta: { taskId },
     });
+    const rewardedNim = Number((task.budgetLuna || 0) / 100000);
+    const applicantTrustDelta = Math.max(1, Math.round(rewardedNim / 5));
+    const clientTrustDelta = Math.max(1, Math.round(rewardedNim / 10));
+
     this.notify.push(user.id, {
       type: 'task_paid', emoji: '💰', title: `Task complete: ${task.title}`,
       body: `You earned ${(net / 100000).toFixed(2)} NIM.`, href: '#/profile',
     });
     await this.users.addReputation(user.id, +3);
+    await this.users.updateRoleReputation(user.id, 'applicant', applicantTrustDelta);
+    await this.users.updateRoleReputation(task.clientId, 'client', clientTrustDelta);
     await this.users.checkAchievements(user.id);
     this.store.save();
     return { netLuna: net, feeLuna: fee };
+  }
+
+  async reviewTask(taskId, user, { rating, feedback = '' } = {}) {
+    const task = await this.store.get('marketplace_tasks', taskId);
+    if (!task) throw Object.assign(new Error('Task not found.'), { code: 'NOT_FOUND', status: 404 });
+    if (task.clientId !== user.id) {
+      throw Object.assign(new Error('Only the client can review the applicant after delivery.'), { code: 'FORBIDDEN', status: 403 });
+    }
+    const accepted = await this.store.find('task_applications', (a) => a.taskId === taskId && (a.status === 'accepted' || a.status === 'completed') && a.userId !== user.id);
+    if (!accepted) {
+      throw Object.assign(new Error('No completed applicant delivery exists to review.'), { code: 'NO_DELIVERY', status: 409 });
+    }
+    const alreadyReviewed = await this.store.find('task_reviews', (r) => r.taskId === taskId && r.reviewerId === user.id);
+    if (alreadyReviewed) {
+      throw Object.assign(new Error('This task has already been reviewed by the client.'), { code: 'ALREADY_REVIEWED', status: 409 });
+    }
+
+    const normalizedRating = Math.min(Math.max(Number(rating) || 5, 1), 5);
+    const review = await this.store.insert('task_reviews', {
+      id: uid('tr'),
+      taskId,
+      reviewerId: user.id,
+      revieweeId: accepted.userId,
+      rating: normalizedRating,
+      feedback: String(feedback || '').slice(0, 500),
+      createdAt: now(),
+    });
+
+    const applicantTrustDelta = normalizedRating >= 4 ? +4 : normalizedRating <= 2 ? -2 : +1;
+    const clientTrustDelta = normalizedRating <= 2 ? -1 : +1;
+    await this.users.updateRoleReputation(accepted.userId, 'applicant', applicantTrustDelta);
+    await this.users.updateRoleReputation(user.id, 'client', clientTrustDelta);
+    this.notify.push(accepted.userId, {
+      type: 'task_review', emoji: '⭐', title: `Task reviewed: ${task.title}`,
+      body: `Your work was rated ${normalizedRating}/5.`, href: '#/profile',
+    });
+    this.store.save();
+    return review;
   }
 
   async acceptApplication(taskId, applicationId, user) {

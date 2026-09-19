@@ -97,6 +97,45 @@ test('marketplace: postTask forwards escrowed treasury deposit when configured',
   assert.equal(sent[0].amountLuna, 2000000);
 });
 
+test('marketplace: task review updates separate client and applicant reputation', async (t) => {
+  const tb = await testbed();
+  const client = await tb.users.createUser({ username: 'client1', walletMode: 'nimiqpay' });
+  const applicant = await tb.users.createUser({ username: 'applicant1', walletMode: 'nimiqpay' });
+  await tb.rewards.credit(client.id, 5000000, 'reward', 'seed');
+  const task = await tb.market.postTask(tb.users.get(client.id), { title: 'Logo', description: 'd', budgetNim: 20, skillSlug: 'ui-design', minScore: 60 });
+  await tb.skills.ensureUserSkill(applicant.id, 'ui-design');
+  await tb.skills.applyProofResult(applicant.id, 'ui-design', { score: 80, passed: true });
+  const app = await tb.market.apply(task.id, tb.users.get(applicant.id), 'I can do this');
+  await tb.market.acceptApplication(task.id, app.id, tb.users.get(client.id));
+
+  const clientRepBefore = tb.users.get(client.id).clientReputation;
+  const applicantRepBefore = tb.users.get(applicant.id).applicantReputation;
+  const review = await tb.market.reviewTask(task.id, tb.users.get(client.id), { rating: 5, feedback: 'Great delivery' });
+
+  assert.equal(review.taskId, task.id);
+  assert.ok(tb.users.get(applicant.id).applicantReputation > applicantRepBefore);
+  assert.ok(tb.users.get(client.id).clientReputation >= clientRepBefore || tb.users.get(client.id).clientReputation === clientRepBefore);
+});
+
+test('marketplace: escrow payout grows client and applicant reputation with NIM rewarded', async (t) => {
+  const tb = await testbed();
+  const client = await tb.users.createUser({ username: 'client-trust', walletMode: 'nimiqpay' });
+  const applicant = await tb.users.createUser({ username: 'applicant-trust', walletMode: 'nimiqpay' });
+  await tb.rewards.credit(client.id, 5000000, 'reward', 'seed');
+  const task = await tb.market.postTask(tb.users.get(client.id), { title: 'Brand logo', description: 'd', budgetNim: 20, skillSlug: 'ui-design', minScore: 60 });
+  await tb.skills.ensureUserSkill(applicant.id, 'ui-design');
+  await tb.skills.applyProofResult(applicant.id, 'ui-design', { score: 80, passed: true });
+  const app = await tb.market.apply(task.id, tb.users.get(applicant.id), 'I can design this');
+  await tb.market.acceptApplication(task.id, app.id, tb.users.get(client.id));
+
+  const clientRepBefore = tb.users.get(client.id).clientReputation;
+  const applicantRepBefore = tb.users.get(applicant.id).applicantReputation;
+  await tb.market.completeTask(task.id, tb.users.get(applicant.id));
+
+  assert.ok(tb.users.get(client.id).clientReputation > clientRepBefore, 'client trust rises after escrow payout');
+  assert.ok(tb.users.get(applicant.id).applicantReputation > applicantRepBefore, 'applicant trust rises after reward payout');
+});
+
 test('marketplace: demo wallets cannot post tasks or earn rewards', async (t) => {
   const tb = await testbed();
   const demo = await tb.users.createUser({ username: 'demoer', walletMode: 'demo', isDemo: true });

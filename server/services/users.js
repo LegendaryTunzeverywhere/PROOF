@@ -74,6 +74,8 @@ export class UserService {
       level: 1,
       xp: 0,
       reputation: 50,
+      clientReputation: 50,
+      applicantReputation: 50,
       balanceLuna: 0,
       earnedLuna: 0,
       proofsPassed: 0,
@@ -291,8 +293,22 @@ export class UserService {
   async addReputation(userId, delta) {
     const user = this.get(userId);
     if (!user || !delta) return;
-    const reputation = clamp(user.reputation + delta, 0, 100);
+    const reputation = clamp(Number(user.reputation ?? 50) + delta, 0, 100);
     await this.store.update('users', userId, { reputation, updatedAt: now() });
+    await this.store.save();
+  }
+
+  async updateRoleReputation(userId, role, delta) {
+    const user = this.get(userId);
+    if (!user || !delta) return;
+    const key = role === 'client' ? 'clientReputation' : role === 'applicant' ? 'applicantReputation' : null;
+    if (!key) return;
+    const current = Number(user[key] ?? user.reputation ?? 50);
+    const next = clamp(current + delta, 0, 100);
+    const clientReputation = key === 'clientReputation' ? next : Number(user.clientReputation ?? 50);
+    const applicantReputation = key === 'applicantReputation' ? next : Number(user.applicantReputation ?? 50);
+    const overallReputation = clamp((clientReputation + applicantReputation) / 2, 0, 100);
+    await this.store.update('users', userId, { [key]: next, clientReputation, applicantReputation, reputation: overallReputation, updatedAt: now() });
     await this.store.save();
   }
 
@@ -395,6 +411,8 @@ export class UserService {
       level: user.level,
       xp: user.xp,
       reputation: user.reputation,
+      clientReputation: user.clientReputation ?? 50,
+      applicantReputation: user.applicantReputation ?? 50,
       earnedNim: Math.round(user.earnedLuna / 100000 * 100) / 100,
       proofsCompleted: user.proofsPassed,
       proofsAttempted: user.proofsAttempted,
