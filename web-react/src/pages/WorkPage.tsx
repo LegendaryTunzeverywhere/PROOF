@@ -167,7 +167,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
     try {
       setPostTaskLoading(true);
       setError(null);
-      await WalletService.sendNim({
+      const escrowTxId = await WalletService.sendNim({
         recipient: escrowConfirmation.recipient,
         nim: escrowConfirmation.budget,
         note: `Proof task escrow: ${escrowConfirmation.title}`,
@@ -179,6 +179,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
         skillSlug: escrowConfirmation.skillSlug,
         minScore: escrowConfirmation.minScore,
         tags: escrowConfirmation.tags,
+        escrowTxId,
       });
       setEscrowConfirmation(null);
       setShowPostTask(false);

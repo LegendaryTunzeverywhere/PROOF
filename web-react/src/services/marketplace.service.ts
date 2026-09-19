@@ -38,6 +38,7 @@ export const marketplaceService = {
     skillSlug?: string | null;
     minScore?: number;
     tags?: string[];
+    escrowTxId: string;
   }): Promise<{ task: MarketplaceTask }> {
     return api.post<{ task: MarketplaceTask }>('/api/market/tasks', payload);
   },

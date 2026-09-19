@@ -154,7 +154,7 @@ export class MarketplaceService {
     return { netLuna: net, feeLuna: fee };
   }
 
-  async postTask(user, { title, description, budgetNim, skillSlug = null, minScore = 0, tags = [] }) {
+  async postTask(user, { title, description, budgetNim, skillSlug = null, minScore = 0, tags = [], escrowTxId = '' }) {
     const account = await this.users.get(user.id);
     if (account?.isDemo || account?.walletMode === 'demo') {
       throw Object.assign(new Error('Demo wallets cannot post work. Connect Nimiq Pay to continue.'), { code: 'DEMO_WALLET_REQUIRED', status: 403 });
@@ -163,29 +163,37 @@ export class MarketplaceService {
     const budget = luna(budgetNim);
     if (!title || !description) throw Object.assign(new Error('Title and description are required.'), { code: 'BAD_INPUT', status: 400 });
     if (!(budget >= luna(1))) throw Object.assign(new Error('Minimum budget is 1 NIM.'), { code: 'BAD_INPUT', status: 400 });
+    const clientEscrowTxId = String(escrowTxId).trim();
+    if (clientEscrowTxId) {
+      const existingEscrowTask = await this.store.find('marketplace_tasks', (task) =>
+        task.clientId === user.id && task.escrowTxId === clientEscrowTxId
+      );
+      if (existingEscrowTask) return this.taskView(existingEscrowTask, user.id);
+    }
 
     const treasuryConfigured = Boolean(this.treasury?.isConfigured?.());
     const treasuryAddress = normalizeNimiqAddress(this.config?.nimiq?.treasuryAddress || '');
     const treasuryAddressIsUsable = looksLikeNimiqAddress(treasuryAddress);
-
     let debitTx = null;
-    try {
-      debitTx = await this.rewards.debit(user.id, budget, 'task_escrow', `Escrow for task: ${title}`);
 
-      if (treasuryConfigured) {
-        if (!treasuryAddressIsUsable) {
-          throw Object.assign(new Error('Treasury address is malformed.'), { code: 'BAD_TREASURY_ADDRESS', status: 500 });
+    try {
+      if (!clientEscrowTxId) {
+        debitTx = await this.rewards.debit(user.id, budget, 'task_escrow', `Escrow for task: ${title}`);
+        if (treasuryConfigured) {
+          if (!treasuryAddressIsUsable) {
+            throw Object.assign(new Error('Treasury address is malformed.'), { code: 'BAD_TREASURY_ADDRESS', status: 500 });
+          }
+          const result = await this.treasury.send({ recipient: treasuryAddress, amountLuna: budget });
+          await this.store.update('wallet_txs', debitTx.id, {
+            meta: { ...(debitTx.meta || {}), treasuryHash: result?.hash || null, treasuryRecipient: treasuryAddress },
+          });
         }
-        const result = await this.treasury.send({ recipient: treasuryAddress, amountLuna: budget });
-        await this.store.update('wallet_txs', debitTx.id, {
-          meta: { ...(debitTx.meta || {}), treasuryHash: result?.hash || null, treasuryRecipient: treasuryAddress },
-        });
       }
 
       const task = this.store.insert('marketplace_tasks', {
         id: uid('task'), title: String(title).slice(0, 120), description: String(description).slice(0, 1000), tags,
         budgetLuna: budget, minProof: skillSlug ? { skillSlug, min: Math.min(Math.max(minScore, 0), 100) } : null,
-        clientId: user.id, status: 'open', autoAccept: false, postedAt: now(),
+        clientId: user.id, status: 'open', autoAccept: false, escrowTxId: clientEscrowTxId || null, postedAt: now(),
       });
       this.store.save();
       return this.taskView(task, user.id);
