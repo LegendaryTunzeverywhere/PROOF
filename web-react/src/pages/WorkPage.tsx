@@ -850,20 +850,32 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
 
                       return (
                         <div key={application.id} className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <h3 className="font-bold text-ink">{task.title}</h3>
-                              <p className="mt-1 text-sm text-muted">{task.description}</p>
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-full bg-surface-2 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-muted">
+                                Task
+                              </span>
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                                isAccepted ? 'bg-brand-soft text-brand' :
+                                isCompleted ? 'bg-ok-soft text-ok' : 'bg-elevated text-muted'
+                              }`}>
+                                {application.status}
+                              </span>
                             </div>
                             <span className="rounded-lg bg-gold/10 px-3 py-1.5 text-sm font-bold text-gold">{formatNim(task.budgetNim)} NIM</span>
                           </div>
+
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <h3 className="font-bold text-ink">{task.title || 'Task in progress'}</h3>
+                              <p className="mt-1 line-clamp-2 text-sm text-muted">{task.description || 'Deliver your completed work to the client.'}</p>
+                            </div>
+                          </div>
+
                           <div className="mt-3 flex items-center justify-between gap-3">
-                            <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-                              isAccepted ? 'bg-brand-soft text-brand' :
-                              isCompleted ? 'bg-ok-soft text-ok' : 'bg-elevated text-muted'
-                            }`}>
-                              {application.status}
-                            </span>
+                            <div className="text-xs text-muted">
+                              {isAccepted ? 'Deliver the finished work and mark the task complete.' : isCompleted ? 'Client review is pending.' : 'Application status'}
+                            </div>
                             {isAccepted && (
                               <button
                                 type="button"
