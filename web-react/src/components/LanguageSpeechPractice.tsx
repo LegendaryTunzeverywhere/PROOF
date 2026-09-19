@@ -313,7 +313,7 @@ export function LanguageSpeechPractice({
           </button>
           <button
             type="button"
-            onClick={() => listen(0.65)}
+            onClick={() => listen(0.5)}
             disabled={disabled}
             aria-label="Listen slowly"
             title="Listen slowly"
