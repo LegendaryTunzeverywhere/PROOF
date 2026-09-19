@@ -369,6 +369,18 @@
   }
 }
 
+@keyframes learning-status-typewriter {
+  0% { clip-path: inset(0 100% 0 0); opacity: 0; }
+  8% { clip-path: inset(0 0 0 0); opacity: 1; }
+  78% { clip-path: inset(0 0 0 0); opacity: 1; }
+  100% { clip-path: inset(0 100% 0 0); opacity: 0; }
+}
+
+.learning-status-typewriter {
+  display: inline-block;
+  animation: learning-status-typewriter 2.6s ease-in-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

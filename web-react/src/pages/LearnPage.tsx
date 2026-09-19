@@ -17,6 +17,34 @@ const LANGUAGE_OPTIONS = [
   { name: 'Mandarin', nativeName: '中文', code: 'ZH' },
 ];
 
+const PATH_CREATION_MESSAGES = [
+  'AI working...',
+  'Please be patient...',
+  'Creating your learning path...',
+  'Consulting scholars...',
+  'Shaping your daily practice...',
+  'Preparing your first proof...',
+];
+
+function PathCreationStatus() {
+  const [messageIndex, setMessageIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setMessageIndex((index) => (index + 1) % PATH_CREATION_MESSAGES.length);
+    }, 2800);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="mt-5 min-h-[30px]" aria-live="polite" aria-atomic="true">
+      <span key={messageIndex} className="learning-status-typewriter text-sm font-semibold text-brand">
+        {PATH_CREATION_MESSAGES[messageIndex]}
+      </span>
+    </div>
+  );
+}
+
 export function LearnPage() {
   const params = useParams<{ id?: string; pathId?: string; skill?: string; topic?: string }>();
   
@@ -528,17 +556,15 @@ function LearnHubView() {
       {creating && !showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="rounded-2xl border border-line bg-surface p-8 text-center shadow-2xl max-w-md mx-4">
-            <div className="h-12 w-12 mx-auto animate-spin rounded-full border-4 border-brand border-t-transparent" />
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-brand-soft text-2xl shadow-inner animate-pulse" aria-hidden="true">
+              ✦
+            </div>
             <p className="mt-4 text-lg font-semibold text-ink">{t.learn.creatingYourPath}</p>
             <p className="mt-2 text-sm text-muted">{t.learn.creatingYourPathBody}</p>
+            <PathCreationStatus />
             
             {!createTimeout ? (
               <>
-                <div className="mt-4 space-y-2 text-xs text-muted">
-                  <p>✨ Building curriculum structure</p>
-                  <p>📚 Creating daily lessons</p>
-                  <p>🎯 Generating proof challenges</p>
-                </div>
                 <p className="mt-4 text-xs text-faint">This usually takes 10-20 seconds</p>
               </>
             ) : (

@@ -6,7 +6,8 @@
  */
 import { config } from '../config.js';
 
-const TIMEOUT_MS = 60_000; // Increased to 60 seconds for document analysis
+const TIMEOUT_MS = 60_000;
+const CURRICULUM_TIMEOUT_MS = 15_000;
 let cohereKeyCursor = 0;
 
 function selectedProvider() {
@@ -108,7 +109,7 @@ export async function cohereEmbed(texts, inputType) {
 
 async function callCohere({ system, prompt, maxTokens, task, apiKey }) {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => ctrl.abort(), task === 'curriculum' ? CURRICULUM_TIMEOUT_MS : TIMEOUT_MS);
 
   try {
     const model = task === 'curriculum' ? config.ai.cohereCurriculumModel : config.ai.cohereTutorModel;
