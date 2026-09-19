@@ -318,22 +318,25 @@ export function OnboardingPage() {
     }
     
     setUsernameError(null);
+    setError(null);
     setShowUsernameModal(false);
     setShowSkillModal(true);
   };
 
   const handleSkipUsername = async () => {
+    setUsernameError(null);
+    setError(null);
     setShowUsernameModal(false);
     setUsername("");
     setShowSkillModal(true);
   };
 
-  const handleSkillSubmit = async () => {
+  const handleSkillSubmit = async (createPath: boolean) => {
     setShowSkillModal(false);
-    await finishOnboarding(username.trim() || null);
+    await finishOnboarding(username.trim() || null, createPath);
   };
 
-  const finishOnboarding = async (customUsername: string | null) => {
+  const finishOnboarding = async (customUsername: string | null, createPath: boolean) => {
     try {
       setConnecting(true);
       setError(null);
@@ -349,16 +352,18 @@ export function OnboardingPage() {
       if (customUsername) await api.patch('/api/me', { username: customUsername });
       await api.patch('/api/me', { prefs: onboardingData });
 
-      const selectedSkill = [...tags, ...more][0];
-      const goal = query.trim() || (selectedSkill ? `Learn ${selectedSkill}` : 'Learn new skills');
-      const domain = selectedSkill ? SKILL_DOMAINS[selectedSkill] : undefined;
-      const pathLevel = level === 'advanced' ? 'advanced' : level === 'intermediate' ? 'intermediate' : 'beginner';
-      await pathsService.createPath({
-        goal,
-        domain,
-        level: pathLevel,
-        minutesPerDay: parseInt(time),
-      });
+      if (createPath) {
+        const selectedSkill = [...tags, ...more][0];
+        const goal = query.trim() || (selectedSkill ? `Learn ${selectedSkill}` : 'Learn new skills');
+        const domain = selectedSkill ? SKILL_DOMAINS[selectedSkill] : undefined;
+        const pathLevel = level === 'advanced' ? 'advanced' : level === 'intermediate' ? 'intermediate' : 'beginner';
+        await pathsService.createPath({
+          goal,
+          domain,
+          level: pathLevel,
+          minutesPerDay: parseInt(time),
+        });
+      }
       
       // Mark onboarding as completed
       localStorage.setItem('onboarding_completed', 'true');
@@ -377,10 +382,14 @@ export function OnboardingPage() {
       
       // User-friendly error messages
       if (errorMessage.includes('USERNAME_TAKEN') || errorMessage.includes('BAD_USERNAME')) {
-        setError('Username already taken. Please try a different one.');
-        setShowUsernameModal(true); // Re-show username modal
+        setUsernameError('That username is already taken. Please choose another one.');
+        setError(null);
+        setShowSkillModal(false);
+        setShowUsernameModal(true);
       } else if (errorMessage.includes('INVALID_USERNAME')) {
-        setError('Invalid username format.');
+        setUsernameError('Please choose a valid username.');
+        setError(null);
+        setShowSkillModal(false);
         setShowUsernameModal(true);
       } else {
         setError(errorMessage);
@@ -865,7 +874,7 @@ export function OnboardingPage() {
 
               <button
                 type="button"
-                onClick={handleSkillSubmit}
+                onClick={() => handleSkillSubmit(true)}
                 disabled={connecting}
                 className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-brand to-brand-deep text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:from-brand-hover hover:to-brand disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -873,7 +882,7 @@ export function OnboardingPage() {
               </button>
               <button
                 type="button"
-                onClick={handleSkillSubmit}
+                onClick={() => handleSkillSubmit(false)}
                 disabled={connecting}
                 className="mt-3 w-full text-center text-sm font-semibold text-muted transition-colors hover:text-ink disabled:opacity-60"
               >

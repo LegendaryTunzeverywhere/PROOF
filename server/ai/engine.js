@@ -19,6 +19,16 @@ const LANGUAGE_OPTIONS = {
   mandarin: { code: 'zh', name: 'Mandarin', emoji: '🇨🇳', hello: '你好 (nǐ hǎo)', goodbye: '再见 (zài jiàn)', namePhrase: '我叫 (wǒ jiào)', request: '我想要 (wǒ xiǎng yào)', thanks: '谢谢 (xièxie)', please: '请 (qǐng)', yes: '是 (shì)', no: '不 (bù)', where: '在哪里 (zài nǎlǐ)', past: '我已经 (wǒ yǐjīng)', future: '我会 (wǒ huì)', opinion: '我认为 (wǒ rènwéi)', connector: '因为 (yīnwèi)', formal: '您 (nín)' },
 };
 
+export function languageSpeechTargets() {
+  return Object.values(LANGUAGE_OPTIONS).flatMap((language) => {
+    const curriculum = languageCurriculum(language);
+    return curriculum.topics
+      .map((topic) => topic.challenge?.evaluator?.config?.targets?.[0])
+      .filter(Boolean)
+      .map((text) => ({ language: language.code, text }));
+  });
+}
+
 function languageForGoal(goal = '') {
   const normalized = String(goal).toLowerCase();
   return Object.entries(LANGUAGE_OPTIONS).find(([key, language]) =>

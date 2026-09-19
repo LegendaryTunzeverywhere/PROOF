@@ -18,7 +18,8 @@
     "reset:chess-import": "node --env-file=.env scripts/reset-chess-import.js --all",
     "typecheck": "tsc --noEmit",
     "seed:reset": "node -e \"import('./server/store.js').then(async m=>{const s=new m.Store({dataDir:'data'});await s.reset();console.log('store reset')})\"",
-    "reset:supabase-users": "node --env-file=.env scripts/reset-supabase-users.js"
+    "reset:supabase-users": "node --env-file=.env scripts/reset-supabase-users.js",
+    "prewarm:tts": "node --env-file=.env scripts/prewarm-tts.js"
   },
   "dependencies": {
     "@nimiq/core": "^2.21.0",

@@ -73,7 +73,9 @@ const playServerAudio = async (text: string, lang: string, speed: number, callba
     };
     audio.onerror = (event) => {
       callbacks.onAudio?.(null);
-      reject(event);
+      // Do not start native fallback after Piper has already begun. Some
+      // WebViews emit a late media error while an audio element is playing.
+      if (!started) reject(event);
     };
 
     audio.play().then(() => {
@@ -135,6 +137,7 @@ const speakNativeLanguageText = async (text: string, language: string, speed: nu
 
 export async function speakLanguageText(text: string, language: string, speed = 1, callbacks: SpeechPlaybackCallbacks = {}) {
   const locale = localeFor(language);
+  window.speechSynthesis?.cancel();
   try {
     await playServerAudio(text, locale, speed, callbacks);
   } catch (piperError) {
@@ -238,6 +241,8 @@ export function LanguageSpeechPractice({
   const listen = async (speed = 1) => {
     setError(null);
     audioRef.current?.pause();
+    audioRef.current = null;
+    window.speechSynthesis?.cancel();
     try {
       await speakLanguageText(target, language, speed, {
         onStart: () => setSpeaking(true),
