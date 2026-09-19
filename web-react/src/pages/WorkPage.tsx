@@ -275,7 +275,10 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
     }
   };
 
-  const formatNim = (amount: number) => amount.toFixed(1);
+  const formatNim = (amount: number | string | null | undefined) => {
+    const numeric = Number(amount ?? 0);
+    return Number.isFinite(numeric) ? numeric.toFixed(1) : '0.0';
+  };
   const timeAgo = (timestamp: string | number) => {
     const postedAt = typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime();
     if (!Number.isFinite(postedAt)) return '1 sec ago';
