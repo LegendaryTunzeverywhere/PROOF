@@ -409,12 +409,48 @@ export class RewardService {
   async releaseEscrow({ fromUserId, toUserId, amountNim, kind, note, meta = {} }) {
     const gross = luna(amountNim);
     const fee = Math.round(gross * (this.config.economy.feeBps / 10000));
-    await this.credit(toUserId, gross - fee, kind, note + ' (net of platform fee)', { ...meta });
+    const net = gross - fee;
+    const user = await this.#user(toUserId);
+    let payoutRef = null;
+    let payoutSent = false;
+
+    if (!user.isDemo && user.walletMode !== 'demo' && this.treasury.isConfigured()) {
+      const recipient = normalizeNimiqAddress(user.walletAddress || '');
+      if (!recipient || !looksLikeNimiqAddress(recipient)) {
+        throw new EconomyError('INVALID_WALLET', 'The recipient wallet is missing or malformed. Connect a Nimiq wallet before releasing escrow.');
+      }
+      try {
+        ({ hash: payoutRef } = await this.treasury.send({
+          recipient,
+          amountLuna: net,
+          data: `PROOF:${kind}:${String(note || '').slice(0, 64)}`,
+        }));
+        payoutSent = true;
+      } catch (error) {
+        throw new EconomyError('PAYOUT_FAILED', `Treasury payout failed: ${error.message}`);
+      }
+    }
+
+    const tx = await this.#tx({
+      userId: toUserId,
+      kind: 'payout',
+      direction: 'credit',
+      amountLuna: net,
+      ref: payoutRef,
+      note: payoutSent ? 'On-chain treasury payout' : `${note} (net of platform fee)`,
+      meta: { ...meta, kind, payoutSent, feeLuna: fee },
+    });
+
+    const balanceLuna = user.balanceLuna + net;
+    await this.store.update('users', toUserId, { balanceLuna, updatedAt: now() });
+    await this.#settle(tx);
+    await this.store.save();
+
     if (fee > 0) {
-      const ftx = await this.#tx({ userId: toUserId, kind: 'platform_fee', direction: 'debit', amountLuna: fee, note: 'Platform fee (2%)' });
+      const ftx = await this.#tx({ userId: fromUserId || toUserId, kind: 'platform_fee', direction: 'debit', amountLuna: fee, note: 'Platform fee (2%)' });
       await this.#settle(ftx);
     }
-    await this.store.save();
-    return { gross, fee, net: gross - fee };
+
+    return { gross, fee, net, payoutRef, payoutSent };
   }
 }

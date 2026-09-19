@@ -103,6 +103,38 @@ test('economy: task payment applies the platform fee', async (t) => {
   assert.equal(tb.users.get(pro.id).balanceLuna, net);
 });
 
+test('economy: releaseEscrow sends a treasury payout when configured', async (t) => {
+  const tb = await testbed();
+  const client = await tb.users.createUser({ walletAddress: 'NQ18 TAQ8 CL7P K505 LE2M C78A 1YQC 1CH1 6Y4G' });
+  const pro = await tb.users.createUser({ walletAddress: 'NQ45 NEJ7 1RRN GXCM FJGJ 1UBS AKG2 Q0NJ TFEJ' });
+  await tb.rewards.credit(client.id, 10000000, 'reward', 'seed');
+  await tb.rewards.escrow(client.id, 50, 'task_payment', 'escrow landing page');
+
+  let sent = null;
+  const treasury = {
+    isConfigured: () => true,
+    send: async ({ recipient, amountLuna, data }) => {
+      sent = { recipient, amountLuna, data };
+      return { hash: 'ff'.repeat(32) };
+    },
+  };
+
+  const rewards = new (Object.getPrototypeOf(tb.rewards).constructor)(tb.store, tb.config, { treasury });
+  const result = await rewards.releaseEscrow({
+    fromUserId: client.id,
+    toUserId: pro.id,
+    amountNim: 50,
+    kind: 'task_payment',
+    note: 'task',
+  });
+
+  assert.ok(sent, 'treasury send should be invoked for real wallet mode');
+  assert.equal(sent.recipient, normalizeNimiqAddress(pro.walletAddress));
+  assert.equal(sent.amountLuna, 4900000);
+  assert.equal(result.net, 4900000);
+  assert.equal(tb.store.get('users', pro.id).balanceLuna, 4900000);
+});
+
 test('economy: payout respects minimum and balance', async (t) => {
   const tb = await testbed();
   const u = await tb.users.createUser({});
