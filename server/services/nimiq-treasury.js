@@ -66,7 +66,7 @@ export class NimiqTreasury {
     return result.result?.data ?? result.result;
   }
 
-  async send({ recipient, amountLuna }) {
+  async send({ recipient, amountLuna, data = '' }) {
     const configurationError = this.configurationError();
     if (configurationError) throw new Error(`Treasury payout is not configured: ${configurationError}`);
 
@@ -75,14 +75,24 @@ export class NimiqTreasury {
     const height = await this.#rpc('getBlockNumber');
     if (!Number.isInteger(height)) throw new Error('Nimiq RPC returned an invalid block height.');
 
-    const transaction = Nimiq.TransactionBuilder.newBasic(
-      sender,
-      Nimiq.Address.fromString(recipient),
-      BigInt(amountLuna),
-      0n,
-      height,
-      NETWORK_NUMBERS[this.config.network] || 24,
-    );
+    const transaction = data
+      ? Nimiq.TransactionBuilder.newBasicWithData(
+        sender,
+        Nimiq.Address.fromString(recipient),
+        new TextEncoder().encode(data),
+        BigInt(amountLuna),
+        0n,
+        height,
+        NETWORK_NUMBERS[this.config.network] || 24,
+      )
+      : Nimiq.TransactionBuilder.newBasic(
+        sender,
+        Nimiq.Address.fromString(recipient),
+        BigInt(amountLuna),
+        0n,
+        height,
+        NETWORK_NUMBERS[this.config.network] || 24,
+      );
     transaction.sign(keyPair);
     const result = await this.#rpc('pushTransaction', [transaction.toHex()]);
     return { hash: transactionHash(result?.transactionHash || transaction.hash()) };

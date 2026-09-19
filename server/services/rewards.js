@@ -319,6 +319,77 @@ export class RewardService {
     return { attempted, paid };
   }
 
+  async sendStreakReminders(limit = 100) {
+    const eco = this.config.economy;
+    if (!eco.streakReminderNotificationsEnabled && !eco.streakReminderPayoutsEnabled) {
+      return { inspected: 0, notified: 0, paid: 0 };
+    }
+
+    const today = this.todayKey();
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const cooldownStart = Date.now() - Math.max(1, Number(eco.streakReminderCooldownDays) || 7) * 86400000;
+    const users = await this.store.all('users');
+    let inspected = 0;
+    let notified = 0;
+    let paid = 0;
+
+    for (const user of users.slice(0, limit)) {
+      inspected++;
+      const streak = Number(user.streak?.current) || 0;
+      const lastActivity = user.streak?.lastDay;
+      const hasWallet = user.walletAddress && !user.isDemo && user.walletMode !== 'demo' && looksLikeNimiqAddress(user.walletAddress);
+      if (!hasWallet) continue;
+
+      const streakAtRisk = streak > 0 && lastActivity === yesterday;
+      const needsFirstStreak = streak === 0 && (!lastActivity || lastActivity < today);
+      if (!streakAtRisk && !needsFirstStreak) continue;
+
+      const reminderKey = `${user.id}:streak-reminder:${today}`;
+      const existingNotification = await this.store.find('notifications', (entry) =>
+        entry.userId === user.id && entry.type === 'streak_reminder' && Number(entry.createdAt) >= cooldownStart
+      );
+      const existingTransfer = await this.store.find('wallet_txs', (entry) =>
+        entry.userId === user.id && entry.kind === 'streak_reminder' && Number(entry.createdAt) >= cooldownStart
+      );
+      if (existingNotification || existingTransfer) continue;
+
+      let payoutSent = false;
+      if (streakAtRisk && eco.streakReminderPayoutsEnabled && this.treasury.isConfigured()) {
+        const amountLuna = Math.max(1, Number(eco.streakReminderAmountLuna) || 1);
+        const { hash } = await this.treasury.send({
+          recipient: normalizeNimiqAddress(user.walletAddress),
+          amountLuna,
+          data: `PROOF: protect your ${streak}-day streak`,
+        });
+        await this.store.insert('wallet_txs', {
+          id: uid('tx'), userId: user.id, kind: 'streak_reminder', direction: 'credit',
+          amountLuna, status: 'confirmed', ref: hash,
+          note: `PROOF streak reminder: ${streak}-day streak`,
+          meta: { reminderKey, streak }, network: 'nimiq', createdAt: now(), confirmedAt: now(),
+        });
+        payoutSent = true;
+        paid++;
+      }
+
+      if (eco.streakReminderNotificationsEnabled) {
+        await this.store.insert('notifications', {
+          id: uid('nt'), userId: user.id, type: 'streak_reminder', emoji: '🔥',
+          title: streakAtRisk ? `PROOF misses you — protect your ${streak}-day streak` : 'PROOF misses you — start a learning streak',
+          body: streakAtRisk
+            ? payoutSent
+              ? 'A 0.001 NIM PROOF reminder was sent to your Nimiq wallet. Continue learning today to keep your streak alive.'
+              : 'Continue learning today to keep your streak alive.'
+            : 'Start a lesson today and build your first learning streak.',
+          href: '/learn', read: false, createdAt: now(),
+        });
+        notified++;
+      }
+    }
+
+    await this.store.save();
+    return { inspected, notified, paid };
+  }
+
   /* ── tips & payments ───────────────────────────────────────────── */
   async tip(fromUserId, toUserId, amountNim, note = '') {
     const amount = luna(amountNim);

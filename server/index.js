@@ -82,6 +82,12 @@ const payoutRetryTimer = setInterval(() => {
 }, 60_000);
 payoutRetryTimer.unref?.();
 
+const streakReminderTimer = setInterval(() => {
+  rewards.sendStreakReminders().catch((error) => console.error('[streak] reminder worker failed:', error.message));
+}, 6 * 60 * 60 * 1000);
+streakReminderTimer.unref?.();
+rewards.sendStreakReminders().catch((error) => console.error('[streak] initial reminder worker failed:', error.message));
+
 await cleanupDuplicateSkillPaths(store).catch((error) => console.error('[paths] cleanup failed at startup:', error.message));
 
 /* ── Multer setup for document uploads ── */

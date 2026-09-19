@@ -78,6 +78,10 @@ export const config = {
     dailyRewardedAttemptsCap: int(process.env.DAILY_REWARDED_ATTEMPTS_CAP, 12),
     minAttemptIntervalMs: int(process.env.MIN_ATTEMPT_INTERVAL_MS, 45_000),
     maxSubmissionBytes: int(process.env.MAX_SUBMISSION_BYTES, 200_000),
+    streakReminderNotificationsEnabled: process.env.STREAK_REMINDER_NOTIFICATIONS_ENABLED !== 'false',
+    streakReminderPayoutsEnabled: process.env.STREAK_REMINDER_PAYOUTS_ENABLED === 'true',
+    streakReminderAmountLuna: int(process.env.STREAK_REMINDER_AMOUNT_LUNA, 100),
+    streakReminderCooldownDays: int(process.env.STREAK_REMINDER_COOLDOWN_DAYS, 7),
     /** Skill tiers. Derived from completed proofs — never user-selected. */
     skillTiers: [
       { max: 20, name: 'Novice' },
