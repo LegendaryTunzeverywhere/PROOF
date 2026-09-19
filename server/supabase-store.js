@@ -190,6 +190,25 @@ export class SupabaseStore {
     return out;
   }
 
+  filterUnsupportedColumns(tableName, patch) {
+    if (!patch || typeof patch !== 'object') return patch;
+    const safePatch = { ...patch };
+
+    if (tableName === 'task_applications') {
+      const allowed = new Set([
+        'id', 'taskId', 'userId', 'pitch', 'status', 'appliedAt', 'respondedAt',
+        'deliveredAt', 'deliveryNote', 'deliveryUrl', 'deliveryAttachment',
+        'reviewedAt', 'reviewFeedback', 'completedAt',
+      ]);
+
+      for (const key of Object.keys(safePatch)) {
+        if (!allowed.has(key)) delete safePatch[key];
+      }
+    }
+
+    return safePatch;
+  }
+
   /** DB→App field mapping (reverse of mapFieldsForDb) + ISO→ms timestamps. */
   convertFromDatabase(row, tableName) {
     if (!row || typeof row !== 'object') return row;
@@ -237,7 +256,7 @@ export class SupabaseStore {
     this.cache.delete(`${table}:${doc.id}`);
 
     // Convert timestamps + field names to DB form
-    const convertedDoc = this.convertTimestamps(this.mapFieldsForDb(doc, table), table);
+    const convertedDoc = this.filterUnsupportedColumns(table, this.convertTimestamps(this.mapFieldsForDb(doc, table), table));
 
     const { data, error } = await this.client
       .from(supabaseTable)
@@ -301,7 +320,7 @@ export class SupabaseStore {
     const supabaseTable = this.tableMap[table] || table;
 
     // Convert timestamps + field names in patch
-    const convertedPatch = this.convertTimestamps(this.mapFieldsForDb(patch, table), table);
+    const convertedPatch = this.filterUnsupportedColumns(table, this.convertTimestamps(this.mapFieldsForDb(patch, table), table));
 
     // UserStats uses userId as primary key, not id
     const pkField = table === 'user_stats' ? 'userId' : 'id';

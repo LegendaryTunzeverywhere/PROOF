@@ -959,6 +959,11 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
 
                           {(isAccepted || isSubmitted) && (
                             <div className="mt-4 space-y-3 rounded-xl border border-line bg-elevated p-3">
+                              <div className="rounded-xl border border-brand/20 bg-brand-soft/40 p-3">
+                                <div className="text-[10px] font-bold uppercase tracking-wide text-brand">Delivering to this job</div>
+                                <div className="mt-1 font-bold text-ink">{task.title || 'Task in progress'}</div>
+                                <div className="mt-1 text-sm text-muted">{task.description || 'Work for this task has been accepted and is awaiting delivery.'}</div>
+                              </div>
                               <div className="text-sm font-semibold text-ink">
                                 {isAccepted ? 'Submit your delivery' : 'Delivery sent for review'}
                               </div>
