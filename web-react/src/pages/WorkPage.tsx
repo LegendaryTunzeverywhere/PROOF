@@ -929,7 +929,12 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                       </div>
                     </div>
                     {appliedTasks.map((application) => {
-                      const task = application.task;
+                      const task = application.task || {
+                        id: application.taskId || null,
+                        title: application.taskTitle || application.title || 'Task in progress',
+                        description: application.taskDescription || application.description || 'Deliver your completed work to the client.',
+                        budgetNim: application.budgetNim ?? 0,
+                      };
                       const taskId = task?.id ?? application.taskId ?? null;
                       const jobTitle = task?.title || application.taskTitle || application.title || 'Task in progress';
                       const jobDescription = task?.description || application.taskDescription || application.description || 'Deliver your completed work to the client.';

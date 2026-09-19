@@ -388,11 +388,20 @@ export class MarketplaceService {
     const applied = await Promise.all(appliedFiltered.map(async (a) => {
       const task = this.store.get('marketplace_tasks', a.taskId);
       const taskView = task ? await this.taskView(task, userId, allApplications, userSkillsMap) : null;
+      const resolvedTask = taskView || {
+        id: a.taskId || null,
+        title: a.taskTitle || a.title || 'Task in progress',
+        description: a.taskDescription || a.description || 'Deliver your completed work to the client.',
+        budgetNim: Number(a.budgetNim || 0),
+      };
+
       return {
         ...a,
-        task: taskView,
-        taskTitle: task?.title || a.taskTitle || null,
-        taskDescription: task?.description || a.taskDescription || null,
+        task: taskView || resolvedTask,
+        title: resolvedTask.title,
+        description: resolvedTask.description,
+        taskTitle: resolvedTask.title,
+        taskDescription: resolvedTask.description,
         budgetNim: task ? Math.round((task.budgetLuna || 0) / 100000 * 100) / 100 : Number(a.budgetNim || 0),
       };
     }));
