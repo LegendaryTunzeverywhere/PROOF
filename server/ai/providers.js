@@ -60,8 +60,9 @@ export async function llmJson({ system, prompt, maxTokens = 900, task = 'tutor' 
         return result;
       } catch (error) {
         lastError = error;
-        if (!isRateLimitError(error) || offset === keys.length - 1) throw error;
-        console.warn(`[Cohere] Key ${keyIndex + 1}/${keys.length} is rate-limited; switching keys.`);
+        if (!isKeyFailoverError(error) || offset === keys.length - 1) throw error;
+        cohereKeyCursor = (keyIndex + 1) % keys.length;
+        console.warn(`[Cohere] Key ${keyIndex + 1}/${keys.length} failed; switching keys.`);
       }
     }
     throw lastError || new Error('COHERE_UNAVAILABLE');
@@ -97,8 +98,9 @@ export async function cohereEmbed(texts, inputType) {
       return result;
     } catch (error) {
       lastError = error;
-      if (!isRateLimitError(error) || offset === keys.length - 1) throw error;
-      console.warn(`[Cohere] Embedding key ${keyIndex + 1}/${keys.length} is rate-limited; switching keys.`);
+      if (!isKeyFailoverError(error) || offset === keys.length - 1) throw error;
+      cohereKeyCursor = (keyIndex + 1) % keys.length;
+      console.warn(`[Cohere] Embedding key ${keyIndex + 1}/${keys.length} failed; switching keys.`);
     }
   }
   throw lastError || new Error('COHERE_EMBED_UNAVAILABLE');
@@ -193,8 +195,8 @@ async function callCohereEmbed({ texts, inputType, apiKey }) {
   }
 }
 
-function isRateLimitError(error) {
-  return /COHERE_HTTP_(408|409|429)\b|rate.?limit|too many requests/i.test(error?.message || '');
+function isKeyFailoverError(error) {
+  return /COHERE_HTTP_(401|403|408|409|429)\b|rate.?limit|too many requests/i.test(error?.message || '');
 }
 
 async function callGemini({ system, prompt, maxTokens, model }) {

@@ -31,6 +31,14 @@ function loadDotEnv(file = '.env') {
     process.env[m[1]] = value;
   }
 }
+
+function parseApiKeys(primary, additional) {
+  return [primary, additional]
+    .flatMap((value) => String(value || '').split(','))
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .filter((value, index, values) => values.indexOf(value) === index);
+}
 loadDotEnv();
 
 const int = (v, d) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : d; };
@@ -57,10 +65,8 @@ export const config = {
   ai: {
     provider: process.env.AI_PROVIDER || 'auto',   // auto | engine | gemini | cohere
     apiKey: process.env.AI_API_KEY || '',          // Google Gemini API key
-    cohereApiKey: process.env.COHERE_API_KEY || '', // Cohere API key
-    cohereApiKeys: [process.env.COHERE_API_KEY || '', ...(process.env.COHERE_API_KEYS || '').split(',')]
-      .map((value) => value.trim())
-      .filter(Boolean),
+    cohereApiKey: parseApiKeys(process.env.COHERE_API_KEY, process.env.COHERE_API_KEYS)[0] || '', // Cohere API key
+    cohereApiKeys: parseApiKeys(process.env.COHERE_API_KEY, process.env.COHERE_API_KEYS),
     baseUrl: process.env.AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta',
     model: process.env.AI_MODEL || 'gemini-3.6-flash',
     cohereCurriculumModel: process.env.COHERE_MODEL_CURRICULUM || 'command-r-plus-08-2024',
