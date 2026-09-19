@@ -201,6 +201,24 @@ function buildDocumentLessonFallback(documentText, topicSlug, lessonTitle) {
   };
 }
 
+function ensureDocumentRecall(lesson, lessonTitle) {
+  const existingRecall = Array.isArray(lesson?.recall)
+    ? lesson.recall.filter((prompt) => typeof prompt === 'string' && prompt.trim())
+    : [];
+  if (existingRecall.length) return { ...lesson, recall: existingRecall.slice(0, 5) };
+
+  const keyPoints = Array.isArray(lesson?.keyPoints)
+    ? lesson.keyPoints.filter((point) => typeof point === 'string' && point.trim())
+    : [];
+  const recall = [
+    `Explain the central idea of ${lessonTitle} in your own words.`,
+    ...keyPoints.slice(0, 2).map((point) => `Without looking back, explain this key point: ${point}`),
+    `Give one example from the uploaded document that connects to ${lessonTitle}.`,
+  ];
+
+  return { ...lesson, recall: recall.slice(0, 4) };
+}
+
 function localDocumentCurriculum(text, userGoal = '') {
   const sections = String(text || '')
     .split(/\n+|(?<=[.!?])\s+/)
@@ -663,6 +681,7 @@ Return JSON:
     }
   ],
   "keyPoints": ["Key takeaway 1", "Key takeaway 2", "Key takeaway 3", "Key takeaway 4"],
+  "recall": ["Recall prompt 1", "Recall prompt 2", "Recall prompt 3"],
   "practice": [
     {"question": "Practice question 1?", "hint": "Helpful hint"},
     {"question": "Practice question 2?", "hint": "Helpful hint"},
@@ -695,7 +714,7 @@ Quiz rules:
 Make it educational and complete: 3 sections, 4 key points, 3 practice questions, and up to 5 evidence-based quiz questions.`;
 
   if (!llmEnabled()) {
-    return buildDocumentLessonFallback(documentExcerpt, topicSlug, lessonTitle);
+    return ensureDocumentRecall(buildDocumentLessonFallback(documentExcerpt, topicSlug, lessonTitle), lessonTitle);
   }
 
   try {
@@ -706,10 +725,10 @@ Make it educational and complete: 3 sections, 4 key points, 3 practice questions
       task: 'curriculum',
     });
     
-    return lesson;
+    return ensureDocumentRecall(lesson, lessonTitle);
   } catch (e) {
     console.error('[DocumentLesson] Failed to generate lesson:', e);
-    return buildDocumentLessonFallback(documentExcerpt, topicSlug, lessonTitle);
+    return ensureDocumentRecall(buildDocumentLessonFallback(documentExcerpt, topicSlug, lessonTitle), lessonTitle);
   }
 }
 

@@ -1248,8 +1248,15 @@ route('GET', '/api/lesson/:skill/:topic', async (ctx) => {
   // Check cache first
   const cacheKey = `${language}:${params.skill}:${params.topic}`;
   if (lessonCache.has(cacheKey)) {
-    console.log(`[LESSON CACHE HIT] ${cacheKey} (${Date.now() - startTime}ms)`);
-    return json(res, 200, lessonCache.get(cacheKey));
+    const cachedLesson = lessonCache.get(cacheKey);
+    const staleDocumentLesson = params.skill === 'document-study'
+      && (!Array.isArray(cachedLesson?.recall) || cachedLesson.recall.length === 0);
+    if (!staleDocumentLesson) {
+      console.log(`[LESSON CACHE HIT] ${cacheKey} (${Date.now() - startTime}ms)`);
+      return json(res, 200, cachedLesson);
+    }
+    lessonCache.delete(cacheKey);
+    console.log(`[LESSON CACHE EVICT] ${cacheKey} missing recall prompts`);
   }
   
   console.log(`[LESSON CACHE MISS] ${cacheKey}`);
