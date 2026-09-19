@@ -219,6 +219,12 @@ export interface MarketplaceTask {
     pitch: string;
     status: string;
     appliedAt: string | number;
+    taskId?: string | null;
+    taskTitle?: string | null;
+    taskDescription?: string | null;
+    deliveryNote?: string | null;
+    deliveryUrl?: string | null;
+    deliveryAttachment?: string | null;
   }>;
   minProof?: {
     skillSlug: string;

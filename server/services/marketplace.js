@@ -81,6 +81,15 @@ export class MarketplaceService {
           pitch: application.pitch,
           status: application.status,
           appliedAt: application.appliedAt,
+          taskTitle: task.title,
+          taskDescription: task.description,
+          deliveryNote: application.deliveryNote || '',
+          deliveryUrl: application.deliveryUrl || '',
+          deliveryAttachment: application.deliveryAttachment || '',
+          reviewFeedback: application.reviewFeedback || '',
+          deliveredAt: application.deliveredAt || null,
+          reviewedAt: application.reviewedAt || null,
+          completedAt: application.completedAt || null,
         };
       }));
     }

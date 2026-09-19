@@ -150,24 +150,31 @@ export class SupabaseStore {
   convertTimestamps(doc, tableName = null) {
     const converted = { ...doc };
     for (const [key, value] of Object.entries(converted)) {
-      // For sessions and admin_sessions tables: keep bootTime, expiresAt, and createdAt as bigint
-      // For other tables including nonces: convert timestamps to ISO strings
+      // Legacy marketplace and task rows can still be bigint-backed in Supabase.
+      // Keep those numeric so we do not send ISO strings to bigint columns.
+      const legacyBigintTimestampKeys = new Set([
+        'appliedAt', 'respondedAt', 'deliveredAt', 'reviewedAt', 'completedAt',
+        'postedAt', 'createdAt', 'updatedAt', 'verifiedAt', 'startedAt', 'submittedAt', 'confirmedAt'
+      ]);
+      const isLegacyBigintTable = tableName === 'task_applications' || tableName === 'marketplace_tasks' || tableName === 'MarketplaceTask' || tableName === 'TaskApplication';
+
       if (key === 'bootTime' || key === 'expiresAt') {
         continue;
       }
       if ((tableName === 'sessions' || tableName === 'admin_sessions') && key === 'createdAt') {
         continue;
       }
-      
-      // Check if it's a timestamp field with a number value
+      if (isLegacyBigintTable && legacyBigintTimestampKeys.has(key)) {
+        continue;
+      }
+
       if (
-        (key.endsWith('At') || key === 'postedAt' || key === 'bookedAt' || key === 'joinedAt' || 
+        (key.endsWith('At') || key === 'postedAt' || key === 'bookedAt' || key === 'joinedAt' ||
          key === 'appliedAt' || key === 'respondedAt' || key === 'unlockedAt' || key === 'earnedAt' ||
          key === 'startedAt' || key === 'completedAt' || key === 'submittedAt' || key === 'confirmedAt' ||
          key === 'suspendedAt' || key === 'lastReviewedAt' || key === 'lastPracticedAt' || key === 'verifiedAt') &&
         typeof value === 'number' && value > 1000000000000
       ) {
-        // Convert milliseconds to ISO string
         converted[key] = new Date(value).toISOString();
       }
     }

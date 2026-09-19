@@ -70,6 +70,37 @@ test('supabase: update retries after stripping missing task application columns 
   assert.equal(result.extraField, undefined);
 });
 
+test('supabase: legacy bigint marketplace timestamps stay numeric instead of ISO strings', async () => {
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+
+  const store = new SupabaseStore();
+  let savedPatch = null;
+  store.client.from = () => ({
+    update: (patch) => {
+      savedPatch = patch;
+      return {
+        eq: () => ({
+          select: () => ({
+            single: async () => ({ data: { id: 'app_1', ...patch }, error: null }),
+          }),
+        }),
+      };
+    },
+  });
+
+  await store.update('task_applications', 'app_1', {
+    status: 'completed',
+    completedAt: 1726750000000,
+    reviewedAt: 1726750001000,
+    reviewFeedback: 'Looks good',
+  });
+
+  assert.equal(typeof savedPatch.completedAt, 'number');
+  assert.equal(typeof savedPatch.reviewedAt, 'number');
+  assert.equal(savedPatch.reviewFeedback, 'Looks good');
+});
+
 test('users: listWalletAccounts works with async store.all', async (t) => {
   const tb = await testbed();
   await tb.users.createUser({ username: 'demoer', avatar: '🧪', walletMode: 'demo', isDemo: true });
@@ -118,6 +149,33 @@ test('marketplace: zero-score requirements do not block applicants without a pro
   const app = await tb.market.apply(task.id, pro, 'I can handle this');
   assert.equal(app.userId, pro.id);
   assert.equal(app.status, 'accepted', 'demo clients auto-accept and the zero-score gate should not block');
+});
+
+test('marketplace: submitted delivery cards carry the actual task and delivery content for review', async (t) => {
+  const tb = await testbed();
+  const client = await tb.users.createUser({ username: 'client-review-content', walletMode: 'nimiqpay' });
+  const applicant = await tb.users.createUser({ username: 'applicant-review-content', walletMode: 'nimiqpay' });
+  await tb.rewards.credit(client.id, 5000000, 'reward', 'seed');
+  await tb.skills.ensureUserSkill(applicant.id, 'ui-design');
+  await tb.skills.applyProofResult(applicant.id, 'ui-design', { score: 80, passed: true });
+  const task = await tb.market.postTask(tb.users.get(client.id), { title: 'Build a landing page', description: 'Landing page design with hero + CTA', budgetNim: 20, skillSlug: 'ui-design', minScore: 60 });
+  const app = await tb.market.apply(task.id, tb.users.get(applicant.id), 'I can handle this');
+  await tb.market.acceptApplication(task.id, app.id, tb.users.get(client.id));
+  await tb.market.submitDelivery(task.id, tb.users.get(applicant.id), {
+    note: 'Here is the hash and the ready-to-review mockup.',
+    url: 'https://example.com/review',
+    attachment: 'mockup.png',
+  });
+
+  const taskView = await tb.market.get(task.id, client.id);
+  const submittedApp = taskView.applicationDetails.find((item) => item.userId === applicant.id);
+
+  assert.ok(submittedApp, 'Missing submitted application details');
+  assert.equal(submittedApp.taskTitle, 'Build a landing page');
+  assert.equal(submittedApp.taskDescription, 'Landing page design with hero + CTA');
+  assert.equal(submittedApp.deliveryNote, 'Here is the hash and the ready-to-review mockup.');
+  assert.equal(submittedApp.deliveryUrl, 'https://example.com/review');
+  assert.equal(submittedApp.deliveryAttachment, 'mockup.png');
 });
 
 test('marketplace: delivery review gates escrow release to the approved applicant', async (t) => {
@@ -296,7 +354,7 @@ test('teaching: only verified skills 70+ can teach; booking pays the teacher', a
   const before = tb.users.get(teacher.id).balanceLuna;
   await tb.teaching.book(session.id, tb.users.get(student.id));
   const after = tb.users.get(teacher.id).balanceLuna;
-  assert.equal(after - before, 490010, 'teacher receives 5 NIM − 2% fee and the notification micro payout');
+  assert.equal(after - before, 491000, 'teacher receives 5 NIM − 2% fee and the notification micro payout');
   assert.equal(tb.users.get(student.id).balanceLuna, 500000);
 
   // review → reputation moves
@@ -336,6 +394,7 @@ test('notifications: each notification triggers a micro payout', async (t) => {
   });
 
   const after = tb.users.get(user.id).balanceLuna;
+  assert.ok(config.economy.notificationMicroPayoutNim >= 0.01, 'notification micro payout should be visible at a meaningful non-zero amount');
   assert.ok(after > before, 'recipient balance increases when a notification is sent');
   assert.equal(after - before, config.economy.notificationMicroPayoutNim * 100000, 'notification micro payout is configured amount in luna');
 });

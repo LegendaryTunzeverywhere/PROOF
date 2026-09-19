@@ -876,9 +876,23 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                                   <div className="mt-3 space-y-3 rounded-xl border border-warn bg-warn-soft/30 p-3">
                                     <div className="rounded-xl border border-warn/30 bg-surface p-3">
                                       <div className="text-[10px] font-bold uppercase tracking-wide text-warn">Reviewing this job</div>
-                                      <div className="mt-1 font-bold text-ink">{task.title || 'Task in progress'}</div>
-                                      <div className="mt-1 text-sm text-muted">{task.description || 'This job is waiting for review.'}</div>
+                                      <div className="mt-1 font-bold text-ink">{application.taskTitle || task.title || 'Task in progress'}</div>
+                                      <div className="mt-1 text-sm text-muted">{application.taskDescription || task.description || 'This job is waiting for review.'}</div>
                                       <div className="mt-1 text-sm text-muted">Applicant: {application.username}</div>
+                                    </div>
+                                    <div className="rounded-xl border border-warn/30 bg-surface p-3">
+                                      <div className="text-[10px] font-bold uppercase tracking-wide text-warn">Submitted delivery</div>
+                                      <div className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink">
+                                        {application.deliveryNote || 'No delivery note was provided yet.'}
+                                      </div>
+                                      {application.deliveryUrl && (
+                                        <a href={application.deliveryUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm font-semibold text-brand underline">
+                                          Open delivery link
+                                        </a>
+                                      )}
+                                      {application.deliveryAttachment && (
+                                        <div className="mt-2 text-sm text-muted">Attachment: {application.deliveryAttachment}</div>
+                                      )}
                                     </div>
                                     <div className="text-sm font-semibold text-warn">Delivery waiting for approval</div>
                                     <textarea
