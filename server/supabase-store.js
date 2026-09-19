@@ -96,6 +96,8 @@ export class SupabaseStore {
       'achievements': 1800000,  // 30 minutes - achievements are static
       'users': 300000,          // 5 minutes - user data changes occasionally
       'sessions': 60000,        // 1 minute - sessions need to be fresh
+      'marketplace_tasks': 0,   // Marketplace posts must appear immediately
+      'task_applications': 0,   // Application state must stay live
       'default': 180000         // 3 minutes - default for everything else
     };
   }

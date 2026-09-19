@@ -537,8 +537,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                 </Reveal>
               )}
 
-              {postedTasks.length > 0 && (
-                <Reveal delay={0.14}>
+              <Reveal delay={0.14}>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
@@ -549,7 +548,11 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                         {postedTasks.length} post{postedTasks.length === 1 ? '' : 's'}
                       </span>
                     </div>
-                    {postedTasks.map((task) => (
+                    {postedTasks.length === 0 ? (
+                      <div className="rounded-2xl border border-line bg-surface p-5 text-sm text-muted">
+                        Your newly posted work will appear here.
+                      </div>
+                    ) : postedTasks.map((task) => (
                       <div key={task.id} className="rounded-2xl border border-brand-soft bg-brand-soft/20 p-4 shadow-sm">
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -604,8 +607,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                       </div>
                     ))}
                   </div>
-                </Reveal>
-              )}
+              </Reveal>
 
               {/* Recommended Tasks */}
               <Reveal delay={0.15}>
