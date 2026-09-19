@@ -5,6 +5,7 @@ import type { Badge } from '@/types/api';
 
 export function Achievements() {
   const [achievements, setAchievements] = useState<Badge[]>([]);
+  const [showAll, setShowAll] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -52,17 +53,18 @@ export function Achievements() {
     <div className="rounded-2xl border border-line bg-card p-6 shadow-card">
       <div className="mb-5 flex items-center justify-between">
         <h2 className="font-display text-[17px] font-bold text-ink">Recent Achievements</h2>
-        <a
-          href="#"
+        <button
+          type="button"
+          onClick={() => setShowAll((visible) => !visible)}
           className="flex items-center gap-1.5 text-[13px] font-semibold text-brand transition-colors hover:text-brand-hover"
         >
-          View all
-          <ArrowRightIcon className="h-3.5 w-3.5" />
-        </a>
+          {showAll ? 'View less' : 'View all'}
+          {!showAll && <ArrowRightIcon className="h-3.5 w-3.5" />}
+        </button>
       </div>
 
       <ul className="space-y-3">
-        {achievements.slice(0, 5).map((achievement) => (
+        {achievements.slice(0, showAll ? undefined : 5).map((achievement) => (
           <li key={achievement.id}>
             <div className="flex items-start gap-4 rounded-xl border border-line bg-elevated p-4 transition-all duration-200 hover:border-brand-soft">
               {/* Icon */}
