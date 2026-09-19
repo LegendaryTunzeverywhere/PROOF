@@ -26,6 +26,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [showPostTask, setShowPostTask] = useState(false);
   const [escrowConfirmation, setEscrowConfirmation] = useState<{
     budget: number;
@@ -251,7 +252,10 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
     try {
       setAcceptingApplication(applicationId);
       setError(null);
+      setNotice(null);
       await marketplaceService.acceptApplication(taskId, applicationId);
+      setExpandedPostedTask(taskId);
+      setNotice('Applicant accepted — waiting for the work to be delivered.');
       await loadWorkData();
     } catch (err: any) {
       setError(err.message || 'The applicant could not be accepted.');
@@ -562,6 +566,11 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                         {postedTasks.length} post{postedTasks.length === 1 ? '' : 's'}
                       </span>
                     </div>
+                    {notice && (
+                      <div className="rounded-xl border border-ok bg-ok-soft px-3 py-2 text-sm font-medium text-ok">
+                        {notice}
+                      </div>
+                    )}
                     {postedTasks.length === 0 ? (
                       <div className="rounded-2xl border border-line bg-surface p-5 text-sm text-muted">
                         Your newly posted work will appear here.
