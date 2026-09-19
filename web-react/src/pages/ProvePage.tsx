@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { PanelHeader } from '../components/PanelHeader';
 import { Reveal } from '../components/Reveal';
 import { DailyChallenge } from '../components/DailyChallenge';
@@ -19,11 +19,13 @@ import type { LearningPath, SponsoredChallenge, Challenge, Attempt } from '../ty
 
 export function ProvePage() {
   const params = useParams<{ id?: string }>();
+  const [searchParams] = useSearchParams();
   const { id: challengeId } = params;
+  const returnPathId = searchParams.get('fromPath');
   
   // If there's a challengeId in the URL, show challenge detail
   if (challengeId) {
-    return <ChallengeDetailView challengeId={challengeId} />;
+    return <ChallengeDetailView challengeId={challengeId} returnPathId={returnPathId} />;
   }
   
   // Otherwise show the main prove hub
@@ -32,7 +34,7 @@ export function ProvePage() {
 
 export default ProvePage;
 
-function ChallengeDetailView({ challengeId }: { challengeId: string }) {
+function ChallengeDetailView({ challengeId, returnPathId }: { challengeId: string; returnPathId: string | null }) {
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,8 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
   const pasteAttempts = useRef(0);
   const [chessPayload, setChessPayload] = useState<ChessProofPayload>({ positions: [] });
   const { refreshUser } = useAuth();
+  const returnHref = returnPathId ? `/learn/path/${returnPathId}` : '/prove';
+  const returnLabel = returnPathId ? 'Back to Learning Path' : 'Back to Challenges';
   const isCodeProof = challenge?.type === 'html' || challenge?.type === 'js-static';
   const isChessProof = challenge?.type === 'chess';
   const isSpeechProof = challenge?.type === 'speech';
@@ -171,7 +175,7 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
         <p className="font-semibold text-bad">Challenge not found</p>
         {error && <p className="mt-2 text-sm text-bad">{error}</p>}
         <Link
-          to="/prove"
+          to={returnHref}
           className="mt-4 inline-block rounded-lg bg-bad px-4 py-2 text-sm font-semibold text-white"
         >
           Back to Challenges
@@ -191,7 +195,7 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <Link
-            to="/prove"
+            to={returnHref}
             className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-elevated"
           >
             ← Back
@@ -229,10 +233,10 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
           <div className="mt-6 flex gap-3 justify-center">
             {passed && <ShareOnXButton text={shareText} />}
             <Link
-              to="/prove"
+              to={returnHref}
               className="rounded-lg border border-line bg-surface px-6 py-3 font-semibold text-ink transition-colors hover:bg-elevated"
             >
-              Back to Challenges
+              {returnLabel}
             </Link>
             {!passed && (
               <button
@@ -259,7 +263,7 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link
-          to="/prove"
+          to={returnHref}
           className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-elevated"
         >
           ← Back
@@ -325,10 +329,10 @@ function ChallengeDetailView({ challengeId }: { challengeId: string }) {
                 </div>
                 <div className="flex gap-3 justify-center">
                   <Link
-                    to="/prove"
+                    to={returnHref}
                     className="rounded-lg border border-line bg-surface px-6 py-2 font-semibold text-ink hover:bg-elevated"
                   >
-                    Back to Challenges
+                    {returnLabel}
                   </Link>
                   <button
                     onClick={() => {

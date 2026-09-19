@@ -283,7 +283,7 @@ export function PathDetailView({ pathId }: PathDetailViewProps) {
                               </Link>
                             ) : (
                               <Link
-                                to={`/prove/challenge/${item.challengeId}`}
+                                to={`/prove/challenge/${item.challengeId}?fromPath=${pathId}`}
                                 className={`shrink-0 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                                   item.attempt?.status === 'passed'
                                     ? 'bg-elevated text-ink hover:bg-surface-2'

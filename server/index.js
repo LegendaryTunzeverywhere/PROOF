@@ -1138,6 +1138,7 @@ async function pathView(p, userId) {
     ...d,
     items: d.items.map((i) => ({
       ...i,
+      rewardNim: i.rewardNim ?? i.challengeTemplate?.rewardNim,
       lessonDone: hasProgressItem(p.progress, d.index, i.topic, 'lesson'),
       practiceDone: hasProgressItem(p.progress, d.index, i.topic, 'practice'),
       attempt: i.challengeId ? (attemptsByChallenge.get(i.challengeId) || null) : null,
@@ -1145,7 +1146,7 @@ async function pathView(p, userId) {
   }));
   // Total NIM attachable across all proof items in the path (mirrors the
   // generator's rewardPool) — the UI shows this as the path's reward pool.
-  const rewardNim = days.reduce((a, d) => a + (d.items || []).reduce((s, i) => s + (i.rewardNim || 0), 0), 0);
+  const rewardNim = days.reduce((total, d) => total + (d.items || []).reduce((dayTotal, i) => dayTotal + Number(i.rewardNim || 0), 0), 0);
   return {
     id: p.id, title: p.title, description: p.description, goal: p.goal,
     skillSlug: p.skillSlug, skillName: p.skillName, skillEmoji: p.skillEmoji,

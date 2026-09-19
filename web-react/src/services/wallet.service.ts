@@ -21,6 +21,7 @@ const HUB_VERSION = 'v1.10.0';
 const HUB_CDN = `https://cdn.jsdelivr.net/npm/@nimiq/hub-api@${HUB_VERSION}/dist/standalone/HubApi.standalone.umd.js`;
 const HUB_ENDPOINT = 'https://hub.nimiq.com';
 const APP_NAME = 'PROOF';
+const TRANSACTION_LABEL = 'PROOF';
 
 interface WalletState {
   mode: 'nimiqpay' | 'hub' | 'demo' | null;
@@ -478,6 +479,7 @@ class WalletServiceClass {
 
   async sendNim({ recipient, nim, note = '' }: { recipient: string; nim: number; note?: string }) {
     const value = Math.round(nim * 100000); // luna
+    const transactionData = note ? `${TRANSACTION_LABEL}: ${note}` : TRANSACTION_LABEL;
     
     if (state.mode === 'hub') {
       const hubApi = await getHubApi();
@@ -486,16 +488,18 @@ class WalletServiceClass {
         sender: state.address,
         recipient,
         value,
-        ...(note ? { extraData: note } : {}),
+        extraData: transactionData,
       });
       return result.hash;
     }
     
     if (state.mode !== 'nimiqpay' || !state.nimiq) throw new Error('WALLET_NOT_CONNECTED');
     
-    const tx = note
-      ? await state.nimiq.sendBasicTransactionWithData({ recipient, value, data: note })
-      : await state.nimiq.sendBasicTransaction({ recipient, value });
+    const tx = await state.nimiq.sendBasicTransactionWithData({
+      recipient,
+      value,
+      data: transactionData,
+    });
     
     return assertNotErrorResponse(tx, 'sendBasicTransaction');
   }
