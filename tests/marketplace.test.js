@@ -101,6 +101,133 @@ test('supabase: legacy bigint marketplace timestamps stay numeric instead of ISO
   assert.equal(savedPatch.reviewFeedback, 'Looks good');
 });
 
+test('supabase: ISO strings are coerced to bigint-safe ms values before legacy table writes', async () => {
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+
+  const store = new SupabaseStore();
+  let savedPatch = null;
+  store.client.from = () => ({
+    insert: (patch) => ({
+      select: () => ({
+        single: async () => ({ data: { id: 'nt_1', ...patch }, error: null }),
+      }),
+    }),
+    update: (patch) => {
+      savedPatch = patch;
+      return {
+        eq: () => ({
+          select: () => ({
+            single: async () => ({ data: { id: 'app_1', ...patch }, error: null }),
+          }),
+        }),
+      };
+    },
+  });
+
+  const created = await store.insert('notifications', {
+    id: 'nt_1',
+    userId: 'user_1',
+    type: 'task_paid',
+    title: 'Paid',
+    body: 'Worked',
+    href: '#/work',
+    emoji: '💰',
+    read: false,
+    createdAt: '2026-09-19T13:39:29.908Z',
+  });
+
+  assert.equal(typeof created.createdAt, 'number');
+  assert.equal(created.createdAt, Date.parse('2026-09-19T13:39:29.908Z'));
+
+  await store.update('task_applications', 'app_1', {
+    status: 'completed',
+    completedAt: '2026-09-19T13:39:29.908Z',
+    reviewFeedback: 'Looks good',
+  });
+
+  assert.equal(typeof savedPatch.completedAt, 'number');
+  assert.equal(savedPatch.completedAt, Date.parse('2026-09-19T13:39:29.908Z'));
+});
+
+test('marketplace: myTasks resolves actual task metadata when the store is async', async () => {
+  const tb = await testbed();
+  const client = await tb.users.createUser({ username: 'async-client', walletMode: 'nimiqpay' });
+  const applicant = await tb.users.createUser({ username: 'async-applicant', walletMode: 'nimiqpay' });
+  await tb.rewards.credit(client.id, 5000000, 'reward', 'seed');
+  await tb.skills.ensureUserSkill(applicant.id, 'ui-design');
+  await tb.skills.applyProofResult(applicant.id, 'ui-design', { score: 80, passed: true });
+  const task = await tb.market.postTask(tb.users.get(client.id), {
+    title: 'Real task title',
+    description: 'Real task description',
+    budgetNim: 20,
+    skillSlug: 'ui-design',
+    minScore: 60,
+  });
+  const app = await tb.market.apply(task.id, tb.users.get(applicant.id), 'I can handle this');
+  await tb.market.acceptApplication(task.id, app.id, tb.users.get(client.id));
+
+  const asyncWrapped = asyncStore(tb.store, ['all', 'find', 'filter', 'get', 'insert', 'update', 'save']);
+  const marketAsync = new (await import('../server/services/marketplace.js')).MarketplaceService(asyncWrapped, tb.config, {
+    users: tb.users,
+    skills: tb.skills,
+    rewards: tb.rewards,
+    notifications: tb.notifications,
+  });
+
+  const result = await marketAsync.myTasks(applicant.id);
+  assert.equal(result.applied.length, 1);
+  assert.equal(result.applied[0].taskTitle, 'Real task title');
+  assert.equal(result.applied[0].taskDescription, 'Real task description');
+  assert.equal(result.applied[0].budgetNim, 20);
+});
+
+test('supabase: timestamp range retries convert ms numbers into ISO strings for real timestamp columns', async () => {
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+
+  const store = new SupabaseStore();
+  let attempts = 0;
+  let firstAttemptPatch = null;
+  let secondAttemptPatch = null;
+  store.client.from = () => ({
+    update: (patch) => {
+      attempts += 1;
+      if (attempts === 1) {
+        firstAttemptPatch = patch;
+      } else {
+        secondAttemptPatch = patch;
+      }
+      return {
+        eq: () => ({
+          select: () => ({
+            single: async () => {
+              if (attempts === 1) {
+                const err = new Error('Update failed: timestamp out of range: "1789825660618"');
+                err.code = '22008';
+                throw err;
+              }
+              return { data: { id: 'app_1', ...patch }, error: null };
+            },
+          }),
+        }),
+      };
+    },
+  });
+
+  const result = await store.update('task_applications', 'app_1', {
+    status: 'completed',
+    completedAt: 1789825660618,
+    reviewFeedback: 'Looks good',
+  });
+
+  assert.equal(attempts, 2);
+  assert.equal(typeof firstAttemptPatch.completedAt, 'number');
+  assert.equal(typeof secondAttemptPatch.completedAt, 'string');
+  assert.equal(secondAttemptPatch.completedAt, new Date(1789825660618).toISOString());
+  assert.equal(result.completedAt, 1789825660618);
+});
+
 test('users: listWalletAccounts works with async store.all', async (t) => {
   const tb = await testbed();
   await tb.users.createUser({ username: 'demoer', avatar: '🧪', walletMode: 'demo', isDemo: true });

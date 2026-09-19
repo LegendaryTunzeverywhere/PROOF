@@ -164,6 +164,19 @@ export class SupabaseStore {
       if ((tableName === 'sessions' || tableName === 'admin_sessions') && key === 'createdAt') {
         continue;
       }
+
+      if (isLegacyBigintTable && legacyBigintTimestampKeys.has(key) && typeof value === 'string') {
+        const trimmed = value.trim();
+        const numericString = Number(trimmed);
+        const parsedMs = Date.parse(trimmed);
+        if (trimmed && Number.isFinite(numericString) && String(numericString) === trimmed) {
+          converted[key] = numericString;
+        } else if (!Number.isNaN(parsedMs)) {
+          converted[key] = parsedMs;
+        }
+        continue;
+      }
+
       if (isLegacyBigintTable && legacyBigintTimestampKeys.has(key)) {
         continue;
       }
@@ -229,6 +242,37 @@ export class SupabaseStore {
     for (const key of missingColumns) {
       delete safePatch[key];
     }
+    return safePatch;
+  }
+
+  coerceTimestampFieldsToIso(patch, tableName = null) {
+    if (!patch || typeof patch !== 'object') return patch;
+    const safePatch = { ...patch };
+    const timestampKeys = new Set([
+      'appliedAt', 'respondedAt', 'deliveredAt', 'reviewedAt', 'completedAt',
+      'postedAt', 'createdAt', 'updatedAt', 'verifiedAt', 'startedAt', 'submittedAt', 'confirmedAt',
+      'earnedAt', 'unlockedAt', 'suspendedAt', 'lastReviewedAt', 'lastPracticedAt', 'bookedAt', 'joinedAt'
+    ]);
+
+    for (const key of Object.keys(safePatch)) {
+      if (!timestampKeys.has(key)) continue;
+      const value = safePatch[key];
+      if (value === null || value === undefined) continue;
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        safePatch[key] = new Date(value).toISOString();
+      } else if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) continue;
+        const asMs = Number(trimmed);
+        const parsed = Date.parse(trimmed);
+        if (Number.isFinite(asMs) && String(asMs) === trimmed) {
+          safePatch[key] = new Date(asMs).toISOString();
+        } else if (!Number.isNaN(parsed)) {
+          safePatch[key] = new Date(parsed).toISOString();
+        }
+      }
+    }
+
     return safePatch;
   }
 
@@ -377,14 +421,25 @@ export class SupabaseStore {
         return await runUpdate(workingPatch);
       } catch (error) {
         const missingColumns = this.extractMissingColumnsFromError(error);
-        if (!missingColumns.length) throw error;
-
-        const compatiblePatch = this.stripMissingColumnsFromPatch(workingPatch, missingColumns);
-        if (!compatiblePatch || Object.keys(compatiblePatch).length === 0 || Object.keys(compatiblePatch).length === Object.keys(workingPatch).length) {
-          throw error;
+        if (missingColumns.length) {
+          const compatiblePatch = this.stripMissingColumnsFromPatch(workingPatch, missingColumns);
+          if (!compatiblePatch || Object.keys(compatiblePatch).length === 0 || Object.keys(compatiblePatch).length === Object.keys(workingPatch).length) {
+            throw error;
+          }
+          workingPatch = compatiblePatch;
+          continue;
         }
 
-        workingPatch = compatiblePatch;
+        const timestampRangeError = /timestamp out of range|invalid input syntax for type timestamp/i.test(error?.message || '');
+        if (timestampRangeError) {
+          const isoPatch = this.coerceTimestampFieldsToIso(workingPatch, table);
+          if (JSON.stringify(isoPatch) !== JSON.stringify(workingPatch)) {
+            workingPatch = isoPatch;
+            continue;
+          }
+        }
+
+        throw error;
       }
     }
   }

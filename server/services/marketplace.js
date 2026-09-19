@@ -34,7 +34,7 @@ export class MarketplaceService {
   }
 
   async taskView(task, userId = null, allApplications = null, userSkillsMap = null) {
-    const client = this.users.get(task.clientId);
+    const client = await this.users.get(task.clientId);
     // If allApplications is provided (batch mode), use it; otherwise fetch individually
     const apps = allApplications 
       ? allApplications.filter((a) => a.taskId === task.id)
@@ -42,7 +42,7 @@ export class MarketplaceService {
     
     // Use pre-fetched user skills if provided, otherwise fetch individually
     const us = userId && task.minProof 
-      ? (userSkillsMap ? userSkillsMap.get(task.minProof.skillSlug) || null : this.skills.userSkill(userId, task.minProof.skillSlug))
+      ? (userSkillsMap ? userSkillsMap.get(task.minProof.skillSlug) || null : await this.skills.userSkill(userId, task.minProof.skillSlug))
       : null;
     const minimumScore = Number(task.minProof?.min ?? 0);
     const isZeroMin = minimumScore <= 0;
@@ -115,8 +115,8 @@ export class MarketplaceService {
     return onlyQualified ? tasks.filter((t) => t.qualification.qualified) : tasks;
   }
 
-  get(taskId, userId) {
-    const t = this.store.get('marketplace_tasks', taskId);
+  async get(taskId, userId) {
+    const t = await this.store.get('marketplace_tasks', taskId);
     return t ? this.taskView(t, userId) : null;
   }
 
@@ -395,7 +395,7 @@ export class MarketplaceService {
     
     const appliedFiltered = allApplications.filter((a) => a.userId === userId);
     const applied = await Promise.all(appliedFiltered.map(async (a) => {
-      const task = this.store.get('marketplace_tasks', a.taskId);
+      const task = await this.store.get('marketplace_tasks', a.taskId);
       const taskView = task ? await this.taskView(task, userId, allApplications, userSkillsMap) : null;
       const resolvedTask = taskView || {
         id: a.taskId || null,
@@ -420,9 +420,9 @@ export class MarketplaceService {
       const isRelevant = task.clientId === userId || allApplications.some((a) => a.taskId === task.id && a.userId === userId);
       if (!isRelevant) continue;
 
-      const client = this.users.get(task.clientId);
+      const client = await this.users.get(task.clientId);
       const acceptedApplication = allApplications.find((a) => a.taskId === task.id && ['accepted', 'submitted', 'completed'].includes(a.status) && a.userId !== task.clientId);
-      const applicant = acceptedApplication ? this.users.get(acceptedApplication.userId) : null;
+      const applicant = acceptedApplication ? await this.users.get(acceptedApplication.userId) : null;
 
       const relationship = {
         taskId: task.id,
