@@ -931,8 +931,9 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                     {appliedTasks.map((application) => {
                       const task = application.task;
                       const taskId = task?.id ?? application.taskId ?? null;
-                      const jobTitle = task?.title || application.title || application.taskTitle || 'Task in progress';
-                      const jobDescription = task?.description || application.description || application.taskDescription || 'Deliver your completed work to the client.';
+                      const jobTitle = task?.title || application.taskTitle || application.title || 'Task in progress';
+                      const jobDescription = task?.description || application.taskDescription || application.description || 'Deliver your completed work to the client.';
+                      const jobBudgetNim = task?.budgetNim ?? application.budgetNim ?? 0;
                       if (!task && !taskId) return null;
                       const isAccepted = application.status === 'accepted';
                       const isSubmitted = application.status === 'submitted';
@@ -954,7 +955,7 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
                                 {application.status}
                               </span>
                             </div>
-                            <span className="rounded-lg bg-gold/10 px-3 py-1.5 text-sm font-bold text-gold">{formatNim(task?.budgetNim ?? application.budgetNim ?? 0)} NIM</span>
+                            <span className="rounded-lg bg-gold/10 px-3 py-1.5 text-sm font-bold text-gold">{formatNim(jobBudgetNim)} NIM</span>
                           </div>
 
                           <div className="flex items-start justify-between gap-3">

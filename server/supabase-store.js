@@ -209,6 +209,22 @@ export class SupabaseStore {
     return safePatch;
   }
 
+  extractMissingColumnsFromError(error) {
+    if (!error || typeof error.message !== 'string') return [];
+    const matches = [...error.message.matchAll(/Could not find the '([^']+)' column of '([^']+)' in the schema cache/g)];
+    const names = matches.map(([, columnName]) => columnName);
+    return [...new Set(names)];
+  }
+
+  stripMissingColumnsFromPatch(patch, missingColumns) {
+    if (!patch || typeof patch !== 'object' || !Array.isArray(missingColumns) || !missingColumns.length) return patch;
+    const safePatch = { ...patch };
+    for (const key of missingColumns) {
+      delete safePatch[key];
+    }
+    return safePatch;
+  }
+
   /** DB→App field mapping (reverse of mapFieldsForDb) + ISO→ms timestamps. */
   convertFromDatabase(row, tableName) {
     if (!row || typeof row !== 'object') return row;
@@ -319,32 +335,48 @@ export class SupabaseStore {
   async update(table, id, patch) {
     const supabaseTable = this.tableMap[table] || table;
 
-    // Convert timestamps + field names in patch
-    const convertedPatch = this.filterUnsupportedColumns(table, this.convertTimestamps(this.mapFieldsForDb(patch, table), table));
+    const basePatch = this.filterUnsupportedColumns(
+      table,
+      this.convertTimestamps(this.mapFieldsForDb(patch, table), table)
+    );
 
     // UserStats uses userId as primary key, not id
     const pkField = table === 'user_stats' ? 'userId' : 'id';
 
-    const { data, error } = await this.client
-      .from(supabaseTable)
-      .update(convertedPatch)
-      .eq(pkField, id)
-      .select()
-      .single();
+    const runUpdate = async (currentPatch) => {
+      const { data, error } = await this.client
+        .from(supabaseTable)
+        .update(currentPatch)
+        .eq(pkField, id)
+        .select()
+        .single();
 
-    if (error) {
-      if (error.code === 'PGRST116') return null; // Not found
-      if (error.code === '23505') {
-        throw new Error(`UNIQUE_VIOLATION ${error.message}`);
+      if (error) {
+        if (error.code === 'PGRST116') return null; // Not found
+        if (error.code === '23505') {
+          throw new Error(`UNIQUE_VIOLATION ${error.message}`);
+        }
+        throw new Error(`Update failed: ${error.message}`);
       }
-      throw new Error(`Update failed: ${error.message}`);
+
+      this.cache.delete(`${table}:all`);
+      this.cache.delete(`${table}:${id}`);
+      return this.convertFromDatabase(data, table);
+    };
+
+    try {
+      return await runUpdate(basePatch);
+    } catch (error) {
+      const missingColumns = this.extractMissingColumnsFromError(error);
+      if (!missingColumns.length) throw error;
+
+      const compatiblePatch = this.stripMissingColumnsFromPatch(basePatch, missingColumns);
+      if (Object.keys(compatiblePatch || {}).length === 0 || Object.keys(compatiblePatch).length === Object.keys(basePatch).length) {
+        throw error;
+      }
+
+      return await runUpdate(compatiblePatch);
     }
-
-    // Invalidate only this table's cache
-    this.cache.delete(`${table}:all`);
-    this.cache.delete(`${table}:${id}`);
-
-    return this.convertFromDatabase(data, table);
   }
 
   async remove(table, id) {

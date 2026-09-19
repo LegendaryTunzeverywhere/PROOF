@@ -387,7 +387,14 @@ export class MarketplaceService {
     const appliedFiltered = allApplications.filter((a) => a.userId === userId);
     const applied = await Promise.all(appliedFiltered.map(async (a) => {
       const task = this.store.get('marketplace_tasks', a.taskId);
-      return { ...a, task: task ? await this.taskView(task, userId, allApplications, userSkillsMap) : null };
+      const taskView = task ? await this.taskView(task, userId, allApplications, userSkillsMap) : null;
+      return {
+        ...a,
+        task: taskView,
+        taskTitle: task?.title || a.taskTitle || null,
+        taskDescription: task?.description || a.taskDescription || null,
+        budgetNim: task ? Math.round((task.budgetLuna || 0) / 100000 * 100) / 100 : Number(a.budgetNim || 0),
+      };
     }));
 
     const relationships = [];

@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { config } from '../server/config.js';
 import { normalizeNimiqAddress, kindIncludesReward } from '../server/util.js';
 import { UserService } from '../server/services/users.js';
+import { SupabaseStore } from '../server/supabase-store.js';
 import { asyncStore, testbed, goodHtml, typedMeta } from './helpers.js';
 
 test('schema: task applications include delivery review fields required by the escrow flow', async () => {
@@ -25,6 +26,48 @@ test('schema: task applications include delivery review fields required by the e
   for (const name of ['deliveredAt', 'deliveryNote', 'deliveryUrl', 'deliveryAttachment', 'reviewedAt', 'reviewFeedback', 'completedAt']) {
     assert.ok(prismaSchema.includes(name), `Missing Prisma field: ${name}`);
   }
+});
+
+test('supabase: update retries after stripping missing task application columns from a stale schema', async () => {
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+
+  const store = new SupabaseStore();
+  let attempts = 0;
+  store.client.from = () => ({
+    update: (patch) => {
+      attempts += 1;
+      const chain = {
+        eq: () => ({
+          select: () => ({
+            single: async () => {
+              if (attempts === 1) {
+                const err = new Error("Update failed: Could not find the 'deliveredAt' column of 'TaskApplication' in the schema cache");
+                err.code = 'PGRST204';
+                throw err;
+              }
+              return { data: { id: 'app_1', ...patch }, error: null };
+            },
+          }),
+        }),
+      };
+      return chain;
+    },
+  });
+
+  const result = await store.update('task_applications', 'app_1', {
+    status: 'submitted',
+    deliveredAt: Date.now(),
+    deliveryNote: 'note',
+    reviewFeedback: 'feedback',
+    extraField: 'ignore-me',
+  });
+
+  assert.equal(attempts, 2);
+  assert.equal(result.status, 'submitted');
+  assert.equal(result.deliveryNote, 'note');
+  assert.equal(result.reviewFeedback, 'feedback');
+  assert.equal(result.extraField, undefined);
 });
 
 test('users: listWalletAccounts works with async store.all', async (t) => {
