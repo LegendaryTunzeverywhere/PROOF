@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS "User" (
   level INT DEFAULT 1,
   xp INT DEFAULT 0,
   reputation INT DEFAULT 50,
+  "clientReputation" INT NOT NULL DEFAULT 50,
+  "applicantReputation" INT NOT NULL DEFAULT 50,
   "balanceLuna" BIGINT DEFAULT 0,
   "earnedLuna" BIGINT DEFAULT 0,
   "proofsPassed" INT DEFAULT 0,

@@ -458,37 +458,41 @@ export class ChallengeService {
             ? `+${ch.xp} XP · ${rewardResult.amountNim} NIM credited; wallet payout is pending.`
             : `+${ch.xp} XP · +${rewardResult.amountNim} NIM added to your PROOF balance.`
         : `+${ch.xp} XP`;
-      this.notify.push(userId, {
+      await this.notify.push(userId, {
         type: 'proof_passed', emoji: '✅',
         title: `You passed: ${ch.title}`,
         body: rewardMessage,
         href: proof ? `#/proof/${proof.publicId}` : '#/profile',
+        microPayout: false,
       });
       if (payoutSent) {
         const ref = rewardResult.payout.ref;
-        this.notify.push(userId, {
+        await this.notify.push(userId, {
           type: 'payout_sent', emoji: '💸',
           title: 'NIM sent to your connected wallet',
           body: `${rewardResult.amountNim} NIM sent · ${shortTxRef(ref)}`,
           href: `https://nimiq.watch/#${ref}`,
+          microPayout: false,
         });
       }
     } else {
-      this.notify.push(userId, {
+      await this.notify.push(userId, {
         type: 'proof_failed', emoji: '📝',
         title: `Feedback ready: ${ch.title}`,
         body: `${evaluation.score}/100 — so close. See what to improve.`,
         href: `#/attempt/${attempt.id}`,
+        microPayout: false,
       });
     }
     for (const a of newAchievements)
-      this.notify.push(userId, { type: 'achievement', emoji: a.emoji, title: `Achievement: ${a.name}`, body: a.desc, href: '#/profile' });
+      await this.notify.push(userId, { type: 'achievement', emoji: a.emoji, title: `Achievement: ${a.name}`, body: a.desc, href: '#/profile', microPayout: false });
     if (skillResult && !skillResult.before.verified && skillResult.userSkill.verified) {
-      this.notify.push(userId, {
+      await this.notify.push(userId, {
         type: 'skill_verified', emoji: '♢',
         title: `Skill verified: ${String(ch.skillSlug).replace(/-/g, ' ')}`,
         body: `Score ${skillResult.userSkill.score}/100 — ${skillResult.userSkill.tier} tier.`,
         href: '#/profile',
+        microPayout: false,
       });
     }
 

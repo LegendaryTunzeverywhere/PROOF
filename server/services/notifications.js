@@ -13,14 +13,14 @@ export class NotificationService {
     this.microPayoutNim = this.config?.economy?.notificationMicroPayoutNim ?? 0.01;
   }
 
-  async push(userId, { type, title, body = '', href = null, emoji = '🔔' }) {
-    const n = this.store.insert('notifications', {
+  async push(userId, { type, title, body = '', href = null, emoji = '🔔', microPayout = true }) {
+    const n = await this.store.insert('notifications', {
       id: uid('nt'), userId, type, title, body, href, emoji,
       read: false, createdAt: now(),
     });
-    this.store.save();
+    await this.store.save();
 
-    if (Number(this.microPayoutNim) > 0 && this.rewards && userId) {
+    if (microPayout && Number(this.microPayoutNim) > 0 && this.rewards && userId) {
       try {
         const user = await this.store.get('users', userId);
         if (user) {
@@ -45,7 +45,11 @@ export class NotificationService {
     const currentPage = Math.min(page, totalPages);
     const startIndex = (currentPage - 1) * safeLimit;
     const items = sorted.slice(startIndex, startIndex + safeLimit);
-    return { items, total, totalPages, page: currentPage, limit: safeLimit };
+    const result = { items, total, totalPages, page: currentPage, limit: safeLimit };
+    // Keep the paginated response backward-compatible with callers that only
+    // need to search the current page.
+    result.find = (...args) => items.find(...args);
+    return result;
   }
 
   async unreadCount(userId) {
