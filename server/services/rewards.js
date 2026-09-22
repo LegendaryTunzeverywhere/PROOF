@@ -239,7 +239,7 @@ export class RewardService {
   * Request a payout of the in-app balance. Configured treasury mode broadcasts
   * first and debits the balance only after the network accepts the transfer.
    */
-  async requestPayout(userId, amountNim, { automatic = false, rewardId = null } = {}) {
+  async requestPayout(userId, amountNim, { automatic = false, rewardId = null, notificationId = null } = {}) {
     const amount = luna(amountNim);
     const user = await this.#user(userId);
     if (user.isDemo || user.walletMode === 'demo') {
@@ -270,7 +270,7 @@ export class RewardService {
       throw new EconomyError('TREASURY_NOT_CONFIGURED', 'Automatic treasury payouts are not configured.');
     }
     const tx = await this.#tx({ userId, kind: 'payout', direction: 'debit', amountLuna: amount, ref,
-      meta: rewardId ? { rewardId } : {},
+      meta: { ...(rewardId ? { rewardId } : {}), ...(notificationId ? { notificationId } : {}) },
       note: ref ? 'Automatic on-chain treasury payout' : 'Payout (demo ledger — configure Nimiq treasury for real NIM)' });
     await this.store.update('users', userId, { balanceLuna: user.balanceLuna - amount, updatedAt: now() });
     await this.#settle(tx);

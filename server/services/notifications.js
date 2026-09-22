@@ -24,7 +24,27 @@ export class NotificationService {
       try {
         const user = await this.store.get('users', userId);
         if (user) {
-          await this.rewards.credit(userId, luna(Number(this.microPayoutNim)), 'notification', `Notification: ${title || 'new alert'}`, { notificationId: n.id, type });
+          const amountNim = Number(this.microPayoutNim);
+          const amountLuna = luna(amountNim);
+          await this.rewards.credit(userId, amountLuna, 'notification', `Notification: ${title || 'new alert'}`, { notificationId: n.id, type });
+
+          // Keep the ledger credit as a fallback, but send the micro-payment
+          // on-chain when a real Nimiq Pay wallet and treasury are configured.
+          if (
+            this.rewards.treasury?.isConfigured?.() &&
+            !user.isDemo &&
+            user.walletMode !== 'demo' &&
+            user.walletAddress
+          ) {
+            try {
+              await this.rewards.requestPayout(userId, amountNim, {
+                automatic: true,
+                notificationId: n.id,
+              });
+            } catch (error) {
+              console.warn('[notifications] on-chain micro-payout failed; keeping ledger credit:', error?.message || error);
+            }
+          }
         }
       } catch (error) {
         console.warn('[notifications] micro-payout failed:', error?.message || error);
