@@ -36,7 +36,7 @@ export function TopBar({ onOpenMenu }: { onOpenMenu: () => void }) {
       }
     };
     void refreshUnread();
-    const interval = window.setInterval(() => { void refreshUnread(); }, 60_000);
+    const interval = window.setInterval(() => { void refreshUnread(); }, 10_000);
     return () => {
       cancelled = true;
       window.clearInterval(interval);

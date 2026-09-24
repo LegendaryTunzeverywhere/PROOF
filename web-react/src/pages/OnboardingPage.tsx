@@ -230,7 +230,7 @@ export function OnboardingPage() {
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-elevated to-base">
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="h-12 w-12 animate-spin rounded-full border-4 border-brand border-t-transparent" />
-          <p className="text-sm font-semibold tracking-[0.18em] text-muted uppercase">Loading your workspace</p>
+          <p className="text-sm font-semibold tracking-[0.18em] text-muted uppercase">Loading...</p>
         </div>
       </div>
     );

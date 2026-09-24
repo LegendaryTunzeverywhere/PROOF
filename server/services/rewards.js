@@ -245,7 +245,7 @@ export class RewardService {
   * Request a payout of the in-app balance. Configured treasury mode broadcasts
   * first and debits the balance only after the network accepts the transfer.
    */
-  async requestPayout(userId, amountNim, { automatic = false, rewardId = null, notificationId = null, note = null } = {}) {
+  async requestPayout(userId, amountNim, { automatic = false, rewardId = null, notificationId = null, note = null, ignorePendingPayouts = false } = {}) {
     const amount = luna(amountNim);
     const user = await this.#user(userId);
     if (user.isDemo || user.walletMode === 'demo') {
@@ -254,7 +254,7 @@ export class RewardService {
     if (!automatic && amount < luna(1)) throw new EconomyError('MIN_PAYOUT', 'Minimum payout is 1 NIM.');
     const currentBalanceLuna = Number(user.balanceLuna) || 0;
     if (currentBalanceLuna < amount) throw new EconomyError('INSUFFICIENT_NIM', 'Not enough NIM in the user ledger for that payout.');
-    if (this.treasury.isConfigured() && !rewardId && (await this.pendingPayoutsForUser(userId)).length) {
+    if (this.treasury.isConfigured() && !rewardId && !ignorePendingPayouts && (await this.pendingPayoutsForUser(userId)).length) {
       throw new EconomyError('PENDING_PAYOUT', 'A previous reward is waiting for treasury funds. It will be retried automatically.');
     }
     let ref = null;

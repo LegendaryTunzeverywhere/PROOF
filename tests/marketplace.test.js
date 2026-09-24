@@ -271,6 +271,39 @@ test('supabase: live Postgres date/time out-of-range message triggers the ISO re
   assert.equal(result.completedAt, 1789826149481);
 });
 
+test('supabase: marketplace inserts retry epoch timestamps as ISO values', async () => {
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+
+  const store = new SupabaseStore();
+  let attempts = 0;
+  let firstInsert = null;
+  let secondInsert = null;
+  store.client.from = () => ({
+    insert: (patch) => {
+      attempts++;
+      if (attempts === 1) firstInsert = patch;
+      if (attempts === 2) secondInsert = patch;
+      return {
+        select: () => ({
+          single: async () => attempts === 1
+            ? { data: null, error: new Error('date/time field value out of range: "1790262631058"') }
+            : { data: { id: 'task_1', ...patch }, error: null },
+        }),
+      };
+    },
+  });
+
+  const result = await store.insert('marketplace_tasks', {
+    id: 'task_1', title: 'Task', postedAt: 1790262631058,
+  });
+
+  assert.equal(attempts, 2);
+  assert.equal(typeof firstInsert.postedAt, 'number');
+  assert.equal(secondInsert.postedAt, new Date(1790262631058).toISOString());
+  assert.equal(result.postedAt, 1790262631058);
+});
+
 test('users: listWalletAccounts works with async store.all', async (t) => {
   const tb = await testbed();
   await tb.users.createUser({ username: 'demoer', avatar: '🧪', walletMode: 'demo', isDemo: true });
@@ -567,6 +600,35 @@ test('notifications: each notification triggers a micro payout', async (t) => {
   assert.equal(config.economy.notificationMicroPayoutNim, 0.005, 'notification micro payout should be 0.005 NIM by default');
   assert.ok(after > before, 'recipient balance increases when a notification is sent');
   assert.equal(after - before, config.economy.notificationMicroPayoutNim * 100000, 'notification micro payout is configured amount in luna');
+});
+
+test('notifications: failed micro payouts are retried once by notification id', async (t) => {
+  const tb = await testbed();
+  const user = await tb.users.createUser({
+    username: 'retry-notifier',
+    walletMode: 'nimiqpay',
+    walletAddress: 'NQ18 TAQ8 CL7P K505 LE2M C78A 1YQC 1CH1 6Y4G',
+  });
+  let broadcasts = 0;
+  tb.rewards.treasury = {
+    isConfigured: () => true,
+    send: async () => {
+      broadcasts++;
+      if (broadcasts === 1) throw new Error('temporary treasury outage');
+      return { hash: 'a'.repeat(64) };
+    },
+  };
+
+  await tb.notifications.push(user.id, { type: 'retry_notice', title: 'Retry me' });
+  assert.equal(broadcasts, 1);
+  assert.equal((await tb.rewards.txHistory(user.id)).filter((tx) => tx.kind === 'payout').length, 0);
+
+  const result = await tb.notifications.retryMicroPayouts();
+  assert.deepEqual(result, { attempted: 1, paid: 1 });
+  const payouts = (await tb.rewards.txHistory(user.id)).filter((tx) => tx.kind === 'payout');
+  assert.equal(payouts.length, 1);
+  assert.equal(payouts[0].ref, 'a'.repeat(64));
+  assert.equal(broadcasts, 2);
 });
 
 test('notifications: list supports pagination and page metadata', async (t) => {

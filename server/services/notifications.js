@@ -55,6 +55,37 @@ export class NotificationService {
     return n;
   }
 
+  async retryMicroPayouts(limit = 100) {
+    if (!this.rewards?.treasury?.isConfigured?.()) return { attempted: 0, paid: 0 };
+    const credits = await this.store.filter('wallet_txs', (tx) =>
+      tx.kind === 'notification' && tx.direction === 'credit' && tx.status === 'confirmed' && tx.meta?.notificationId
+    );
+    let attempted = 0;
+    let paid = 0;
+    for (const credit of credits.slice(0, limit)) {
+      const notificationId = credit.meta.notificationId;
+      const existingPayout = await this.store.find('wallet_txs', (tx) =>
+        tx.kind === 'payout' && tx.direction === 'debit' && tx.ref && tx.meta?.notificationId === notificationId
+      );
+      if (existingPayout) continue;
+      const user = await this.store.get('users', credit.userId);
+      if (!user || user.isDemo || user.walletMode === 'demo' || !user.walletAddress) continue;
+      attempted++;
+      try {
+        await this.rewards.requestPayout(credit.userId, Number(credit.amountLuna) / 100_000, {
+          automatic: true,
+          notificationId,
+          ignorePendingPayouts: true,
+          note: `PROOF notification retry: ${notificationId}`,
+        });
+        paid++;
+      } catch (error) {
+        console.warn(`[notifications] retry failed for ${notificationId}:`, error?.message || error);
+      }
+    }
+    return { attempted, paid };
+  }
+
   async list(userId, options = {}) {
     const limit = Number(options.limit ?? 40);
     const page = Math.max(1, Number(options.page ?? 1));

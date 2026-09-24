@@ -24,7 +24,12 @@ test('challenge: full pipeline — submit → score → skill → reward → xp'
   assert.equal(result.skill.verified, true);
   const me = tb.users.get(user.id);
   assert.ok(me.xp >= 150);
-  assert.equal(me.balanceLuna, 300000, '3 NIM = 300k luna credited');
+  const rewardTxs = await tb.rewards.txHistory(user.id);
+  assert.deepEqual(
+    rewardTxs.filter((tx) => tx.kind === 'reward').map((tx) => tx.amountLuna),
+    [300000],
+    'exactly 3 NIM must be credited as the challenge reward',
+  );
 });
 
 test('challenge: first verified proof pushes a real skill_verified notification', async (t) => {
@@ -62,7 +67,11 @@ test('anti-cheat: client cannot inject score/status into the pipeline', async (t
   assert.ok(result.evaluation.score < 70);
   assert.equal(result.attempt.status, 'failed');
   assert.equal(result.reward.granted, false);
-  assert.equal(tb.users.get(user.id).balanceLuna, 0);
+  assert.equal(
+    (await tb.rewards.txHistory(user.id)).filter((tx) => tx.kind === 'reward').length,
+    0,
+    'a client-injected reward must never create a reward transaction',
+  );
 });
 
 /**
@@ -129,7 +138,11 @@ test('anti-cheat: passed challenge cannot be started or rewarded again', async (
     (error) => error.code === 'ALREADY_PASSED',
     'a passed challenge must not create another attempt'
   );
-  assert.equal(tb.users.get(user.id).balanceLuna, 200000, 'balance must not double');
+  assert.deepEqual(
+    (await tb.rewards.txHistory(user.id)).filter((tx) => tx.kind === 'reward').map((tx) => tx.amountLuna),
+    [200000],
+    'a passed challenge must create exactly one reward transaction',
+  );
 });
 
 test('anti-cheat: duplicate submission hash is flagged and unrewarded', async (t) => {

@@ -335,11 +335,23 @@ export class SupabaseStore {
     // Convert timestamps + field names to DB form
     const convertedDoc = this.filterUnsupportedColumns(table, this.convertTimestamps(this.mapFieldsForDb(doc, table), table));
 
-    const { data, error } = await this.client
+    let { data, error } = await this.client
       .from(supabaseTable)
       .insert(convertedDoc)
       .select()
       .single();
+
+    // Some deployments still have legacy bigint timestamps while newer
+    // Prisma tables use PostgreSQL timestamp columns. Retry the insert with
+    // ISO timestamps when the schema rejects epoch milliseconds.
+    if (error && /timestamp out of range|date\/time field value out of range|invalid input syntax for type timestamp/i.test(error.message || '')) {
+      const isoDoc = this.coerceTimestampFieldsToIso(convertedDoc, table);
+      ({ data, error } = await this.client
+        .from(supabaseTable)
+        .insert(isoDoc)
+        .select()
+        .single());
+    }
 
     if (error) {
       // Handle unique constraint violations

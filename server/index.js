@@ -86,6 +86,11 @@ const payoutRetryTimer = setInterval(() => {
 }, 60_000);
 payoutRetryTimer.unref?.();
 
+const notificationPayoutRetryTimer = setInterval(() => {
+  notifications.retryMicroPayouts().catch((error) => console.error('[notifications] retry worker failed:', error.message));
+}, 60_000);
+notificationPayoutRetryTimer.unref?.();
+
 const streakReminderTimer = setInterval(() => {
   rewards.sendStreakReminders().catch((error) => console.error('[streak] reminder worker failed:', error.message));
 }, 6 * 60 * 60 * 1000);
@@ -211,7 +216,7 @@ route('POST', '/api/onboard', async (ctx) => {
   await users.update(user, { prefs: { goal: body.goal || '', level: body.level || '', minutesPerDay: body.minutesPerDay || 30, style: 'practical', interests: Array.isArray(body.interests) ? body.interests.slice(0, 6) : [] } });
   const hasWelcomeNotification = store.find('notifications', (n) => n.userId === user.id && n.type === 'welcome');
   if (!hasWelcomeNotification) {
-    notifications.push(user.id, {
+    await notifications.push(user.id, {
       type: 'welcome',
       emoji: '🎉',
       title: 'Welcome to PROOF',
@@ -357,7 +362,7 @@ route('POST', '/api/auth/verify', async (ctx) => {
 
   const hasWelcomeNotification = store.find('notifications', (n) => n.userId === user.id && n.type === 'welcome');
   if (!hasWelcomeNotification) {
-    notifications.push(user.id, {
+    await notifications.push(user.id, {
       type: 'welcome',
       emoji: '🎉',
       title: 'Welcome to PROOF',
@@ -937,7 +942,7 @@ route('POST', '/api/paths/:id/progress', async (ctx) => {
     
     // Send notifications for new badges
     for (const badge of awarded) {
-      notifications.push(user.id, { 
+      await notifications.push(user.id, {
         type: 'badge', 
         emoji: badge.definition.emoji, 
         title: `Badge unlocked: ${badge.definition.name}`, 
@@ -1829,7 +1834,7 @@ route('POST', '/api/wallet/payout', async (ctx) => {
     throw httpError(400, 'INVALID_AMOUNT', error.message);
   }
   const tx = await rewards.requestPayout(user.id, amountNim);
-  notifications.push(user.id, {
+  await notifications.push(user.id, {
     type: 'payout_sent',
     emoji: '💸',
     title: 'NIM payout sent',
@@ -1845,7 +1850,7 @@ route('POST', '/api/tips', async (ctx) => {
   if (!to) throw httpError(404, 'NOT_FOUND', 'User not found.');
   const amountNim = parseNumber(body?.amountNim, { min: 0.01, max: 10_000 });
   const tx = await rewards.tip(user.id, to.id, amountNim, String(body?.note || '').slice(0, 140));
-  notifications.push(to.id, { type: 'tip', emoji: '💸', title: `${user.username} tipped you ${amountNim} NIM`, body: String(body?.note || ''), href: '#/profile' });
+  await notifications.push(to.id, { type: 'tip', emoji: '💸', title: `${user.username} tipped you ${amountNim} NIM`, body: String(body?.note || ''), href: '#/profile' });
   json(res, 201, { ok: true, tx: { ...tx, amountNim: toNim(tx.amountLuna) } });
 });
 
@@ -1915,7 +1920,7 @@ route('POST', '/api/rewards/daily/claim', async (ctx) => {
   }
   if (result.payout?.ref) {
     const ref = result.payout.ref;
-    notifications.push(user.id, {
+    await notifications.push(user.id, {
       type: 'payout_sent', emoji: '💸', title: 'Daily NIM sent to your connected wallet',
       body: `${result.amountNim} NIM sent · ${shortTxRef(ref)}`,
       href: `https://nimiq.watch/#${ref}`,
@@ -2076,7 +2081,7 @@ route('POST', '/api/sponsored/:id/join', async (ctx) => {
   if (store.find('sponsored_participants', (p) => p.key === key))
     throw httpError(409, 'ALREADY_JOINED', 'You already joined this challenge.');
   store.insert('sponsored_participants', { id: uid('sp'), key, userId: user.id, sponsoredId: s.id, joinedAt: now() });
-  notifications.push(user.id, { type: 'sponsored', emoji: '🏆', title: `You're in: ${s.title}`, body: `${toNim(s.poolLuna)} NIM pool — pass the final proof to qualify.`, href: '#/prove' });
+  await notifications.push(user.id, { type: 'sponsored', emoji: '🏆', title: `You're in: ${s.title}`, body: `${toNim(s.poolLuna)} NIM pool — pass the final proof to qualify.`, href: '#/prove' });
   store.save();
   json(res, 201, { sponsored: await sponsoredView(store.get('sponsored_challenges', s.id), user.id) });
 });
@@ -2277,7 +2282,7 @@ route('POST', '/api/reviews/:id/complete', async (ctx) => {
   // Check for badges
   const awarded = await masteryBadges.checkAndAwardBadges(user.id);
   for (const badge of awarded) {
-    notifications.push(user.id, { 
+    await notifications.push(user.id, {
       type: 'badge', 
       emoji: badge.definition.emoji, 
       title: `Badge unlocked: ${badge.definition.name}`, 
