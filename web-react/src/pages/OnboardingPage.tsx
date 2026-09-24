@@ -176,6 +176,7 @@ export function OnboardingPage() {
   const [showSkillModal, setShowSkillModal] = useState(false);
   const [username, setUsername] = useState("");
   const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [finishingOnboarding, setFinishingOnboarding] = useState(false);
   const [showWelcome, setShowWelcome] = useState(() => {
     try {
       return sessionStorage.getItem('proof_welcome_pending') === 'true';
@@ -338,6 +339,7 @@ export function OnboardingPage() {
 
   const finishOnboarding = async (customUsername: string | null, createPath: boolean) => {
     try {
+      setFinishingOnboarding(true);
       setConnecting(true);
       setError(null);
       
@@ -396,6 +398,7 @@ export function OnboardingPage() {
         setShowSkillModal(true);
       }
     } finally {
+      setFinishingOnboarding(false);
       setConnecting(false);
     }
   };
@@ -890,6 +893,24 @@ export function OnboardingPage() {
               </button>
             </div>
           </Reveal>
+        </div>
+      )}
+
+      {finishingOnboarding && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" role="status" aria-live="polite">
+          <div className="w-full max-w-md rounded-2xl border border-line bg-surface p-8 text-center shadow-2xl">
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-brand-soft text-3xl text-brand shadow-inner animate-pulse" aria-hidden="true">
+              ✦
+            </div>
+            <h2 className="mt-5 text-xl font-bold text-ink">Setting up your PROOF account</h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              Saving your preferences and preparing your first learning path.
+            </p>
+            <div className="mx-auto mt-6 h-1.5 w-40 overflow-hidden rounded-full bg-brand-soft">
+              <div className="h-full w-1/2 rounded-full bg-brand animate-[welcome-progress_1100ms_ease-in-out_infinite]" />
+            </div>
+            <p className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-muted">This can take a few seconds</p>
+          </div>
         </div>
       )}
 
