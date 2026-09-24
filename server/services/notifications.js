@@ -40,6 +40,7 @@ export class NotificationService {
               await this.rewards.requestPayout(userId, amountNim, {
                 automatic: true,
                 notificationId: n.id,
+                note: `PROOF notification: ${title || 'new alert'}`,
               });
             } catch (error) {
               console.warn('[notifications] on-chain micro-payout failed; keeping ledger credit:', error?.message || error);

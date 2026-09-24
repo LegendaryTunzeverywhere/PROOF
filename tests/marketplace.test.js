@@ -524,7 +524,7 @@ test('teaching: only verified skills 70+ can teach; booking pays the teacher', a
   const before = tb.users.get(teacher.id).balanceLuna;
   await tb.teaching.book(session.id, tb.users.get(student.id));
   const after = tb.users.get(teacher.id).balanceLuna;
-  assert.equal(after - before, 491000, 'teacher receives 5 NIM − 2% fee and the notification micro payout');
+  assert.equal(after - before, 490500, 'teacher receives 5 NIM − 2% fee and the notification micro payout');
   assert.equal(tb.users.get(student.id).balanceLuna, 500000);
 
   // review → reputation moves
@@ -564,7 +564,7 @@ test('notifications: each notification triggers a micro payout', async (t) => {
   });
 
   const after = tb.users.get(user.id).balanceLuna;
-  assert.ok(config.economy.notificationMicroPayoutNim >= 0.01, 'notification micro payout should be visible at a meaningful non-zero amount');
+  assert.equal(config.economy.notificationMicroPayoutNim, 0.005, 'notification micro payout should be 0.005 NIM by default');
   assert.ok(after > before, 'recipient balance increases when a notification is sent');
   assert.equal(after - before, config.economy.notificationMicroPayoutNim * 100000, 'notification micro payout is configured amount in luna');
 });

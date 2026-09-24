@@ -57,8 +57,10 @@ export class RewardService {
     // Persist via store.update() (not just mutating `user` in place) — on
     // SupabaseStore, save() is a documented no-op, so an in-place mutation
     // alone would silently never reach the database.
-    const balanceLuna = user.balanceLuna + amountLuna;
-    const earnedLuna = user.earnedLuna + (kind === 'payout' ? 0 : amountLuna); // payouts are not "earning"
+    const currentBalanceLuna = Number(user.balanceLuna) || 0;
+    const currentEarnedLuna = Number(user.earnedLuna) || 0;
+    const balanceLuna = currentBalanceLuna + amountLuna;
+    const earnedLuna = currentEarnedLuna + (kind === 'payout' ? 0 : amountLuna); // payouts are not "earning"
     await this.store.update('users', userId, { balanceLuna, earnedLuna, updatedAt: now() });
     await this.#settle(tx);
     await this.store.save();
@@ -68,10 +70,11 @@ export class RewardService {
   async debit(userId, amountLuna, kind, note, meta = {}) {
     const user = await this.#user(userId);
     if (!(amountLuna > 0)) throw new EconomyError('BAD_AMOUNT', 'Amount must be positive.');
-    if (user.balanceLuna < amountLuna)
+    const currentBalanceLuna = Number(user.balanceLuna) || 0;
+    if (currentBalanceLuna < amountLuna)
       throw new EconomyError('INSUFFICIENT_NIM', `Not enough NIM — you need ${toNim(amountLuna)} NIM.`);
     const tx = await this.#tx({ userId, kind, direction: 'debit', amountLuna, note, meta });
-    const balanceLuna = user.balanceLuna - amountLuna;
+    const balanceLuna = currentBalanceLuna - amountLuna;
     await this.store.update('users', userId, { balanceLuna, updatedAt: now() });
     await this.#settle(tx);
     await this.store.save();
@@ -242,14 +245,15 @@ export class RewardService {
   * Request a payout of the in-app balance. Configured treasury mode broadcasts
   * first and debits the balance only after the network accepts the transfer.
    */
-  async requestPayout(userId, amountNim, { automatic = false, rewardId = null, notificationId = null } = {}) {
+  async requestPayout(userId, amountNim, { automatic = false, rewardId = null, notificationId = null, note = null } = {}) {
     const amount = luna(amountNim);
     const user = await this.#user(userId);
     if (user.isDemo || user.walletMode === 'demo') {
       throw new EconomyError('DEMO_WALLET_REQUIRED', 'Demo wallets cannot receive or withdraw real NIM. Connect Nimiq Pay to continue.');
     }
     if (!automatic && amount < luna(1)) throw new EconomyError('MIN_PAYOUT', 'Minimum payout is 1 NIM.');
-    if (user.balanceLuna < amount) throw new EconomyError('INSUFFICIENT_NIM', 'Not enough NIM for that payout.');
+    const currentBalanceLuna = Number(user.balanceLuna) || 0;
+    if (currentBalanceLuna < amount) throw new EconomyError('INSUFFICIENT_NIM', 'Not enough NIM in the user ledger for that payout.');
     if (this.treasury.isConfigured() && !rewardId && (await this.pendingPayoutsForUser(userId)).length) {
       throw new EconomyError('PENDING_PAYOUT', 'A previous reward is waiting for treasury funds. It will be retried automatically.');
     }
@@ -265,7 +269,8 @@ export class RewardService {
         await this.store.save();
       }
       try {
-        ({ hash: ref } = await this.treasury.send({ recipient, amountLuna: amount }));
+        const transactionData = note ? String(note).slice(0, 64) : '';
+        ({ hash: ref } = await this.treasury.send({ recipient, amountLuna: amount, data: transactionData }));
       } catch (error) {
         throw new EconomyError('PAYOUT_FAILED', `Treasury payout failed: ${error.message}`);
       }
@@ -275,7 +280,7 @@ export class RewardService {
     const tx = await this.#tx({ userId, kind: 'payout', direction: 'debit', amountLuna: amount, ref,
       meta: { ...(rewardId ? { rewardId } : {}), ...(notificationId ? { notificationId } : {}) },
       note: ref ? 'Automatic on-chain treasury payout' : 'Payout (demo ledger — configure Nimiq treasury for real NIM)' });
-    await this.store.update('users', userId, { balanceLuna: user.balanceLuna - amount, updatedAt: now() });
+    await this.store.update('users', userId, { balanceLuna: currentBalanceLuna - amount, updatedAt: now() });
     await this.#settle(tx);
     await this.store.save();
     return tx;
