@@ -482,7 +482,7 @@ class WalletServiceClass {
 
   async sendNim({ recipient, nim, note = '' }: { recipient: string; nim: number; note?: string }) {
     const value = Math.round(nim * 100000); // luna
-    const transactionData = note ? `${TRANSACTION_LABEL}: ${note}` : TRANSACTION_LABEL;
+    const transactionData = (note ? `${TRANSACTION_LABEL}: ${note}` : TRANSACTION_LABEL).slice(0, 64);
 
     if (state.mode === 'hub') {
       const hubApi = await getHubApi();

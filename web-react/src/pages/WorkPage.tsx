@@ -198,15 +198,27 @@ export function WorkPage({ initialTab = 'work' }: { initialTab?: Tab }) {
         nim: escrowConfirmation.budget,
         note: `Proof task escrow: ${escrowConfirmation.title}`,
       });
-      await marketplaceService.postTask({
-        title: escrowConfirmation.title,
-        description: escrowConfirmation.description,
-        budgetNim: escrowConfirmation.budget,
-        skillSlug: escrowConfirmation.skillSlug,
-        minScore: escrowConfirmation.minScore,
-        tags: escrowConfirmation.tags,
-        escrowTxId,
-      });
+      try {
+        const taskPayload = {
+          title: escrowConfirmation.title,
+          description: escrowConfirmation.description,
+          budgetNim: escrowConfirmation.budget,
+          skillSlug: escrowConfirmation.skillSlug,
+          minScore: escrowConfirmation.minScore,
+          tags: escrowConfirmation.tags,
+          escrowTxId,
+        };
+        try {
+          await marketplaceService.postTask(taskPayload);
+        } catch (firstPostError) {
+          // The wallet transfer is already complete; retry only the server save.
+          await marketplaceService.postTask(taskPayload);
+        }
+      } catch (postError: any) {
+        throw new Error(
+          `Payment sent, but the task could not be saved. Keep transaction ${escrowTxId} and retry task posting without sending payment again. ${postError?.message || ''}`.trim(),
+        );
+      }
       setEscrowConfirmation(null);
       setShowPostTask(false);
       setPostForm({ title: '', description: '', budgetNim: '1', skillSlug: '', minScore: '0', tags: '' });

@@ -79,7 +79,9 @@ export class MarketplaceService {
           username: applicant?.username || 'Proofer',
           avatar: applicant?.avatar || '🙂',
           pitch: application.pitch,
-          status: application.status,
+          status: application.status === 'accepted' && application.deliveredAt
+            ? 'submitted'
+            : application.status,
           appliedAt: application.appliedAt,
           taskTitle: task.title,
           taskDescription: task.description,
@@ -400,6 +402,7 @@ export class MarketplaceService {
     const appliedFiltered = allApplications.filter((a) => a.userId === userId);
     const applied = await Promise.all(appliedFiltered.map(async (a) => {
       const task = await this.store.get('marketplace_tasks', a.taskId);
+      const normalizedStatus = a.status === 'accepted' && a.deliveredAt ? 'submitted' : a.status;
       const taskView = task ? await this.taskView(task, userId, allApplications, userSkillsMap) : null;
       const resolvedTask = taskView || {
         id: a.taskId || null,
@@ -410,6 +413,7 @@ export class MarketplaceService {
 
       return {
         ...a,
+        status: normalizedStatus,
         task: taskView || resolvedTask,
         title: resolvedTask.title,
         description: resolvedTask.description,
