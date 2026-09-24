@@ -60,6 +60,7 @@ test('rewards: configured treasury receives the daily claim, including sub-1 NIM
 
   assert.equal(result.payout.ref, 'a'.repeat(64));
   assert.equal(sent.amountLuna, 10000);
+  assert.equal(sent.data, 'PROOF daily learning claim: 0.1 NIM');
   assert.equal(tb.store.get('users', user.id).balanceLuna, 0);
 });
 

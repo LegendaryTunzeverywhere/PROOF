@@ -75,11 +75,12 @@ export class NimiqTreasury {
     const height = await this.#rpc('getBlockNumber');
     if (!Number.isInteger(height)) throw new Error('Nimiq RPC returned an invalid block height.');
 
-    const transaction = data
+    const transactionData = String(data || 'PROOF payment').slice(0, 64);
+    const transaction = transactionData
       ? Nimiq.TransactionBuilder.newBasicWithData(
         sender,
         Nimiq.Address.fromString(recipient),
-        new TextEncoder().encode(data),
+        new TextEncoder().encode(transactionData),
         BigInt(amountLuna),
         0n,
         height,

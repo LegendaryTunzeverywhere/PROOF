@@ -1833,7 +1833,9 @@ route('POST', '/api/wallet/payout', async (ctx) => {
   } catch (error) {
     throw httpError(400, 'INVALID_AMOUNT', error.message);
   }
-  const tx = await rewards.requestPayout(user.id, amountNim);
+  const tx = await rewards.requestPayout(user.id, amountNim, {
+    note: `PROOF payout: ${amountNim} NIM`,
+  });
   await notifications.push(user.id, {
     type: 'payout_sent',
     emoji: '💸',

@@ -354,7 +354,11 @@ export class MarketplaceService {
           if (!treasuryAddressIsUsable) {
             throw Object.assign(new Error('Treasury address is malformed.'), { code: 'BAD_TREASURY_ADDRESS', status: 500 });
           }
-          const result = await this.treasury.send({ recipient: treasuryAddress, amountLuna: budget });
+          const result = await this.treasury.send({
+            recipient: treasuryAddress,
+            amountLuna: budget,
+            data: `PROOF task escrow: ${String(title).slice(0, 48)}`,
+          });
           await this.store.update('wallet_txs', debitTx.id, {
             meta: { ...(debitTx.meta || {}), treasuryHash: result?.hash || null, treasuryRecipient: treasuryAddress },
           });

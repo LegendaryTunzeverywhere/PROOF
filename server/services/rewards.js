@@ -138,7 +138,11 @@ export class RewardService {
     let payout = null;
     if (this.treasury.isConfigured() && !user.isDemo && user.walletMode !== 'demo') {
       try {
-        payout = await this.requestPayout(userId, amountNim, { automatic: true, rewardId: reward.id });
+        payout = await this.requestPayout(userId, amountNim, {
+          automatic: true,
+          rewardId: reward.id,
+          note: `PROOF daily learning claim: ${amountNim} NIM`,
+        });
         await this.store.update('rewards', reward.id, { status: 'paid' });
       } catch (error) {
         await this.store.update('rewards', reward.id, { status: 'pending_payout' });
@@ -193,7 +197,11 @@ export class RewardService {
     let payout = null;
     if (this.treasury.isConfigured()) {
       try {
-        payout = await this.requestPayout(userId, rewardNim, { automatic: true, rewardId: reward.id });
+        payout = await this.requestPayout(userId, rewardNim, {
+          automatic: true,
+          rewardId: reward.id,
+          note: `PROOF reward: ${challenge.title}`,
+        });
         await this.store.update('rewards', reward.id, { status: 'paid' });
       } catch (error) {
         await this.store.update('rewards', reward.id, { status: 'pending_payout' });
@@ -269,7 +277,13 @@ export class RewardService {
         await this.store.save();
       }
       try {
-        const transactionData = note ? String(note).slice(0, 64) : '';
+        const transactionData = String(
+          note || (rewardId
+            ? `PROOF reward payout: ${rewardId}`
+            : notificationId
+              ? `PROOF notification payout: ${notificationId}`
+              : 'PROOF wallet payout'),
+        ).slice(0, 64);
         ({ hash: ref } = await this.treasury.send({ recipient, amountLuna: amount, data: transactionData }));
       } catch (error) {
         throw new EconomyError('PAYOUT_FAILED', `Treasury payout failed: ${error.message}`);
@@ -317,7 +331,11 @@ export class RewardService {
           continue;
         }
         attempted++;
-        await this.requestPayout(reward.userId, toNim(reward.amountLuna), { automatic: true, rewardId: reward.id });
+        await this.requestPayout(reward.userId, toNim(reward.amountLuna), {
+          automatic: true,
+          rewardId: reward.id,
+          note: `PROOF reward retry: ${reward.id}`,
+        });
         await this.store.update('rewards', reward.id, { status: 'paid' });
         paid++;
       } catch (error) {
