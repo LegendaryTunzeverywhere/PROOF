@@ -70,9 +70,11 @@ export class NotificationService {
       if (existingPayout) continue;
       const user = await this.store.get('users', credit.userId);
       if (!user || user.isDemo || user.walletMode === 'demo' || !user.walletAddress) continue;
+      const amountNim = Number(credit.amountLuna) / 100_000;
+      if ((Number(user.balanceLuna) || 0) < Number(credit.amountLuna)) continue;
       attempted++;
       try {
-        await this.rewards.requestPayout(credit.userId, Number(credit.amountLuna) / 100_000, {
+        await this.rewards.requestPayout(credit.userId, amountNim, {
           automatic: true,
           notificationId,
           ignorePendingPayouts: true,
