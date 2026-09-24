@@ -74,6 +74,9 @@ export const config = {
     cohereEmbedModel: process.env.COHERE_EMBED_MODEL || 'embed-v4.0',
     cohereEmbedDimension: Number(process.env.COHERE_EMBED_DIMENSION || 1024),
     cohereEmbeddingsEnabled: process.env.COHERE_EMBEDDINGS_ENABLED === 'true',
+    cohereTimeoutMs: int(process.env.COHERE_TIMEOUT_MS, 60000),
+    cohereCurriculumTimeoutMs: int(process.env.COHERE_CURRICULUM_TIMEOUT_MS, 15000),
+    cohereDocumentTimeoutMs: int(process.env.COHERE_DOCUMENT_TIMEOUT_MS, 120000),
   },
 
   nimiq: {

@@ -6,9 +6,6 @@
  */
 import { config } from '../config.js';
 
-const TIMEOUT_MS = 60_000;
-const CURRICULUM_TIMEOUT_MS = 15_000;
-const DOCUMENT_TIMEOUT_MS = 60_000;
 let cohereKeyCursor = 0;
 
 function selectedProvider() {
@@ -111,10 +108,10 @@ export async function cohereEmbed(texts, inputType) {
 async function callCohere({ system, prompt, maxTokens, task, apiKey }) {
   const ctrl = new AbortController();
   const timeout = task === 'document-curriculum'
-    ? DOCUMENT_TIMEOUT_MS
+    ? config.ai.cohereDocumentTimeoutMs
     : task === 'curriculum'
-      ? CURRICULUM_TIMEOUT_MS
-      : TIMEOUT_MS;
+      ? config.ai.cohereCurriculumTimeoutMs
+      : config.ai.cohereTimeoutMs;
   const timer = setTimeout(() => ctrl.abort(), timeout);
 
   try {
@@ -134,15 +131,23 @@ async function callCohere({ system, prompt, maxTokens, task, apiKey }) {
     };
 
     console.log('[Cohere] Request:', { model, task, url, keyPoolSize: config.ai.cohereApiKeys.length });
-    const res = await fetch(url, {
-      method: 'POST',
-      signal: ctrl.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(requestBody)
-    });
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        signal: ctrl.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(requestBody)
+      });
+    } catch (error) {
+      if (ctrl.signal.aborted) {
+        throw new Error(`COHERE_TIMEOUT: ${task} request exceeded ${timeout}ms`);
+      }
+      throw error;
+    }
 
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
