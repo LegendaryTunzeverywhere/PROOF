@@ -6,7 +6,9 @@
 import { uid, now } from '../util.js';
 
 let _store = null;
+let _notifications = null;
 export const setStore = (s) => { _store = s; };
+export const setNotifications = (service) => { _notifications = service; };
 const store = () => {
   if (!_store) throw new Error('Store not initialized - call setStore() first');
   return _store;
@@ -103,17 +105,12 @@ export async function updateGoalProgress(userId, goalType, increment = 1) {
       
       // Send notification if goal completed
       if (newValue >= goal.targetValue && !goal.completed) {
-        const notifId = uid('notif');
-        store().insert('notifications', {
-          id: notifId,
-          userId,
+        await _notifications.push(userId, {
           type: 'goal_complete',
           emoji: '🎯',
           title: 'Goal completed!',
           body: `You've completed your ${periodToLabel(goal.period)} goal: ${goalTypeToLabel(goalType)} (${goal.targetValue})`,
           href: '#/profile',
-          read: false,
-          createdAt: now()
         });
       }
     }

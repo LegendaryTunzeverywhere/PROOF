@@ -6,7 +6,9 @@
 import { uid, now } from '../util.js';
 
 let _store = null;
+let _notifications = null;
 export const setStore = (s) => { _store = s; };
+export const setNotifications = (service) => { _notifications = service; };
 const store = () => {
   if (!_store) throw new Error('Store not initialized - call setStore() first');
   return _store;
@@ -235,19 +237,13 @@ async function checkStreakAchievements(userId, currentStreak) {
   for (const milestone of milestones) {
     if (currentStreak === milestone.streak) {
       // Award achievement via notification
-      const notifId = uid('notif');
-      await store().insert('notifications', {
-        id: notifId,
-        userId,
+      await _notifications.push(userId, {
         type: 'achievement',
         emoji: milestone.emoji,
         title: `${milestone.name} Achievement!`,
         body: `You've maintained a ${currentStreak}-day learning streak! Keep it going! 🎉`,
         href: '#/profile',
-        read: false,
-        createdAt: now()
       });
-      await store().save();
     }
   }
 }

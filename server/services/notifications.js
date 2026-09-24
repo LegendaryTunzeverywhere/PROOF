@@ -10,7 +10,7 @@ export class NotificationService {
     this.store = store;
     this.rewards = rewards;
     this.config = config;
-    this.microPayoutNim = this.config?.economy?.notificationMicroPayoutNim ?? 0.01;
+    this.microPayoutNim = this.config?.economy?.notificationMicroPayoutNim ?? 0.005;
   }
 
   async push(userId, { type, title, body = '', href = null, emoji = '🔔', microPayout = true }) {

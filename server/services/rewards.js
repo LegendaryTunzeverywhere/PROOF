@@ -26,9 +26,12 @@ export class RewardService {
     this.store = store;
     this.config = config;
     this.treasury = treasury;
+    this.notifications = null;
     store.declareUniques('rewards', ['key']);   // ← duplicate-claim prevention
     store.declareUniques('wallet_txs', []);
   }
+
+  setNotifications(service) { this.notifications = service; }
 
   async #user(userId) {
     const u = await this.store.get('users', userId);
@@ -373,16 +376,17 @@ export class RewardService {
         paid++;
       }
 
-      if (eco.streakReminderNotificationsEnabled) {
-        await this.store.insert('notifications', {
-          id: uid('nt'), userId: user.id, type: 'streak_reminder', emoji: '🔥',
+      if (eco.streakReminderNotificationsEnabled && this.notifications) {
+        await this.notifications.push(user.id, {
+          type: 'streak_reminder',
+          emoji: '🔥',
           title: streakAtRisk ? `PROOF misses you — protect your ${streak}-day streak` : 'PROOF misses you — start a learning streak',
           body: streakAtRisk
             ? payoutSent
-              ? 'A 0.001 NIM PROOF reminder was sent to your Nimiq wallet. Continue learning today to keep your streak alive.'
+              ? 'A PROOF streak reminder was sent to your Nimiq wallet. Continue learning today to keep your streak alive.'
               : 'Continue learning today to keep your streak alive.'
             : 'Start a lesson today and build your first learning streak.',
-          href: '/learn', read: false, createdAt: now(),
+          href: '/learn',
         });
         notified++;
       }
