@@ -181,8 +181,18 @@ export class SupabaseStore {
         continue;
       }
 
+      const isTimestampField = key.endsWith('At') || key === 'postedAt' || key === 'bookedAt' || key === 'joinedAt';
+      if (isTimestampField && typeof value === 'string') {
+        const trimmed = value.trim();
+        const numericMs = Number(trimmed);
+        if (trimmed && Number.isFinite(numericMs) && numericMs > 1000000000000) {
+          converted[key] = new Date(numericMs).toISOString();
+        }
+        continue;
+      }
+
       if (
-        (key.endsWith('At') || key === 'postedAt' || key === 'bookedAt' || key === 'joinedAt' ||
+        (isTimestampField ||
          key === 'appliedAt' || key === 'respondedAt' || key === 'unlockedAt' || key === 'earnedAt' ||
          key === 'startedAt' || key === 'completedAt' || key === 'submittedAt' || key === 'confirmedAt' ||
          key === 'suspendedAt' || key === 'lastReviewedAt' || key === 'lastPracticedAt' || key === 'verifiedAt') &&
