@@ -1,6 +1,9 @@
 import { languageSpeechTargets } from '../server/ai/engine.js';
 
-const baseUrl = String(process.env.TTS_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
+const configuredBaseUrl = String(process.env.TTS_BASE_URL || 'http://localhost:3001').trim();
+const baseUrl = new URL(
+  /^[a-z][a-z\d+.-]*:\/\//i.test(configuredBaseUrl) ? configuredBaseUrl : `https://${configuredBaseUrl}`
+).toString().replace(/\/$/, '');
 const speeds = [1, 0.65];
 const targets = languageSpeechTargets();
 const jobs = [...new Map(
