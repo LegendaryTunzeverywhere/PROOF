@@ -162,8 +162,8 @@ export function TermsPage() {
             <h2 className="mb-3 text-2xl font-bold text-ink">Contact Information</h2>
             <p className="text-base leading-relaxed text-muted">
               For questions about these Terms of Service, contact us at:{' '}
-              <a href="mailto:registration@nimagent.online?subject=PROOF%20terms%20question" className="font-semibold text-brand hover:underline">
-                registration@nimagent.online
+              <a href="mailto:registration@nimhub.online?subject=PROOF%20terms%20question" className="font-semibold text-brand hover:underline">
+                registration@nimhub.online
               </a>
             </p>
           </section>

@@ -83,8 +83,8 @@ export function RewardsPage() {
             Prove a skill
             <ArrowRightIcon className="h-4 w-4" />
           </Link>
-          <a href="mailto:registration@nimagent.online?subject=PROOF%20rewards%20question" className="font-semibold text-brand hover:underline">
-            Questions about rewards? Contact registration@nimagent.online
+          <a href="mailto:registration@nimhub.online?subject=PROOF%20rewards%20question" className="font-semibold text-brand hover:underline">
+            Questions about rewards? Contact registration@nimhub.online
           </a>
         </div>
       </Reveal>

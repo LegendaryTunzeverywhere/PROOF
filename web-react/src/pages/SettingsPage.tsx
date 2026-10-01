@@ -318,7 +318,7 @@ export function SettingsPage() {
                   {t.settings.documentation}
                 </a>{' '}
                 {t.settings.or}{' '}
-                <a href="mailto:registration@nimagent.online?subject=PROOF%20support%20request" className="font-medium text-brand hover:underline">
+                <a href="mailto:registration@nimhub.online?subject=PROOF%20support%20request" className="font-medium text-brand hover:underline">
                   {t.settings.contactSupport}
                 </a>
                 .
@@ -350,7 +350,7 @@ export function SettingsPage() {
                 {t.settings.terms}
               </Link>
               <span>·</span>
-              <a href="mailto:registration@nimagent.online" className="font-medium text-brand hover:underline">
+              <a href="mailto:registration@nimhub.online" className="font-medium text-brand hover:underline">
                 {t.settings.dataExport}
               </a>
             </div>
